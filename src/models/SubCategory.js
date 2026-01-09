@@ -7,11 +7,7 @@ const SubCategory = sequelize.define("sub_categories", {
   scat_name: { type: DataTypes.STRING(255), allowNull: false },
   department: { type: DataTypes.STRING(255), allowNull: false },
   cat_code: { type: DataTypes.STRING(255), allowNull: false },
-  status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
-  created_by: { type: DataTypes.BIGINT, allowNull: true },
-  updated_by: { type: DataTypes.BIGINT, allowNull: true },
-  created_at: { type: DataTypes.DATE, allowNull: true },
-  updated_at: { type: DataTypes.DATE, allowNull: true }
+  status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }
 }, {
   timestamps: false
 });

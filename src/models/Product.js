@@ -25,10 +25,6 @@ const Product = sequelize.define("products", {
   publish_year: { type: DataTypes.INTEGER, allowNull: true },
 
   alert_qty: { type: DataTypes.INTEGER, allowNull: true },
-
-  width: { type: DataTypes.DECIMAL(8, 2), allowNull: true },
-  height: { type: DataTypes.DECIMAL(8, 2), allowNull: true },
-  depth: { type: DataTypes.DECIMAL(8, 2), allowNull: true }
 }, {
   timestamps: false
 });

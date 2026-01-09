@@ -7,6 +7,9 @@ const PORT = Number(process.env.PORT || 4000);
 
 (async () => {
   try {
+    console.log("MYSQL_USER:", process.env.MYSQL_USER);
+    console.log("MYSQL_PASS exists?:", Boolean(process.env.MYSQL_PASS));
+
     await sequelize.authenticate();
     console.log("MySQL connect wuna!");
 

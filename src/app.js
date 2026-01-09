@@ -7,7 +7,7 @@ const subcategoriesRoutes = require("./routes/subcategories.routes");
 const productsRoutes = require("./routes/products.routes");
 const syncRoutes = require("./routes/sync.routes");
 
-const errorMiddleware = require("./middlewares/error.middleware");
+const errorMiddleware = require("./middleware/error.middleware");
 
 const app = express();
 
@@ -16,11 +16,11 @@ app.use(express.json());
 
 app.get("/health", (req, res) => res.json({ ok: true, service: "venpa-online-api" }));
 
-app.use("/api/departments", departmentsRoutes);
-app.use("/api/categories", categoriesRoutes);
-app.use("/api/subcategories", subcategoriesRoutes);
-app.use("/api/products", productsRoutes);
-app.use("/api/sync", syncRoutes);
+app.use("/api/v1/departments", departmentsRoutes);
+app.use("/api/v1/categories", categoriesRoutes);
+app.use("/api/v1/subcategories", subcategoriesRoutes);
+app.use("/api/v1/products", productsRoutes);
+app.use("/api/v1/sync", syncRoutes);
 
 app.use(errorMiddleware);
 
