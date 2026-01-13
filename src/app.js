@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const swaggerUi = require("swagger-ui-express");
+const openapiSpec = require("./docs/openapi.json");
 
 const departmentsRoutes = require("./routes/departments.routes");
 const categoriesRoutes = require("./routes/categories.routes");
@@ -15,6 +17,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/health", (req, res) => res.json({ ok: true, service: "venpa-online-api" }));
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
 app.use("/api/v1/departments", departmentsRoutes);
 app.use("/api/v1/categories", categoriesRoutes);

@@ -17,8 +17,8 @@ const Product = sequelize.define("products", {
   selling_price: { type: DataTypes.DECIMAL(8, 2), allowNull: true, defaultValue: 0 },
   marked_price: { type: DataTypes.DECIMAL(8, 2), allowNull: true, defaultValue: 0 },
   wholesale_price: { type: DataTypes.DECIMAL(8, 2), allowNull: true, defaultValue: 0 },
-
-  title_in_other_la: { type: DataTypes.STRING(255), allowNull: true },
+  
+  title_in_other_language: { type: DataTypes.STRING(255), allowNull: true },
   book_type: { type: DataTypes.STRING(255), allowNull: true },
   publisher: { type: DataTypes.STRING(255), allowNull: true },
   isbn: { type: DataTypes.STRING(255), allowNull: true },

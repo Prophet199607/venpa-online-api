@@ -1,0 +1,232 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Venpa Online API",
+    "version": "1.0.0",
+    "description": "API for online buy side and delivery sync."
+  },
+  "servers": [
+    { "url": "http://localhost:4000" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/departments": {
+      "get": {
+        "summary": "List departments",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "summary": "Create department",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Department" } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/departments/{id}": {
+      "get": {
+        "summary": "Get department by id",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "summary": "Update department",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Department" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "summary": "Delete department",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "summary": "List categories",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "integer" } },
+          { "name": "cat_code", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "summary": "Create category",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/categories/{id}": {
+      "get": {
+        "summary": "Get category by id",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "summary": "Update category",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "summary": "Delete category",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/subcategories": {
+      "get": {
+        "summary": "List subcategories",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "integer" } },
+          { "name": "cat_code", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "summary": "Create subcategory",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubCategory" } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/subcategories/{id}": {
+      "get": {
+        "summary": "Get subcategory by id",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "summary": "Update subcategory",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubCategory" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "summary": "Delete subcategory",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "summary": "List products",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "sub_category", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "summary": "Create product",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } } },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/products/{id}": {
+      "get": {
+        "summary": "Get product by id",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "put": {
+        "summary": "Update product",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } } },
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      },
+      "delete": {
+        "summary": "Delete product",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
+        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+      }
+    },
+    "/api/v1/sync/all": {
+      "post": {
+        "summary": "Sync all entities",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/v1/sync/{entity}": {
+      "post": {
+        "summary": "Sync one entity",
+        "parameters": [ { "name": "entity", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Department": {
+        "type": "object",
+        "properties": {
+          "dep_code": { "type": "string" },
+          "dep_name": { "type": "string" },
+          "dep_image": { "type": "string", "nullable": true },
+          "status": { "type": "integer" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "cat_code": { "type": "string" },
+          "cat_name": { "type": "string" },
+          "department": { "type": "string" },
+          "cat_image": { "type": "string", "nullable": true },
+          "status": { "type": "integer" }
+        }
+      },
+      "SubCategory": {
+        "type": "object",
+        "properties": {
+          "scat_code": { "type": "string" },
+          "scat_name": { "type": "string" },
+          "department": { "type": "string" },
+          "cat_code": { "type": "string" },
+          "status": { "type": "integer" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "prod_code": { "type": "string" },
+          "prod_name": { "type": "string" },
+          "short_description": { "type": "string", "nullable": true },
+          "department": { "type": "string" },
+          "category": { "type": "string", "nullable": true },
+          "sub_category": { "type": "string", "nullable": true },
+          "pack_size": { "type": "string", "nullable": true },
+          "purchase_price": { "type": "number", "format": "float" },
+          "selling_price": { "type": "number", "format": "float" },
+          "marked_price": { "type": "number", "format": "float" },
+          "wholesale_price": { "type": "number", "format": "float" },
+          "title_in_other_la": { "type": "string", "nullable": true },
+          "book_type": { "type": "string", "nullable": true },
+          "publisher": { "type": "string", "nullable": true },
+          "isbn": { "type": "string", "nullable": true },
+          "publish_year": { "type": "integer", "nullable": true },
+          "alert_qty": { "type": "integer", "nullable": true },
+          "width": { "type": "number", "format": "float", "nullable": true },
+          "height": { "type": "number", "format": "float", "nullable": true },
+          "depth": { "type": "number", "format": "float", "nullable": true }
+        }
+      }
+    }
+  }
+}
