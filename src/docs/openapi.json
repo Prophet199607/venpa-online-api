@@ -5,9 +5,7 @@
     "version": "1.0.0",
     "description": "API for online buy side and delivery sync."
   },
-  "servers": [
-    { "url": "http://localhost:4000" }
-  ],
+  "servers": [{ "url": "http://localhost:4000" }],
   "paths": {
     "/health": {
       "get": {
@@ -27,29 +25,23 @@
           { "name": "status", "in": "query", "schema": { "type": "integer" } }
         ],
         "responses": { "200": { "description": "OK" } }
-      },
-      "post": {
-        "summary": "Create department",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Department" } } } },
-        "responses": { "201": { "description": "Created" } }
       }
     },
     "/api/v1/departments/{id}": {
       "get": {
         "summary": "Get department by id",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "put": {
-        "summary": "Update department",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Department" } } } },
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "delete": {
-        "summary": "Delete department",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
       }
     },
     "/api/v1/categories": {
@@ -57,34 +49,32 @@
         "summary": "List categories",
         "parameters": [
           { "name": "q", "in": "query", "schema": { "type": "string" } },
-          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
           { "name": "status", "in": "query", "schema": { "type": "integer" } },
           { "name": "cat_code", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": { "200": { "description": "OK" } }
-      },
-      "post": {
-        "summary": "Create category",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } } },
-        "responses": { "201": { "description": "Created" } }
       }
     },
     "/api/v1/categories/{id}": {
       "get": {
         "summary": "Get category by id",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "put": {
-        "summary": "Update category",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } } },
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "delete": {
-        "summary": "Delete category",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
       }
     },
     "/api/v1/subcategories": {
@@ -92,34 +82,32 @@
         "summary": "List subcategories",
         "parameters": [
           { "name": "q", "in": "query", "schema": { "type": "string" } },
-          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
           { "name": "status", "in": "query", "schema": { "type": "integer" } },
           { "name": "cat_code", "in": "query", "schema": { "type": "string" } }
         ],
         "responses": { "200": { "description": "OK" } }
-      },
-      "post": {
-        "summary": "Create subcategory",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubCategory" } } } },
-        "responses": { "201": { "description": "Created" } }
       }
     },
     "/api/v1/subcategories/{id}": {
       "get": {
         "summary": "Get subcategory by id",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "put": {
-        "summary": "Update subcategory",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubCategory" } } } },
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "delete": {
-        "summary": "Delete subcategory",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
       }
     },
     "/api/v1/products": {
@@ -127,34 +115,36 @@
         "summary": "List products",
         "parameters": [
           { "name": "q", "in": "query", "schema": { "type": "string" } },
-          { "name": "department", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
           { "name": "category", "in": "query", "schema": { "type": "string" } },
-          { "name": "sub_category", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "sub_category",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
         ],
         "responses": { "200": { "description": "OK" } }
-      },
-      "post": {
-        "summary": "Create product",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } } },
-        "responses": { "201": { "description": "Created" } }
       }
     },
     "/api/v1/products/{id}": {
       "get": {
         "summary": "Get product by id",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "put": {
-        "summary": "Update product",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Product" } } } },
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
-      },
-      "delete": {
-        "summary": "Delete product",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } } ],
-        "responses": { "200": { "description": "OK" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
       }
     },
     "/api/v1/sync/all": {
@@ -166,7 +156,14 @@
     "/api/v1/sync/{entity}": {
       "post": {
         "summary": "Sync one entity",
-        "parameters": [ { "name": "entity", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
         "responses": { "200": { "description": "OK" } }
       }
     }
