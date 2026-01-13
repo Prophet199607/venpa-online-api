@@ -17,13 +17,15 @@ exports.list = async (req, res, next) => {
     if (q) {
       where[Op.or] = [
         { cat_code: { [Op.like]: `%${q}%` } },
-        { cat_name: { [Op.like]: `%${q}%` } }
+        { cat_name: { [Op.like]: `%${q}%` } },
       ];
     }
 
     const items = await Category.findAll({ where, order: [["id", "DESC"]] });
     res.json(items);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.getById = async (req, res, next) => {
@@ -31,32 +33,7 @@ exports.getById = async (req, res, next) => {
     const item = await Category.findByPk(req.params.id);
     if (!item) return res.status(404).json({ message: "Category not found" });
     res.json(item);
-  } catch (e) { next(e); }
-};
-
-exports.create = async (req, res, next) => {
-  try {
-    const created = await Category.create(req.body);
-    res.status(201).json(created);
-  } catch (e) { next(e); }
-};
-
-exports.update = async (req, res, next) => {
-  try {
-    const item = await Category.findByPk(req.params.id);
-    if (!item) return res.status(404).json({ message: "Category not found" });
-
-    await item.update(req.body);
-    res.json(item);
-  } catch (e) { next(e); }
-};
-
-exports.remove = async (req, res, next) => {
-  try {
-    const item = await Category.findByPk(req.params.id);
-    if (!item) return res.status(404).json({ message: "Category not found" });
-
-    await item.destroy();
-    res.json({ ok: true });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
