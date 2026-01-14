@@ -7,8 +7,18 @@ const ProductImage = require("./ProductImage");
 const SyncState = require("./SyncState");
 const User = require("./auth");
 
-Product.hasMany(ProductImage, { foreignKey: "prod_code", sourceKey: "prod_code", as: "images" });
-ProductImage.belongsTo(Product, { foreignKey: "prod_code", targetKey: "prod_code", as: "product" });
+
+Product.hasMany(ProductImage, {
+  foreignKey: "product_id",
+  as: "images",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE",
+});
+
+ProductImage.belongsTo(Product, {
+  foreignKey: "product_id",
+  as: "product",
+});
 
 module.exports = {
   sequelize,
@@ -16,6 +26,7 @@ module.exports = {
   Category,
   SubCategory,
   Product,
+  ProductImage, 
   SyncState,
   User,
 };
