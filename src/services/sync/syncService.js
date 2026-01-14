@@ -32,35 +32,64 @@ async function upsertByKey(model, keyField, item) {
   }
 }
 
-async function syncEntity(entity) {
+async function syncEntity(entity, options = {}) {
   const cfg = ENTITY_CONFIG[entity];
   if (!cfg) throw new Error(`Unknown entity: ${entity}`);
 
-  const last = await getLastSyncedAt(entity);
+  const last = options.full ? null : await getLastSyncedAt(entity);
   const items = await fetchEntities(entity, last);
 
-  let created = 0, updated = 0;
+  let created = 0, updated = 0, failed = 0;
+  const errors = [];
 
   for (const item of items) {
     if (!item[cfg.key]) continue; // skip invalid rows
-    const r = await upsertByKey(cfg.model, cfg.key, item);
-    if (r.action === "created") created++;
-    else updated++;
+    try {
+      const r = await upsertByKey(cfg.model, cfg.key, item);
+      if (r.action === "created") created++;
+      else updated++;
+    } catch (err) {
+      failed++;
+      errors.push({ key: item[cfg.key], message: err.message });
+    }
   }
 
   await setLastSyncedAt(entity, new Date());
 
-  return { entity, fetched: items.length, created, updated, lastSyncedAt: new Date() };
+  return {
+    entity,
+    fetched: items.length,
+    created,
+    updated,
+    failed,
+    errors,
+    lastSyncedAt: new Date()
+  };
 }
 
-async function syncAll() {
+async function syncAll(options = {}) {
   // Important order: parents first, products last
   const results = [];
-  results.push(await syncEntity("departments"));
-  results.push(await syncEntity("categories"));
-  results.push(await syncEntity("sub_categories"));
-  results.push(await syncEntity("products"));
+  results.push(await syncEntity("departments", options));
+  results.push(await syncEntity("categories", options));
+  results.push(await syncEntity("sub_categories", options));
+  results.push(await syncEntity("products", options));
   return results;
 }
 
-module.exports = { syncEntity, syncAll };
+async function getSyncStatus() {
+  const rows = await SyncState.findAll();
+  const map = rows.reduce((acc, row) => {
+    acc[row.entity] = row.last_synced_at;
+    return acc;
+  }, {});
+
+  const counts = {};
+  for (const key of Object.keys(ENTITY_CONFIG)) {
+    counts[key] = await ENTITY_CONFIG[key].model.count();
+  }
+
+  return { lastSyncedAt: map, counts };
+}
+
+module.exports = { syncEntity, syncAll, getSyncStatus };

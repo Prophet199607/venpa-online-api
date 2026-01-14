@@ -150,6 +150,9 @@
     "/api/v1/sync/all": {
       "post": {
         "summary": "Sync all entities",
+        "parameters": [
+          { "name": "full", "in": "query", "schema": { "type": "boolean" } }
+        ],
         "responses": { "200": { "description": "OK" } }
       }
     },
@@ -242,7 +245,20 @@
           "alert_qty": { "type": "integer", "nullable": true },
           "width": { "type": "number", "format": "float", "nullable": true },
           "height": { "type": "number", "format": "float", "nullable": true },
-          "depth": { "type": "number", "format": "float", "nullable": true }
+          "depth": { "type": "number", "format": "float", "nullable": true },
+          "images": {
+            "type": "array",
+            "items": { "oneOf": [ { "type": "string" }, { "$ref": "#/components/schemas/ProductImage" } ] },
+            "nullable": true
+          }
+        }
+      },
+      "ProductImage": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "prod_code": { "type": "string" },
+          "image": { "type": "string" }
         }
       }
     }

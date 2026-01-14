@@ -8,9 +8,16 @@ function startSyncJobs() {
   cron.schedule(schedule, async () => {
     try {
       const results = await syncAll();
-      console.log("🔁 Sync done:", results.map(r => `${r.entity}:${r.fetched}`).join(" | "));
+      const summary = results
+        .map((r) => `${r.entity}:${r.fetched} (c:${r.created}, u:${r.updated}, f:${r.failed})`)
+        .join(" | ");
+      console.log("Sync done:", summary);
+      const errors = results.flatMap((r) => r.errors || []);
+      if (errors.length) {
+        console.error(`Sync errors (${errors.length})`, errors.slice(0, 10));
+      }
     } catch (e) {
-      console.error("❌ Sync failed:", e.message);
+      console.error("Sync failed:", e.message);
     }
   });
 }

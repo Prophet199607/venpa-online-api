@@ -1,4 +1,15 @@
-const { Product } = require("../models");
+const { Product, ProductImage, sequelize } = require("../models");
+
+function normalizeImages(images, prodCode) {
+  if (!Array.isArray(images)) return [];
+  return images
+    .map((img) => {
+      if (typeof img === "string") return { prod_code: prodCode, image: img };
+      if (img && typeof img.image === "string") return { prod_code: prodCode, image: img.image };
+      return null;
+    })
+    .filter(Boolean);
+}
 
 exports.list = async (req, res, next) => {
   try {
@@ -19,7 +30,11 @@ exports.list = async (req, res, next) => {
       ];
     }
 
-    const items = await Product.findAll({ where, order: [["id", "DESC"]] });
+    const items = await Product.findAll({
+      where,
+      order: [["id", "DESC"]],
+      include: [{ model: ProductImage, as: "images" }]
+    });
     res.json(items);
   } catch (e) {
     next(e);
@@ -28,7 +43,9 @@ exports.list = async (req, res, next) => {
 
 exports.getById = async (req, res, next) => {
   try {
-    const item = await Product.findByPk(req.params.id);
+    const item = await Product.findByPk(req.params.id, {
+      include: [{ model: ProductImage, as: "images" }]
+    });
     if (!item) return res.status(404).json({ message: "Product not found" });
     res.json(item);
   } catch (e) {
