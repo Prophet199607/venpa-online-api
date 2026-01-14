@@ -3,6 +3,8 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const openapiSpec = require("./docs/openapi.json");
 
+const authRoutes = require("./routes/auth/auth.routes");
+
 const departmentsRoutes = require("./routes/departments.routes");
 const categoriesRoutes = require("./routes/categories.routes");
 const subcategoriesRoutes = require("./routes/subcategories.routes");
@@ -23,6 +25,10 @@ app.get("/health", (req, res) =>
 );
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
+// Auth routes
+app.use("/api/v1/auth", authRoutes);
+
+// API routes
 app.use("/api/v1/departments", departmentsRoutes);
 app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/subcategories", subcategoriesRoutes);

@@ -4,6 +4,7 @@ const Category = require("./Category");
 const SubCategory = require("./SubCategory");
 const Product = require("./Product");
 const SyncState = require("./SyncState");
+const User = require("./auth");
 
 module.exports = {
   sequelize,
@@ -11,5 +12,6 @@ module.exports = {
   Category,
   SubCategory,
   Product,
-  SyncState
+  SyncState,
+  User,
 };
