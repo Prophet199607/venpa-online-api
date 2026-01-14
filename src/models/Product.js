@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
 
 const Product = sequelize.define("products", {
-  id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
+  id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
   prod_code: { type: DataTypes.STRING(255), allowNull: false },
   prod_name: { type: DataTypes.STRING(255), allowNull: false },
   short_description: { type: DataTypes.STRING(255), allowNull: true },

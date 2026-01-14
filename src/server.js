@@ -13,16 +13,20 @@ const PORT = Number(process.env.PORT || 4000);
     await sequelize.authenticate();
     console.log("MySQL connect wuna!");
 
-    // Auto-sync models to database tables
-    await sequelize.sync({ alter: true });
-    console.log("Database tables synchronized!");
+    // ✅ ONLY sync locally (DEV)
+    if (process.env.NODE_ENV !== "production") {
+      await sequelize.sync({ alter: true });
+      console.log("Database tables synchronized (DEV only)!");
+    }
 
     if (process.env.SYNC_ENABLED === "true") {
       startSyncJobs();
       console.log("Sync jobs tika start wuna!");
     }
 
-    app.listen(PORT, () => console.log(`Running on http://localhost:${PORT}`));
+    app.listen(PORT, () =>
+      console.log(`Running on http://localhost:${PORT}`)
+    );
   } catch (err) {
     console.error("❌ Startup error ekak :(", err);
     process.exit(1);
