@@ -9,6 +9,7 @@ const departmentsRoutes = require("./routes/master/departments.routes");
 const categoriesRoutes = require("./routes/master/categories.routes");
 const subcategoriesRoutes = require("./routes/master/subcategories.routes");
 const productsRoutes = require("./routes/master/products.routes");
+const wishlistRoutes = require("./routes/cart/wishlist.routes");
 const cartRoutes = require("./routes/cart/cart.routes");
 const syncRoutes = require("./routes/sync.routes");
 
@@ -36,6 +37,7 @@ app.use("/api/v1/subcategories", subcategoriesRoutes);
 app.use("/api/v1/products", productsRoutes);
 app.use("/api/v1/sync", syncRoutes);
 app.use("/api/v1/cart", cartRoutes);
+app.use("/api/v1/wishlist", wishlistRoutes);
 
 app.use(errorMiddleware);
 

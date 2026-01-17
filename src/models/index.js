@@ -8,6 +8,7 @@ const SyncState = require("./SyncState");
 const User = require("./auth");
 const Cart = require("./Cart");
 const CartItem = require("./CartItem");
+const Wishlist = require("./Wishlist");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -49,6 +50,13 @@ CartItem.belongsTo(Cart, { foreignKey: "cart_id" });
 CartItem.belongsTo(Product, { foreignKey: "product_id" });
 Product.hasMany(CartItem, { foreignKey: "product_id" });
 
+// Wishlist Relations
+User.hasMany(Wishlist, { foreignKey: "user_id" });
+Wishlist.belongsTo(User, { foreignKey: "user_id" });
+
+Wishlist.belongsTo(Product, { foreignKey: "product_id" });
+Product.hasMany(Wishlist, { foreignKey: "product_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -60,4 +68,5 @@ module.exports = {
   User,
   Cart,
   CartItem,
+  Wishlist,
 };
