@@ -13,7 +13,7 @@ const ProductImage = sequelize.define(
     prod_code: { type: DataTypes.STRING(255), allowNull: false },
     image: { type: DataTypes.STRING(255), allowNull: false },
 
-    product_id: { type: DataTypes.BIGINT, allowNull: true },
+    product_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
 
     created_by: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },
     updated_by: { type: DataTypes.BIGINT.UNSIGNED, allowNull: true },

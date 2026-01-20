@@ -7,7 +7,7 @@ const Cart = sequelize.define("carts", {
     primaryKey: true,
     autoIncrement: true,
   },
-  user_id: { type: DataTypes.BIGINT, allowNull: false },
+  user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
   status: { type: DataTypes.STRING, defaultValue: "active" },
 });
 

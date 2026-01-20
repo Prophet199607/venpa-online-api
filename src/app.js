@@ -17,7 +17,16 @@ const errorMiddleware = require("./middleware/error.middleware");
 
 const app = express();
 
-app.use(cors());
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.ALLOWED_ORIGINS?.split(',') || '*'
+    : '*',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.get("/", (req, res) => res.redirect("/api/docs"));

@@ -7,8 +7,8 @@ const Wishlist = sequelize.define("wishlists", {
     primaryKey: true,
     autoIncrement: true,
   },
-  user_id: { type: DataTypes.BIGINT, allowNull: false },
-  product_id: { type: DataTypes.BIGINT, allowNull: false },
+  user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+  product_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
 });
 
 module.exports = Wishlist;

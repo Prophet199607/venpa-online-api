@@ -8,7 +8,7 @@ const CartItem = sequelize.define("cart_items", {
     autoIncrement: true,
   },
   cart_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
-  product_id: { type: DataTypes.BIGINT, allowNull: false },
+  product_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
   quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
 });
 

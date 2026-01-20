@@ -1,12 +1,18 @@
-const { Department, Category, SubCategory, Product, SyncState } = require("../../models");
-const { fetchEntities } = require("./otherApiClient");
+const { Department, Category, SubCategory, Product, ProductImage, SyncState } = require("../../models");
+const { fetchEntities: fetchFromApi } = require("./otherApiClient");
+const { fetchEntities: fetchFromDb } = require("./localDbClient");
 
 const ENTITY_CONFIG = {
   departments: { model: Department, key: "dep_code" },
   categories: { model: Category, key: "cat_code" },
   sub_categories: { model: SubCategory, key: "scat_code" },
-  products: { model: Product, key: "prod_code" }
+  products: { model: Product, key: "prod_code" },
+  product_images: { model: ProductImage, key: ["prod_code", "image"] }
 };
+
+function getFetcher() {
+  return process.env.SYNC_SOURCE === "db" ? fetchFromDb : fetchFromApi;
+}
 
 async function getLastSyncedAt(entity) {
   const row = await SyncState.findOne({ where: { entity } });
@@ -18,9 +24,21 @@ async function setLastSyncedAt(entity, date) {
   await row.update({ last_synced_at: date });
 }
 
+function hasKeyValue(keyField, item) {
+  if (Array.isArray(keyField)) {
+    return keyField.every((key) => item[key]);
+  }
+  return Boolean(item[keyField]);
+}
+
 async function upsertByKey(model, keyField, item) {
   // Find existing by code, otherwise create
-  const where = { [keyField]: item[keyField] };
+  const where = Array.isArray(keyField)
+    ? keyField.reduce((acc, key) => {
+        acc[key] = item[key];
+        return acc;
+      }, {})
+    : { [keyField]: item[keyField] };
   const existing = await model.findOne({ where });
 
   if (existing) {
@@ -37,13 +55,14 @@ async function syncEntity(entity, options = {}) {
   if (!cfg) throw new Error(`Unknown entity: ${entity}`);
 
   const last = options.full ? null : await getLastSyncedAt(entity);
+  const fetchEntities = getFetcher();
   const items = await fetchEntities(entity, last);
 
   let created = 0, updated = 0, failed = 0;
   const errors = [];
 
   for (const item of items) {
-    if (!item[cfg.key]) continue; // skip invalid rows
+    if (!hasKeyValue(cfg.key, item)) continue; // skip invalid rows
     try {
       const r = await upsertByKey(cfg.model, cfg.key, item);
       if (r.action === "created") created++;
@@ -74,6 +93,7 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("categories", options));
   results.push(await syncEntity("sub_categories", options));
   results.push(await syncEntity("products", options));
+  results.push(await syncEntity("product_images", options));
   return results;
 }
 

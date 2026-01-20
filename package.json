@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "set NODE_ENV=development && nodemon src/server.js",
-    "start": "set NODE_ENV=production && node src/server.js"
+    "start": "set NODE_ENV=production && node src/server.js",
+    "db:reset": "node reset-database.js"
   },
   "keywords": [],
   "author": "",

@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const User = sequelize.define(
   "users",
   {
-    id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
+    id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
     fname: { type: DataTypes.STRING(255), allowNull: false },
     lname: { type: DataTypes.STRING(255), allowNull: false },
     email: {
