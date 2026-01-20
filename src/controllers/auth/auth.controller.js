@@ -62,12 +62,16 @@ exports.login = async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid credentials" });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ success: false, error: "Invalid credentials" });
     }
 
     // Remove password from response
@@ -75,6 +79,7 @@ exports.login = async (req, res) => {
     delete userResponse.password;
 
     res.json({
+      success: true,
       message: "Login successful",
       user: userResponse,
       token: user.generateToken(),
@@ -82,8 +87,8 @@ exports.login = async (req, res) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       // Zod v4 exposes validation details on `issues` (not `errors`)
-      return res.status(400).json({ errors: error.issues });
+      return res.status(400).json({ success: false, errors: error.issues });
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
