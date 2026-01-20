@@ -48,7 +48,8 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.errors });
+      // return res.status(400).json({ errors: error.errors });
+      return res.status(400).json({ errors: error.issues });
     }
     res.status(500).json({ error: error.message });
   }
@@ -80,7 +81,8 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ errors: error.errors });
+      // Zod v4 exposes validation details on `issues` (not `errors`)
+      return res.status(400).json({ errors: error.issues });
     }
     res.status(500).json({ error: error.message });
   }

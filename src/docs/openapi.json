@@ -10,9 +10,7 @@
       "get": {
         "summary": "Health check",
         "description": "Check if the API is running and healthy",
-        "tags": [
-          "System"
-        ],
+        "tags": ["System"],
         "responses": {
           "200": {
             "description": "API is healthy",
@@ -317,12 +315,53 @@
     "/api/v1/auth/register": {
       "post": {
         "summary": "Register a new user",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "fname",
+                  "lname",
+                  "email",
+                  "phone",
+                  "password",
+                  "confirm_password"
+                ],
+                "properties": {
+                  "fname": { "type": "string" },
+                  "lname": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string" },
+                  "password": { "type": "string", "format": "password" },
+                  "confirm_password": { "type": "string", "format": "password" }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "errors": {
+                      "type": "array",
+                      "items": { "type": "object" }
+                    },
+                    "error": { "type": "string" }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -346,15 +385,17 @@
             }
           }
         },
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" },
+          "401": { "description": "Unauthorized" }
+        }
       }
     },
     "/api/v1/auth/me": {
       "get": {
         "summary": "Get current user profile",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "responses": {
           "200": {
             "description": "OK"
@@ -365,9 +406,7 @@
     "/api/v1/cart": {
       "get": {
         "summary": "Get user's active cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -381,9 +420,7 @@
       },
       "post": {
         "summary": "Add item to cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -395,10 +432,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "product_id",
-                  "quantity"
-                ],
+                "required": ["product_id", "quantity"],
                 "properties": {
                   "product_id": {
                     "type": "integer"
@@ -419,9 +453,7 @@
       },
       "delete": {
         "summary": "Clear entire cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -437,9 +469,7 @@
     "/api/v1/cart/{id}": {
       "put": {
         "summary": "Update cart item quantity",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -461,9 +491,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "quantity"
-                ],
+                "required": ["quantity"],
                 "properties": {
                   "quantity": {
                     "type": "integer"
@@ -481,9 +509,7 @@
       },
       "delete": {
         "summary": "Remove item from cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -509,9 +535,7 @@
     "/api/v1/wishlist": {
       "get": {
         "summary": "Get user's wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -525,9 +549,7 @@
       },
       "post": {
         "summary": "Add item to wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -539,9 +561,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "product_id"
-                ],
+                "required": ["product_id"],
                 "properties": {
                   "product_id": {
                     "type": "integer"
@@ -561,9 +581,7 @@
     "/api/v1/wishlist/toggle": {
       "post": {
         "summary": "Toggle item in wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -575,9 +593,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "product_id"
-                ],
+                "required": ["product_id"],
                 "properties": {
                   "product_id": {
                     "type": "integer"
@@ -597,9 +613,7 @@
     "/api/v1/wishlist/{id}": {
       "delete": {
         "summary": "Remove item from wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
