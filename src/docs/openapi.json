@@ -5,14 +5,34 @@
     "version": "1.0.0",
     "description": "API for online buy side and delivery sync."
   },
-  "servers": [{ "url": "http://localhost:4000" }],
   "paths": {
     "/health": {
       "get": {
         "summary": "Health check",
+        "description": "Check if the API is running and healthy",
+        "tags": [
+          "System"
+        ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "service": {
+                      "type": "string",
+                      "example": "venpa-online-api"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -21,10 +41,26 @@
       "get": {
         "summary": "List departments",
         "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "schema": { "type": "integer" } }
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/departments/{id}": {
@@ -35,12 +71,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
-          "200": { "description": "OK" },
-          "404": { "description": "Not found" }
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
         }
       }
     },
@@ -48,16 +90,40 @@
       "get": {
         "summary": "List categories",
         "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "department",
             "in": "query",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
-          { "name": "status", "in": "query", "schema": { "type": "integer" } },
-          { "name": "cat_code", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cat_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/categories/{id}": {
@@ -68,12 +134,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
-          "200": { "description": "OK" },
-          "404": { "description": "Not found" }
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
         }
       }
     },
@@ -81,16 +153,40 @@
       "get": {
         "summary": "List subcategories",
         "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "department",
             "in": "query",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
-          { "name": "status", "in": "query", "schema": { "type": "integer" } },
-          { "name": "cat_code", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cat_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/subcategories/{id}": {
@@ -101,12 +197,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
-          "200": { "description": "OK" },
-          "404": { "description": "Not found" }
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
         }
       }
     },
@@ -114,20 +216,40 @@
       "get": {
         "summary": "List products",
         "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "department",
             "in": "query",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           },
-          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "sub_category",
             "in": "query",
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/products/{id}": {
@@ -138,12 +260,18 @@
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
-          "200": { "description": "OK" },
-          "404": { "description": "Not found" }
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
         }
       }
     },
@@ -151,9 +279,19 @@
       "post": {
         "summary": "Sync all entities",
         "parameters": [
-          { "name": "full", "in": "query", "schema": { "type": "boolean" } }
+          {
+            "name": "full",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/sync/{entity}": {
@@ -164,79 +302,157 @@
             "name": "entity",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/auth/register": {
       "post": {
         "summary": "Register a new user",
-        "tags": ["Auth"],
-        "responses": { "201": { "description": "Created" } }
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
       }
     },
     "/api/v1/auth/login": {
       "post": {
         "summary": "Login user",
         "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string", "format": "password" }
+                }
+              }
+            }
+          }
+        },
         "responses": { "200": { "description": "OK" } }
       }
     },
     "/api/v1/auth/me": {
       "get": {
         "summary": "Get current user profile",
-        "tags": ["Auth"],
-        "responses": { "200": { "description": "OK" } }
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/cart": {
       "get": {
         "summary": "Get user's active cart",
-        "tags": ["Cart"],
-        "security": [{ "bearerAuth": [] }],
-        "responses": { "200": { "description": "OK" } }
+        "tags": [
+          "Cart"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       },
       "post": {
         "summary": "Add item to cart",
-        "tags": ["Cart"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "Cart"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["product_id", "quantity"],
+                "required": [
+                  "product_id",
+                  "quantity"
+                ],
                 "properties": {
-                  "product_id": { "type": "integer" },
-                  "quantity": { "type": "integer" }
+                  "product_id": {
+                    "type": "integer"
+                  },
+                  "quantity": {
+                    "type": "integer"
+                  }
                 }
               }
             }
           }
         },
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       },
       "delete": {
         "summary": "Clear entire cart",
-        "tags": ["Cart"],
-        "security": [{ "bearerAuth": [] }],
-        "responses": { "200": { "description": "OK" } }
+        "tags": [
+          "Cart"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/cart/{id}": {
       "put": {
         "summary": "Update cart item quantity",
-        "tags": ["Cart"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "Cart"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "requestBody": {
@@ -245,95 +461,165 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["quantity"],
+                "required": [
+                  "quantity"
+                ],
                 "properties": {
-                  "quantity": { "type": "integer" }
+                  "quantity": {
+                    "type": "integer"
+                  }
                 }
               }
             }
           }
         },
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       },
       "delete": {
         "summary": "Remove item from cart",
-        "tags": ["Cart"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "Cart"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/wishlist": {
       "get": {
         "summary": "Get user's wishlist",
-        "tags": ["Wishlist"],
-        "security": [{ "bearerAuth": [] }],
-        "responses": { "200": { "description": "OK" } }
+        "tags": [
+          "Wishlist"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       },
       "post": {
         "summary": "Add item to wishlist",
-        "tags": ["Wishlist"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "Wishlist"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["product_id"],
+                "required": [
+                  "product_id"
+                ],
                 "properties": {
-                  "product_id": { "type": "integer" }
+                  "product_id": {
+                    "type": "integer"
+                  }
                 }
               }
             }
           }
         },
-        "responses": { "201": { "description": "Created" } }
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
       }
     },
     "/api/v1/wishlist/toggle": {
       "post": {
         "summary": "Toggle item in wishlist",
-        "tags": ["Wishlist"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "Wishlist"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["product_id"],
+                "required": [
+                  "product_id"
+                ],
                 "properties": {
-                  "product_id": { "type": "integer" }
+                  "product_id": {
+                    "type": "integer"
+                  }
                 }
               }
             }
           }
         },
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
     "/api/v1/wishlist/{id}": {
       "delete": {
         "summary": "Remove item from wishlist",
-        "tags": ["Wishlist"],
-        "security": [{ "bearerAuth": [] }],
+        "tags": [
+          "Wishlist"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
-        "responses": { "200": { "description": "OK" } }
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     }
   },
@@ -342,67 +628,157 @@
       "Department": {
         "type": "object",
         "properties": {
-          "dep_code": { "type": "string" },
-          "dep_name": { "type": "string" },
-          "dep_image": { "type": "string", "nullable": true },
-          "status": { "type": "integer" }
+          "dep_code": {
+            "type": "string"
+          },
+          "dep_name": {
+            "type": "string"
+          },
+          "dep_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer"
+          }
         }
       },
       "Category": {
         "type": "object",
         "properties": {
-          "cat_code": { "type": "string" },
-          "cat_name": { "type": "string" },
-          "department": { "type": "string" },
-          "cat_image": { "type": "string", "nullable": true },
-          "status": { "type": "integer" }
+          "cat_code": {
+            "type": "string"
+          },
+          "cat_name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "cat_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer"
+          }
         }
       },
       "SubCategory": {
         "type": "object",
         "properties": {
-          "scat_code": { "type": "string" },
-          "scat_name": { "type": "string" },
-          "department": { "type": "string" },
-          "cat_code": { "type": "string" },
-          "status": { "type": "integer" }
+          "scat_code": {
+            "type": "string"
+          },
+          "scat_name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "cat_code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          }
         },
         "Wishlist": {
           "type": "object",
           "properties": {
-            "id": { "type": "integer" },
-            "user_id": { "type": "integer" },
-            "product_id": { "type": "integer" },
-            "product": { "$ref": "#/components/schemas/Product" }
+            "id": {
+              "type": "integer"
+            },
+            "user_id": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "integer"
+            },
+            "product": {
+              "$ref": "#/components/schemas/Product"
+            }
           }
         }
       },
       "Product": {
         "type": "object",
         "properties": {
-          "prod_code": { "type": "string" },
-          "prod_name": { "type": "string" },
-          "short_description": { "type": "string", "nullable": true },
-          "department": { "type": "string" },
-          "category": { "type": "string", "nullable": true },
-          "sub_category": { "type": "string", "nullable": true },
-          "pack_size": { "type": "string", "nullable": true },
-          "purchase_price": { "type": "number", "format": "float" },
-          "selling_price": { "type": "number", "format": "float" },
-          "marked_price": { "type": "number", "format": "float" },
-          "wholesale_price": { "type": "number", "format": "float" },
-          "title_in_other_language": { "type": "string", "nullable": true },
-          "book_type": { "type": "string", "nullable": true },
-          "publisher": { "type": "string", "nullable": true },
-          "isbn": { "type": "string", "nullable": true },
-          "publish_year": { "type": "integer", "nullable": true },
-          "alert_qty": { "type": "integer", "nullable": true },
+          "prod_code": {
+            "type": "string"
+          },
+          "prod_name": {
+            "type": "string"
+          },
+          "short_description": {
+            "type": "string",
+            "nullable": true
+          },
+          "department": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "sub_category": {
+            "type": "string",
+            "nullable": true
+          },
+          "pack_size": {
+            "type": "string",
+            "nullable": true
+          },
+          "purchase_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "selling_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "marked_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "wholesale_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "title_in_other_language": {
+            "type": "string",
+            "nullable": true
+          },
+          "book_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "publisher": {
+            "type": "string",
+            "nullable": true
+          },
+          "isbn": {
+            "type": "string",
+            "nullable": true
+          },
+          "publish_year": {
+            "type": "integer",
+            "nullable": true
+          },
+          "alert_qty": {
+            "type": "integer",
+            "nullable": true
+          },
           "images": {
             "type": "array",
             "items": {
               "oneOf": [
-                { "type": "string" },
-                { "$ref": "#/components/schemas/ProductImage" }
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductImage"
+                }
               ]
             },
             "nullable": true
@@ -412,31 +788,55 @@
       "ProductImage": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "prod_code": { "type": "string" },
-          "image": { "type": "string" }
+          "id": {
+            "type": "integer"
+          },
+          "prod_code": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          }
         }
       },
       "Cart": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "user_id": { "type": "integer" },
-          "status": { "type": "string" },
+          "id": {
+            "type": "integer"
+          },
+          "user_id": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
           "items": {
             "type": "array",
-            "items": { "$ref": "#/components/schemas/CartItem" }
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
           }
         }
       },
       "CartItem": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "cart_id": { "type": "integer" },
-          "product_id": { "type": "integer" },
-          "quantity": { "type": "integer" },
-          "product": { "$ref": "#/components/schemas/Product" }
+          "id": {
+            "type": "integer"
+          },
+          "cart_id": {
+            "type": "integer"
+          },
+          "product_id": {
+            "type": "integer"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          }
         }
       }
     }
