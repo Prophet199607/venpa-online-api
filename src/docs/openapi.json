@@ -344,7 +344,23 @@
         },
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": {
+                      "type": "string",
+                      "example": "User registered successfully"
+                    },
+                    "user": { "type": "object" },
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request",
@@ -353,6 +369,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "success": { "type": "boolean", "example": false },
                     "errors": {
                       "type": "array",
                       "items": { "type": "object" }

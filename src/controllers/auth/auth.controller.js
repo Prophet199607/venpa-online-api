@@ -31,7 +31,9 @@ exports.register = async (req, res) => {
       where: { email: validatedData.email },
     });
     if (existingUser) {
-      return res.status(400).json({ error: "Email already in use" });
+      return res
+        .status(400)
+        .json({ success: false, error: "Email already in use" });
     }
 
     const { confirm_password, ...userData } = validatedData;
@@ -42,6 +44,7 @@ exports.register = async (req, res) => {
     delete userResponse.password;
 
     res.status(201).json({
+      success: true,
       message: "User registered successfully",
       user: userResponse,
       token: user.generateToken(),
@@ -49,9 +52,9 @@ exports.register = async (req, res) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       // return res.status(400).json({ errors: error.errors });
-      return res.status(400).json({ errors: error.issues });
+      return res.status(400).json({ success: false, errors: error.issues });
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
