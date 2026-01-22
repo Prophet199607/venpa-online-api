@@ -347,21 +347,7 @@
             "description": "Created"
           },
           "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "errors": {
-                      "type": "array",
-                      "items": { "type": "object" }
-                    },
-                    "error": { "type": "string" }
-                  }
-                }
-              }
-            }
+            "description": "Bad Request"
           }
         }
       }
@@ -387,55 +373,13 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "example": true },
-                    "message": {
-                      "type": "string",
-                      "example": "Login successful"
-                    },
-                    "user": { "type": "object" },
-                    "token": { "type": "string" }
-                  }
-                }
-              }
-            }
+            "description": "OK"
           },
           "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "example": false },
-                    "error": { "type": "string" },
-                    "errors": { "type": "array", "items": { "type": "object" } }
-                  }
-                }
-              }
-            }
+            "description": "Bad Request"
           },
           "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": { "type": "boolean", "example": false },
-                    "error": {
-                      "type": "string",
-                      "example": "Invalid credentials"
-                    }
-                  }
-                }
-              }
-            }
+            "description": "Unauthorized"
           }
         }
       }

@@ -2,23 +2,38 @@ const { User } = require("../../models");
 const { z } = require("zod");
 
 // Validation schemas
+// 1: First name is required
+// 2: Last name is required
+// 3: Invalid email address
+// 4: Invalid phone number
+// 5: Password must be at least 6 characters
+// 6: Passwords don't match
+// 7: Email already in use
+// 8: Email is required (Login)
+// 9: Password is required (Login)
+// 10: Invalid credentials (Login)
 const registerSchema = z
   .object({
-    fname: z.string().min(1, "First name is required"),
-    lname: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email address"),
-    phone: z.string().min(10, "Invalid phone number"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirm_password: z.string(),
+    fname: z.string({ required_error: "1" }).min(1, "1"),
+    lname: z.string({ required_error: "2" }).min(1, "2"),
+    email: z.string({ required_error: "3" }).email("3").trim().toLowerCase(),
+    phone: z.string({ required_error: "4" }).min(10, "4"),
+    password: z.string({ required_error: "5" }).min(6, "5"),
+    confirm_password: z.string().optional(),
   })
   .refine((data) => data.password === data.confirm_password, {
-    message: "Passwords don't match",
+    message: "6",
     path: ["confirm_password"],
   });
 
 const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z
+    .string({ required_error: "8" })
+    .min(1, "8")
+    .email("3")
+    .trim()
+    .toLowerCase(),
+  password: z.string({ required_error: "9" }).min(1, "9"),
 });
 
 exports.register = async (req, res) => {
@@ -31,7 +46,7 @@ exports.register = async (req, res) => {
       where: { email: validatedData.email },
     });
     if (existingUser) {
-      return res.status(400).json({ error: "Email already in use" });
+      return res.status(400).json({ success: false, error_codes: [7] });
     }
 
     const { confirm_password, ...userData } = validatedData;
@@ -42,16 +57,25 @@ exports.register = async (req, res) => {
     delete userResponse.password;
 
     res.status(201).json({
+      success: true,
       message: "User registered successfully",
       user: userResponse,
       token: user.generateToken(),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // return res.status(400).json({ errors: error.errors });
-      return res.status(400).json({ errors: error.issues });
+      // Map Zod issues to validation error codes
+      const codes = error.issues
+        .map((issue) => Number(issue.message) || 0)
+        .filter((c) => c !== 0);
+      const uniqueCodes = [...new Set(codes)];
+
+      return res.status(400).json({ success: false, error_codes: uniqueCodes });
     }
-    res.status(500).json({ error: error.message });
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(400).json({ success: false, error_codes: [7] });
+    }
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -62,16 +86,12 @@ exports.login = async (req, res) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Invalid credentials" });
+      return res.status(401).json({ success: false, error_codes: [10] });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Invalid credentials" });
+      return res.status(401).json({ success: false, error_codes: [10] });
     }
 
     // Remove password from response
@@ -86,8 +106,11 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      // Zod v4 exposes validation details on `issues` (not `errors`)
-      return res.status(400).json({ success: false, errors: error.issues });
+      const codes = error.issues
+        .map((issue) => Number(issue.message) || 0)
+        .filter((c) => c !== 0);
+      const uniqueCodes = [...new Set(codes)];
+      return res.status(400).json({ success: false, error_codes: uniqueCodes });
     }
     res.status(500).json({ success: false, error: error.message });
   }
