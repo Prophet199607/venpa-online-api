@@ -35,20 +35,15 @@ exports.addToWishlist = async (req, res) => {
       return res.status(400).json({ error: "Product ID is required" });
     }
 
-    const existing = await Wishlist.findOne({
+    const [item, created] = await Wishlist.findOrCreate({
       where: { user_id: userId, product_id },
+      defaults: { user_id: userId, product_id },
     });
 
-    if (existing) {
-      return res.status(400).json({ message: "Product already in wishlist" });
-    }
-
-    const item = await Wishlist.create({
-      user_id: userId,
-      product_id,
+    res.status(created ? 201 : 200).json({
+      message: created ? "Added to wishlist" : "Already in wishlist",
+      item,
     });
-
-    res.status(201).json({ message: "Added to wishlist", item });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -76,31 +71,3 @@ exports.removeFromWishlist = async (req, res) => {
   }
 };
 
-/**
- * Toggle wishlist item (Add/Remove) - Optional utility
- */
-exports.toggleWishlist = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { product_id } = req.body;
-
-    if (!product_id)
-      return res.status(400).json({ error: "Product ID required" });
-
-    const existing = await Wishlist.findOne({
-      where: { user_id: userId, product_id },
-    });
-
-    if (existing) {
-      await existing.destroy();
-      return res.json({ message: "Removed from wishlist", status: "removed" });
-    } else {
-      await Wishlist.create({ user_id: userId, product_id });
-      return res
-        .status(201)
-        .json({ message: "Added to wishlist", status: "added" });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};

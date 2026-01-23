@@ -623,38 +623,6 @@
         }
       }
     },
-    "/api/v1/wishlist/toggle": {
-      "post": {
-        "summary": "Toggle item in wishlist",
-        "tags": ["Wishlist"],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["product_id"],
-                "properties": {
-                  "product_id": {
-                    "type": "integer"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/v1/wishlist/{id}": {
       "delete": {
         "summary": "Remove item from wishlist",
