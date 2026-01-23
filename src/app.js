@@ -30,6 +30,25 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    const successful = res.statusCode < 400;
+    let payload = body;
+
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      if (!Object.prototype.hasOwnProperty.call(body, "successful")) {
+        payload = { ...body, successful };
+      }
+    } else {
+      payload = { successful, data: body };
+    }
+
+    return originalJson(payload);
+  };
+  next();
+});
+
 app.get("/", (req, res) => res.redirect("/api/docs"));
 
 app.get("/health", (req, res) =>
