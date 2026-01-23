@@ -32,20 +32,33 @@ app.use(express.json());
 
 app.use((req, res, next) => {
   const originalJson = res.json.bind(res);
+
+  function normalizeBody(body) {
+    if (Array.isArray(body)) {
+      return body.map((item) =>
+        item && typeof item.toJSON === "function" ? item.toJSON() : item
+      );
+    }
+    if (body && typeof body.toJSON === "function") {
+      return body.toJSON();
+    }
+    return body;
+  }
+
   res.json = (body) => {
     const successful = res.statusCode < 400;
-    let payload = body;
+    const normalized = normalizeBody(body);
 
-    if (body && typeof body === "object" && !Array.isArray(body)) {
-      if (!Object.prototype.hasOwnProperty.call(body, "successful")) {
-        payload = { ...body, successful };
+    if (normalized && typeof normalized === "object" && !Array.isArray(normalized)) {
+      if (!Object.prototype.hasOwnProperty.call(normalized, "successful")) {
+        return originalJson({ ...normalized, successful });
       }
-    } else {
-      payload = { successful, data: body };
+      return originalJson(normalized);
     }
 
-    return originalJson(payload);
+    return originalJson({ successful, data: normalized });
   };
+
   next();
 });
 
