@@ -34,7 +34,8 @@ exports.list = async (req, res, next) => {
     const items = await Product.findAll({
       where,
       order: [["id", "DESC"]],
-      include: [{ model: ProductImage, as: "images" }],
+      attributes: { exclude: ["id"] },
+      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
     });
     res.json(items);
   } catch (e) {
@@ -48,7 +49,8 @@ exports.newArrivals = async (req, res, next) => {
     const items = await Product.findAll({
       order: [["id", "DESC"]],
       limit,
-      include: [{ model: ProductImage, as: "images" }]
+      attributes: { exclude: ["id"] },
+      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }]
     });
     res.json(items);
   } catch (e) { next(e); }
@@ -60,15 +62,18 @@ exports.bestSelling = async (req, res, next) => {
     const items = await Product.findAll({
       order: sequelize.random(),
       limit,
-      include: [{ model: ProductImage, as: "images" }]
+      attributes: { exclude: ["id"] },
+      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }]
     });
     res.json(items);
   } catch (e) { next(e); }
 };
 exports.getById = async (req, res, next) => {
   try {
-    const item = await Product.findByPk(req.params.id, {
-      include: [{ model: ProductImage, as: "images" }],
+    const item = await Product.findOne({
+      where: { prod_code: req.params.prod_code },
+      attributes: { exclude: ["id"] },
+      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
     });
     if (!item) return res.status(404).json({ message: "Product not found" });
     res.json(item);

@@ -6,8 +6,8 @@ router.get("/", auth, c.getCart);
 router.post("/", auth, c.addToCart);
 router.post("/items", auth, c.setCartItems);
 router.put("/quantity", auth, c.updateQuantity);
-router.put("/:id", auth, c.updateItem);
-router.delete("/:id", auth, c.removeItem);
+router.put("/product/:prod_code", auth, c.updateItem);
+router.delete("/product/:prod_code", auth, c.removeItem);
 router.delete("/", auth, c.clearCart);
 
 module.exports = router;

@@ -284,16 +284,16 @@
         }
       }
     },
-    "/api/v1/products/{id}": {
+    "/api/v1/products/code/{prod_code}": {
       "get": {
-        "summary": "Get product by id",
+        "summary": "Get product by code",
         "parameters": [
           {
-            "name": "id",
+            "name": "prod_code",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -471,11 +471,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["product_id", "quantity"],
+                "required": ["prod_code", "quantity"],
                 "properties": {
-                  "product_id": {
-                    "type": "integer"
-                  },
+                  "prod_code": { "type": "string" },
                   "quantity": {
                     "type": "integer"
                   }
@@ -526,10 +524,10 @@
                     "items": {
                       "type": "object",
                       "properties": {
-                        "product_id": { "type": "integer" },
+                        "prod_code": { "type": "string" },
                         "quantity": { "type": "integer" }
                       },
-                      "required": ["product_id", "quantity"]
+                      "required": ["prod_code", "quantity"]
                     }
                   }
                 },
@@ -545,9 +543,9 @@
         }
       }
     },
-    "/api/v1/cart/{id}": {
+    "/api/v1/cart/product/{prod_code}": {
       "put": {
-        "summary": "Update cart item quantity",
+        "summary": "Update cart item quantity by product code",
         "tags": ["Cart"],
         "security": [
           {
@@ -556,11 +554,11 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "prod_code",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -587,7 +585,7 @@
         }
       },
       "delete": {
-        "summary": "Remove item from cart",
+        "summary": "Remove item from cart by product code",
         "tags": ["Cart"],
         "security": [
           {
@@ -596,11 +594,11 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "prod_code",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -640,11 +638,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["product_id"],
+                "required": ["prod_code"],
                 "properties": {
-                  "product_id": {
-                    "type": "integer"
-                  }
+                  "prod_code": { "type": "string" }
                 }
               }
             }
@@ -687,9 +683,9 @@
         }
       }
     },
-    "/api/v1/wishlist/{id}": {
+    "/api/v1/wishlist/product/{prod_code}": {
       "delete": {
-        "summary": "Remove item from wishlist",
+        "summary": "Remove item from wishlist by product code",
         "tags": ["Wishlist"],
         "security": [
           {
@@ -698,11 +694,11 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "prod_code",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
+              "type": "string"
             }
           }
         ],
@@ -738,11 +734,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "user_id": { "type": "integer" },
-                  "product_id": { "type": "integer" },
+                  "prod_code": { "type": "string" },
                   "quantity": { "type": "integer" }
                 },
-                "required": ["product_id", "quantity"]
+                "required": ["prod_code", "quantity"]
               }
             }
           }
@@ -813,23 +808,15 @@
             "type": "integer"
           }
         },
-        "Wishlist": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "integer"
-            },
-            "user_id": {
-              "type": "integer"
-            },
-            "product_id": {
-              "type": "integer"
-            },
-            "product": {
-              "$ref": "#/components/schemas/Product"
-            }
+      "Wishlist": {
+        "type": "object",
+        "properties": {
+          "prod_code": { "type": "string" },
+          "product": {
+            "$ref": "#/components/schemas/Product"
           }
         }
+      }
       },
       "Product": {
         "type": "object",
@@ -918,9 +905,6 @@
       "ProductImage": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer"
-          },
           "prod_code": {
             "type": "string"
           },
@@ -932,12 +916,6 @@
       "Cart": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "user_id": {
-            "type": "integer"
-          },
           "status": {
             "type": "string"
           },
@@ -952,15 +930,6 @@
       "CartItem": {
         "type": "object",
         "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "cart_id": {
-            "type": "integer"
-          },
-          "product_id": {
-            "type": "integer"
-          },
           "quantity": {
             "type": "integer"
           },

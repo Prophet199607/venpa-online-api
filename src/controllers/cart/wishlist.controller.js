@@ -1,7 +1,11 @@
 const { Wishlist, Product, ProductImage } = require("../../models");
 
+async function getProductByCode(prodCode) {
+  return Product.findOne({ where: { prod_code: prodCode } });
+}
+
 /**
- * Get user's wishlist with product details
+ * Get user's wishlist products only
  */
 exports.getWishlist = async (req, res) => {
   try {
@@ -12,38 +16,13 @@ exports.getWishlist = async (req, res) => {
       include: [
         {
           model: Product,
-          include: [{ model: ProductImage, as: "images" }],
+          attributes: { exclude: ["id"] },
+          include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
         },
       ],
     });
 
-    res.json(wishlist);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-/**
- * Get wishlist products only
- */
-exports.getWishlistProducts = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    const wishlist = await Wishlist.findAll({
-      where: { user_id: userId },
-      include: [
-        {
-          model: Product,
-          include: [{ model: ProductImage, as: "images" }],
-        },
-      ],
-    });
-
-    const products = wishlist
-      .map((item) => item.Product)
-      .filter(Boolean);
-
+    const products = wishlist.map((item) => item.Product).filter(Boolean);
     res.json(products);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -51,25 +30,30 @@ exports.getWishlistProducts = async (req, res) => {
 };
 
 /**
- * Add product to wishlist
+ * Add product to wishlist using product code
  */
 exports.addToWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { product_id } = req.body;
+    const { prod_code } = req.body;
 
-    if (!product_id) {
-      return res.status(400).json({ error: "Product ID is required" });
+    if (!prod_code) {
+      return res.status(400).json({ error: "Product code is required" });
     }
 
-    const [item, created] = await Wishlist.findOrCreate({
-      where: { user_id: userId, product_id },
-      defaults: { user_id: userId, product_id },
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const [, created] = await Wishlist.findOrCreate({
+      where: { user_id: userId, product_id: product.id },
+      defaults: { user_id: userId, product_id: product.id },
     });
 
     res.status(created ? 201 : 200).json({
       message: created ? "Added to wishlist" : "Already in wishlist",
-      item,
+      item: { prod_code },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -77,15 +61,20 @@ exports.addToWishlist = async (req, res) => {
 };
 
 /**
- * Remove product from wishlist
+ * Remove product from wishlist by product code
  */
 exports.removeFromWishlist = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { id } = req.params;
+    const { prod_code } = req.params;
+
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
 
     const deleted = await Wishlist.destroy({
-      where: { id: id, user_id: userId },
+      where: { product_id: product.id, user_id: userId },
     });
 
     if (!deleted) {
@@ -111,3 +100,4 @@ exports.clearWishlist = async (req, res) => {
   }
 };
 
+exports.getWishlistProducts = exports.getWishlist;

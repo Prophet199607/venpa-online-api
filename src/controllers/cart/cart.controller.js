@@ -1,5 +1,9 @@
 const { Cart, CartItem, Product, ProductImage } = require("../../models");
 
+async function getProductByCode(prodCode) {
+  return Product.findOne({ where: { prod_code: prodCode } });
+}
+
 /**
  * Get the user's active cart. If not exists, return empty or create one.
  */
@@ -7,84 +11,105 @@ exports.getCart = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Find or create active cart for user
-    let [cart] = await Cart.findOrCreate({
+    const [cart] = await Cart.findOrCreate({
       where: { user_id: userId, status: "active" },
       defaults: { user_id: userId, status: "active" },
     });
 
-    // Fetch items with product details
     const cartItems = await CartItem.findAll({
       where: { cart_id: cart.id },
       include: [
         {
           model: Product,
-          include: [{ model: ProductImage, as: "images" }],
+          attributes: { exclude: ["id"] },
+          include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
         },
       ],
     });
 
-    res.json({ cart, items: cartItems });
+    res.json({
+      cart: { status: cart.status },
+      items: cartItems.map((item) => ({
+        quantity: item.quantity,
+        product: item.Product || null,
+      })),
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * Add an item to the cart
+ * Add an item to the cart using product code
  */
 exports.addToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { product_id, quantity } = req.body;
+    const { prod_code, quantity } = req.body;
 
-    if (!product_id || !quantity) {
-      return res
-        .status(400)
-        .json({ error: "Product ID and quantity are required" });
+    if (!prod_code || quantity === undefined) {
+      return res.status(400).json({ error: "Product code and quantity are required" });
     }
 
-    // Ensure active cart exists
-    let [cart] = await Cart.findOrCreate({
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const [cart] = await Cart.findOrCreate({
       where: { user_id: userId, status: "active" },
       defaults: { user_id: userId, status: "active" },
     });
 
-    // Check if item already in cart
     const existingItem = await CartItem.findOne({
-      where: { cart_id: cart.id, product_id },
+      where: { cart_id: cart.id, product_id: product.id },
     });
 
     if (existingItem) {
-      existingItem.quantity += parseInt(quantity);
+      existingItem.quantity += parseInt(quantity, 10);
       await existingItem.save();
     } else {
       await CartItem.create({
         cart_id: cart.id,
-        product_id,
+        product_id: product.id,
         quantity,
       });
     }
 
-    res.json({ message: "Item added to cart", cartId: cart.id });
+    res.json({ message: "Item added to cart" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * Update item quantity
+ * Update item quantity by product code
  */
 exports.updateItem = async (req, res) => {
   try {
-    const { id } = req.params; // Cart Item ID
+    const { prod_code } = req.params;
     const { quantity } = req.body;
 
     if (quantity === undefined) {
       return res.status(400).json({ error: "Quantity is required" });
     }
 
-    const item = await CartItem.findByPk(id);
+    const cart = await Cart.findOne({
+      where: { user_id: req.user.id, status: "active" },
+    });
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const item = await CartItem.findOne({
+      where: { cart_id: cart.id, product_id: product.id },
+    });
 
     if (!item) {
       return res.status(404).json({ error: "Cart item not found" });
@@ -98,14 +123,14 @@ exports.updateItem = async (req, res) => {
     item.quantity = quantity;
     await item.save();
 
-    res.json({ message: "Cart item updated", item });
+    res.json({ message: "Cart item updated" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * Replace or insert cart items in bulk
+ * Replace or insert cart items in bulk using product codes
  */
 exports.setCartItems = async (req, res) => {
   try {
@@ -120,16 +145,18 @@ exports.setCartItems = async (req, res) => {
       defaults: { user_id: req.user.id, status: "active" },
     });
 
-    const updates = [];
+    let touched = 0;
 
     for (const item of items) {
-      const productId = item?.product_id;
+      const prodCode = item?.prod_code;
       const quantity = item?.quantity;
 
-      if (!productId || quantity === undefined) continue;
+      if (!prodCode || quantity === undefined) continue;
+      const product = await getProductByCode(prodCode);
+      if (!product) continue;
 
       const existing = await CartItem.findOne({
-        where: { cart_id: cart.id, product_id: productId },
+        where: { cart_id: cart.id, product_id: product.id },
       });
 
       if (quantity <= 0) {
@@ -142,36 +169,36 @@ exports.setCartItems = async (req, res) => {
       if (existing) {
         existing.quantity = quantity;
         await existing.save();
-        updates.push(existing);
       } else {
-        const created = await CartItem.create({
+        await CartItem.create({
           cart_id: cart.id,
-          product_id: productId,
+          product_id: product.id,
           quantity,
         });
-        updates.push(created);
       }
+      touched++;
     }
 
-    res.json({ message: "Cart items updated", items: updates });
+    res.json({ message: "Cart items updated", items: touched });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * Update item quantity using user_id + product_id
+ * Update item quantity using user_id + product code
  */
 exports.updateQuantity = async (req, res) => {
   try {
-    const { user_id, product_id, quantity } = req.body;
+    const { prod_code, quantity } = req.body;
 
-    if (user_id && Number(user_id) !== Number(req.user.id)) {
-      return res.status(403).json({ error: "User mismatch" });
+    if (!prod_code || quantity === undefined) {
+      return res.status(400).json({ error: "Product code and quantity are required" });
     }
 
-    if (!product_id || quantity === undefined) {
-      return res.status(400).json({ error: "Product ID and quantity are required" });
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
     }
 
     const [cart] = await Cart.findOrCreate({
@@ -180,19 +207,19 @@ exports.updateQuantity = async (req, res) => {
     });
 
     const item = await CartItem.findOne({
-      where: { cart_id: cart.id, product_id },
+      where: { cart_id: cart.id, product_id: product.id },
     });
 
     if (!item) {
       if (quantity <= 0) {
         return res.json({ message: "Item not in cart" });
       }
-      const created = await CartItem.create({
+      await CartItem.create({
         cart_id: cart.id,
-        product_id,
+        product_id: product.id,
         quantity,
       });
-      return res.json({ message: "Cart item created", item: created });
+      return res.json({ message: "Cart item created" });
     }
 
     if (quantity <= 0) {
@@ -203,20 +230,35 @@ exports.updateQuantity = async (req, res) => {
     item.quantity = quantity;
     await item.save();
 
-    res.json({ message: "Cart item updated", item });
+    res.json({ message: "Cart item updated" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * Remove item from cart
+ * Remove item from cart by product code
  */
 exports.removeItem = async (req, res) => {
   try {
-    const { id } = req.params; // Cart Item ID
+    const { prod_code } = req.params;
 
-    const deleted = await CartItem.destroy({ where: { id } });
+    const cart = await Cart.findOne({
+      where: { user_id: req.user.id, status: "active" },
+    });
+
+    if (!cart) {
+      return res.status(404).json({ error: "Cart not found" });
+    }
+
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const deleted = await CartItem.destroy({
+      where: { cart_id: cart.id, product_id: product.id },
+    });
 
     if (!deleted) {
       return res.status(404).json({ error: "Cart item not found" });
