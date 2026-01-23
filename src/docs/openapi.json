@@ -250,6 +250,40 @@
         }
       }
     },
+    "/api/v1/products/new/arrivals": {
+      "get": {
+        "summary": "Get new arrivals",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/best/selling": {
+      "get": {
+        "summary": "Get best selling (random fallback)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/products/{id}": {
       "get": {
         "summary": "Get product by id",
@@ -619,6 +653,36 @@
         "responses": {
           "201": {
             "description": "Created"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear wishlist",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/wishlist/products": {
+      "get": {
+        "summary": "Get wishlist products only",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }

@@ -42,6 +42,29 @@ exports.list = async (req, res, next) => {
   }
 };
 
+exports.newArrivals = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit || 10), 50);
+    const items = await Product.findAll({
+      order: [["id", "DESC"]],
+      limit,
+      include: [{ model: ProductImage, as: "images" }]
+    });
+    res.json(items);
+  } catch (e) { next(e); }
+};
+
+exports.bestSelling = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit || 10), 50);
+    const items = await Product.findAll({
+      order: sequelize.random(),
+      limit,
+      include: [{ model: ProductImage, as: "images" }]
+    });
+    res.json(items);
+  } catch (e) { next(e); }
+};
 exports.getById = async (req, res, next) => {
   try {
     const item = await Product.findByPk(req.params.id, {

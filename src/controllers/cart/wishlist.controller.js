@@ -24,6 +24,33 @@ exports.getWishlist = async (req, res) => {
 };
 
 /**
+ * Get wishlist products only
+ */
+exports.getWishlistProducts = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const wishlist = await Wishlist.findAll({
+      where: { user_id: userId },
+      include: [
+        {
+          model: Product,
+          include: [{ model: ProductImage, as: "images" }],
+        },
+      ],
+    });
+
+    const products = wishlist
+      .map((item) => item.Product)
+      .filter(Boolean);
+
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
  * Add product to wishlist
  */
 exports.addToWishlist = async (req, res) => {
@@ -66,6 +93,19 @@ exports.removeFromWishlist = async (req, res) => {
     }
 
     res.json({ message: "Removed from wishlist" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * Clear all wishlist items
+ */
+exports.clearWishlist = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await Wishlist.destroy({ where: { user_id: userId } });
+    res.json({ message: "Wishlist cleared" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
