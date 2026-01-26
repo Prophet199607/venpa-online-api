@@ -1,4 +1,4 @@
-const { Product, ProductImage, sequelize } = require("../../models");
+const { Product, ProductImage, Review, sequelize } = require("../../models");
 
 function normalizeImages(images, prodCode) {
   if (!Array.isArray(images)) return [];
@@ -70,13 +70,23 @@ exports.bestSelling = async (req, res, next) => {
 };
 exports.getById = async (req, res, next) => {
   try {
-    const item = await Product.findOne({
+    const product = await Product.findOne({
       where: { prod_code: req.params.prod_code },
       attributes: { exclude: ["id"] },
       include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
     });
-    if (!item) return res.status(404).json({ message: "Product not found" });
-    res.json(item);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const reviews = await Review.findAll({
+      where: { product_id: product.id },
+      attributes: { exclude: ["id", "product_id", "user_id"] },
+      order: [["created_at", "DESC"]],
+    });
+
+    res.json({
+      product,
+      reviews,
+    });
   } catch (e) {
     next(e);
   }
