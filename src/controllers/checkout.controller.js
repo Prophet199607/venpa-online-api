@@ -14,8 +14,11 @@ exports.createCheckout = async (req, res, next) => {
       updated_at: new Date(),
     });
 
+    const orderId = req.body?.order_id ?? req.body?.orderId ?? null;
+
     res.status(201).json({
       message: "Checkout created",
+      order_id: orderId,
       checkout: {
         status: checkout.status,
         payload: checkout.payload,
