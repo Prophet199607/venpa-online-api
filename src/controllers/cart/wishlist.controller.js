@@ -67,6 +67,38 @@ exports.addToWishlist = async (req, res) => {
 };
 
 /**
+ * Add wishlist items in bulk using product codes
+ */
+exports.addWishlistItems = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { items } = req.body;
+
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: "Items array is required" });
+    }
+
+    let added = 0;
+    for (const item of items) {
+      const prodCode = item?.prod_code;
+      if (!prodCode) continue;
+      const product = await getProductByCode(prodCode);
+      if (!product) continue;
+
+      const [, created] = await Wishlist.findOrCreate({
+        where: { user_id: userId, product_id: product.id },
+        defaults: { user_id: userId, product_id: product.id },
+      });
+      if (created) added++;
+    }
+
+    res.json({ message: "Wishlist updated", added });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+/**
  * Remove product from wishlist by product code
  */
 exports.removeFromWishlist = async (req, res) => {

@@ -683,6 +683,45 @@
         }
       }
     },
+    "/api/v1/wishlist/items": {
+      "post": {
+        "summary": "Add wishlist items in bulk",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prod_code": { "type": "string" }
+                      },
+                      "required": ["prod_code"]
+                    }
+                  }
+                },
+                "required": ["items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/wishlist/product/{prod_code}": {
       "delete": {
         "summary": "Remove item from wishlist by product code",
