@@ -10,6 +10,7 @@ const Cart = require("./Cart");
 const CartItem = require("./CartItem");
 const Wishlist = require("./Wishlist");
 const Review = require("./Review");
+const Checkout = require("./Checkout");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -64,6 +65,10 @@ Review.belongsTo(User, { foreignKey: "user_id" });
 Product.hasMany(Review, { foreignKey: "product_id" });
 Review.belongsTo(Product, { foreignKey: "product_id" });
 
+// Checkouts
+User.hasMany(Checkout, { foreignKey: "user_id" });
+Checkout.belongsTo(User, { foreignKey: "user_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -77,4 +82,5 @@ module.exports = {
   CartItem,
   Wishlist,
   Review,
+  Checkout,
 };

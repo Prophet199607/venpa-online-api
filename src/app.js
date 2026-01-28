@@ -14,6 +14,7 @@ const cartRoutes = require("./routes/cart/cart.routes");
 const syncRoutes = require("./routes/sync.routes");
 const profileRoutes = require("./routes/profile.routes");
 const reviewRoutes = require("./routes/reviews.routes");
+const checkoutRoutes = require("./routes/checkout.routes");
 
 const errorMiddleware = require("./middleware/error.middleware");
 
@@ -83,6 +84,7 @@ app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/wishlist", wishlistRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/profile", profileRoutes);
+app.use("/api/v1/checkout", checkoutRoutes);
 
 app.use(errorMiddleware);
 
