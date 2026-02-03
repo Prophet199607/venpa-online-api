@@ -11,6 +11,8 @@ const CartItem = require("./CartItem");
 const Wishlist = require("./Wishlist");
 const Review = require("./Review");
 const Checkout = require("./Checkout");
+const EmailVerification = require("./EmailVerification");
+const PasswordReset = require("./PasswordReset");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -69,6 +71,14 @@ Review.belongsTo(Product, { foreignKey: "product_id" });
 User.hasMany(Checkout, { foreignKey: "user_id" });
 Checkout.belongsTo(User, { foreignKey: "user_id" });
 
+// Email verification
+User.hasMany(EmailVerification, { foreignKey: "user_id" });
+EmailVerification.belongsTo(User, { foreignKey: "user_id" });
+
+// Password resets
+User.hasMany(PasswordReset, { foreignKey: "user_id" });
+PasswordReset.belongsTo(User, { foreignKey: "user_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -83,4 +93,6 @@ module.exports = {
   Wishlist,
   Review,
   Checkout,
+  EmailVerification,
+  PasswordReset,
 };

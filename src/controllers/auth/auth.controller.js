@@ -1,6 +1,7 @@
-const { User } = require("../../models");
+const { User, PasswordReset } = require("../../models");
 const { z } = require("zod");
 const { OAuth2Client } = require("google-auth-library");
+const nodemailer = require("nodemailer");
 
 // Validation schemas
 // 1: First name is required
@@ -51,7 +52,7 @@ exports.register = async (req, res) => {
     }
 
     const { confirm_password, ...userData } = validatedData;
-    const user = await User.create(userData);
+    const user = await User.create({ ...userData, auth_provider: "local" });
 
     // Remove password from response
     const userResponse = user.toJSON();
@@ -163,8 +164,11 @@ exports.googleLogin = async (req, res) => {
         email: payload.email,
         phone: payload.phone_number || "0000000000",
         password: randomPassword,
+        auth_provider: "google",
         status: 1,
       });
+    } else if (user.auth_provider !== "google") {
+      await user.update({ auth_provider: "google" });
     }
 
     const userResponse = user.toJSON();
@@ -176,6 +180,104 @@ exports.googleLogin = async (req, res) => {
       user: userResponse,
       token: user.generateToken(),
     });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+function generateCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+function getTransporter() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+}
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ success: false, message: "email is required" });
+    }
+
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+    if (!emailUser || !emailPass) {
+      return res.status(400).json({ success: false, message: "Email credentials not configured" });
+    }
+
+    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (user.auth_provider !== "local") {
+      return res.status(400).json({ success: false, message: "Password reset not available for Google accounts" });
+    }
+
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await PasswordReset.create({
+      user_id: user.id,
+      code,
+      expires_at: expiresAt,
+      used_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `Venpaa Bookshop <${emailUser}>`,
+      to: user.email,
+      subject: "Your Venpaa password reset code",
+      text: `Your password reset code is ${code}. It expires in 10 minutes.`,
+    });
+
+    res.json({ success: true, message: "Password reset code sent" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, code, new_password } = req.body || {};
+
+    if (!email || !code || !new_password) {
+      return res.status(400).json({ success: false, message: "email, code, new_password are required" });
+    }
+
+    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    if (user.auth_provider !== "local") {
+      return res.status(400).json({ success: false, message: "Password reset not available for Google accounts" });
+    }
+
+    const record = await PasswordReset.findOne({
+      where: { user_id: user.id, code, used_at: null },
+      order: [["created_at", "DESC"]],
+    });
+
+    if (!record) {
+      return res.status(400).json({ success: false, message: "Invalid code" });
+    }
+    if (record.expires_at < new Date()) {
+      return res.status(400).json({ success: false, message: "Code expired" });
+    }
+
+    await user.update({ password: new_password });
+    await record.update({ used_at: new Date(), updated_at: new Date() });
+
+    res.json({ success: true, message: "Password reset successful" });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

@@ -1,5 +1,5 @@
-const { QueryTypes } = require("sequelize");
-const { sequelize } = require("../models");
+const { QueryTypes, Op } = require("sequelize");
+const { sequelize, EmailVerification } = require("../models");
 
 async function safeCount(table, column, userId) {
   try {
@@ -24,9 +24,13 @@ exports.getProfileSummary = async (req, res, next) => {
     const reviewsTable = process.env.REVIEWS_TABLE || "reviews";
     const reviewsUserColumn = process.env.REVIEWS_USER_COLUMN || "user_id";
 
-    const [orderCount, reviewCount] = await Promise.all([
+    const [orderCount, reviewCount, verification] = await Promise.all([
       safeCount(ordersTable, ordersUserColumn, req.user.id),
-      safeCount(reviewsTable, reviewsUserColumn, req.user.id)
+      safeCount(reviewsTable, reviewsUserColumn, req.user.id),
+      EmailVerification.findOne({
+        where: { user_id: req.user.id, verified_at: { [Op.ne]: null } },
+        order: [["verified_at", "DESC"]],
+      }).catch(() => null)
     ]);
 
     res.json({
@@ -36,7 +40,8 @@ exports.getProfileSummary = async (req, res, next) => {
         lname: user.lname,
         email: user.email,
         phone: user.phone,
-        status: user.status
+        status: user.status,
+        email_verified: Boolean(verification)
       },
       stats: {
         orders: orderCount,

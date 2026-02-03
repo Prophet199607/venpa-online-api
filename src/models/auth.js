@@ -17,6 +17,7 @@ const User = sequelize.define(
     },
     phone: { type: DataTypes.STRING(255), allowNull: false },
     password: { type: DataTypes.STRING(255), allowNull: false },
+    auth_provider: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "local" },
     status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
   },
   {

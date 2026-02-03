@@ -5,6 +5,19 @@
     "version": "1.0.0",
     "description": "API for online buy side and delivery sync."
   },
+  "tags": [
+    { "name": "System" },
+    { "name": "Auth" },
+    { "name": "Products" },
+    { "name": "Reviews" },
+    { "name": "Cart" },
+    { "name": "Wishlist" },
+    { "name": "Checkout" },
+    { "name": "Profile" },
+    { "name": "Email" },
+    { "name": "Sync" },
+    { "name": "Master" }
+  ],
   "paths": {
     "/health": {
       "get": {
@@ -38,6 +51,7 @@
     "/api/v1/departments": {
       "get": {
         "summary": "List departments",
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -64,6 +78,7 @@
     "/api/v1/departments/{id}": {
       "get": {
         "summary": "Get department by id",
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -87,6 +102,7 @@
     "/api/v1/categories": {
       "get": {
         "summary": "List categories",
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -127,6 +143,7 @@
     "/api/v1/categories/{id}": {
       "get": {
         "summary": "Get category by id",
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -150,6 +167,7 @@
     "/api/v1/subcategories": {
       "get": {
         "summary": "List subcategories",
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -190,6 +208,7 @@
     "/api/v1/subcategories/{id}": {
       "get": {
         "summary": "Get subcategory by id",
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -213,6 +232,7 @@
     "/api/v1/products": {
       "get": {
         "summary": "List products",
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "q",
@@ -253,6 +273,7 @@
     "/api/v1/products/new/arrivals": {
       "get": {
         "summary": "Get new arrivals",
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -267,9 +288,24 @@
         }
       }
     },
+    "/api/v1/products/search": {
+      "get": {
+        "summary": "Search products",
+        "tags": ["Products"],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "query", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
     "/api/v1/products/best/selling": {
       "get": {
-        "summary": "Get best selling (random fallback)",
+        "summary": "Get best selling (danata random ewa enne)",
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -287,6 +323,7 @@
     "/api/v1/products/code/{prod_code}": {
       "get": {
         "summary": "Get product by code",
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "prod_code",
@@ -309,7 +346,8 @@
     },
     "/api/v1/sync/all": {
       "post": {
-        "summary": "Sync all entities",
+        "summary": "Sync all selected tables",
+        "tags": ["Sync"],
         "parameters": [
           {
             "name": "full",
@@ -328,7 +366,8 @@
     },
     "/api/v1/sync/{entity}": {
       "post": {
-        "summary": "Sync one entity",
+        "summary": "Sync one table",
+        "tags": ["Sync"],
         "parameters": [
           {
             "name": "entity",
@@ -445,6 +484,58 @@
         }
       }
     },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "summary": "Send password reset code",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" },
+          "404": { "description": "Not Found" }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "summary": "Reset password with code",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code", "new_password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "code": { "type": "string" },
+                  "new_password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" },
+          "404": { "description": "Not Found" }
+        }
+      }
+    },
     "/api/v1/auth/me": {
       "get": {
         "summary": "Get current user profile",
@@ -459,6 +550,7 @@
     "/api/v1/profile/summary": {
       "get": {
         "summary": "Profile summary (user + orders/reviews/points)",
+        "tags": ["Profile"],
         "responses": {
           "200": {
             "description": "OK"
@@ -809,6 +901,25 @@
     "/api/v1/reviews/product/{prod_code}": {
       "get": {
         "summary": "List reviews for a product",
+        "tags": ["Reviews"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/reviews/product/{prod_code}/average": {
+      "get": {
+        "summary": "Average rating point ekak gannawa product ekata",
+        "tags": ["Reviews"],
         "parameters": [
           {
             "name": "prod_code",
@@ -826,6 +937,7 @@
     "/api/v1/reviews": {
       "post": {
         "summary": "Create or update a review",
+        "tags": ["Reviews"],
         "security": [
           { "bearerAuth": [] }
         ],
@@ -854,6 +966,7 @@
     "/api/v1/checkout": {
       "get": {
         "summary": "List user's checkouts",
+        "tags": ["Checkout"],
         "security": [
           { "bearerAuth": [] }
         ],
@@ -863,6 +976,7 @@
       },
       "post": {
         "summary": "Create checkout (order payload)",
+        "tags": ["Checkout"],
         "security": [
           { "bearerAuth": [] }
         ],
@@ -879,6 +993,46 @@
         },
         "responses": {
           "201": { "description": "Created" }
+        }
+      }
+    },
+    "/api/v1/email/send": {
+      "post": {
+        "summary": "Send email verification code",
+        "tags": ["Email"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/api/v1/email/verify": {
+      "post": {
+        "summary": "Verify email code",
+        "tags": ["Email"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": {
+                  "code": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" }
         }
       }
     }

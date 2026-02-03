@@ -43,6 +43,31 @@ exports.list = async (req, res, next) => {
   }
 };
 
+exports.search = async (req, res, next) => {
+  try {
+    const q = (req.query.q || req.query.query || "").toString().trim();
+    if (!q) {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    const { Op } = require("sequelize");
+    const items = await Product.findAll({
+      where: {
+        [Op.or]: [
+          { prod_code: { [Op.like]: `%${q}%` } },
+          { prod_name: { [Op.like]: `%${q}%` } },
+          { isbn: { [Op.like]: `%${q}%` } },
+        ],
+      },
+      order: [["id", "DESC"]],
+      attributes: { exclude: ["id"] },
+      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
+    });
+
+    res.json(items);
+  } catch (e) { next(e); }
+};
+
 exports.newArrivals = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
