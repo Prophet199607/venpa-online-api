@@ -51,3 +51,34 @@ exports.getProfileSummary = async (req, res, next) => {
     });
   } catch (e) { next(e); }
 };
+
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const { fname, lname } = req.body || {};
+
+    if (!fname && !lname) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+
+    const updates = {};
+    if (fname) updates.fname = fname;
+    if (lname) updates.lname = lname;
+
+    await req.user.update(updates);
+
+    const user = req.user.toJSON();
+    delete user.password;
+
+    res.json({
+      message: "Profile updated",
+      user: {
+        id: user.id,
+        fname: user.fname,
+        lname: user.lname,
+        email: user.email,
+        phone: user.phone,
+        status: user.status,
+      },
+    });
+  } catch (e) { next(e); }
+};

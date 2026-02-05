@@ -559,6 +559,31 @@
             "description": "Unauthorized"
           }
         }
+      },
+      "put": {
+        "summary": "Update profile summary details",
+        "tags": ["Profile"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fname": { "type": "string" },
+                  "lname": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" }
+        }
       }
     },
     "/api/v1/cart": {
@@ -1012,6 +1037,60 @@
     "/api/v1/email/verify": {
       "post": {
         "summary": "Verify email code",
+        "tags": ["Email"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": {
+                  "code": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/api/v1/email/change/send": {
+      "post": {
+        "summary": "Send email change code",
+        "tags": ["Email"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["new_email"],
+                "properties": {
+                  "new_email": { "type": "string", "format": "email" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/api/v1/email/change/verify": {
+      "post": {
+        "summary": "Verify email change code",
         "tags": ["Email"],
         "security": [
           { "bearerAuth": [] }

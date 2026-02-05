@@ -13,6 +13,7 @@ const Review = require("./Review");
 const Checkout = require("./Checkout");
 const EmailVerification = require("./EmailVerification");
 const PasswordReset = require("./PasswordReset");
+const EmailChange = require("./EmailChange");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -79,6 +80,10 @@ EmailVerification.belongsTo(User, { foreignKey: "user_id" });
 User.hasMany(PasswordReset, { foreignKey: "user_id" });
 PasswordReset.belongsTo(User, { foreignKey: "user_id" });
 
+// Email change
+User.hasMany(EmailChange, { foreignKey: "user_id" });
+EmailChange.belongsTo(User, { foreignKey: "user_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -95,4 +100,5 @@ module.exports = {
   Checkout,
   EmailVerification,
   PasswordReset,
+  EmailChange,
 };
