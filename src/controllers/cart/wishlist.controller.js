@@ -139,3 +139,22 @@ exports.clearWishlist = async (req, res) => {
 };
 
 exports.getWishlistProducts = exports.getWishlist;
+
+/**
+ * Count how many users wishlisted a product
+ */
+exports.countProductWishlists = async (req, res) => {
+  try {
+    const { prod_code } = req.params;
+    const product = await getProductByCode(prod_code);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const count = await Wishlist.count({ where: { product_id: product.id } });
+
+    res.json({ prod_code, count });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

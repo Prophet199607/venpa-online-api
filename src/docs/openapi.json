@@ -827,6 +827,24 @@
         }
       }
     },
+    "/api/v1/wishlist/product/{prod_code}/count": {
+      "get": {
+        "summary": "Count wishlists for a product",
+        "tags": ["Wishlist"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not Found" }
+        }
+      }
+    },
     "/api/v1/wishlist/items": {
       "post": {
         "summary": "Add wishlist items in bulk",
