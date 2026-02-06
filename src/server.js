@@ -6,6 +6,7 @@ require("dotenv").config({ path: path.resolve(process.cwd(), envFile) });
 const app = require("./app");
 const { sequelize } = require("./models");
 const { startSyncJobs } = require("./services/sync/syncJobs");
+const { startNotificationJobs } = require("./services/notifications/notificationJobs");
 
 const PORT = Number(process.env.PORT || 4000);
 
@@ -28,6 +29,11 @@ const PORT = Number(process.env.PORT || 4000);
     if (process.env.SYNC_ENABLED === "true") {
       startSyncJobs();
       console.log("Sync jobs tika start wuna!");
+    }
+
+    if (process.env.NOTIFY_ENABLED === "true") {
+      startNotificationJobs();
+      console.log("Notification jobs started!");
     }
 
     app.listen(PORT, () => console.log(`Running on http://localhost:${PORT}`));

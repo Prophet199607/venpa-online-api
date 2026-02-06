@@ -75,12 +75,17 @@ exports.addToCart = async (req, res) => {
 
     if (existingItem) {
       existingItem.quantity += parseInt(quantity, 10);
+      existingItem.updated_at = new Date();
       await existingItem.save();
     } else {
+      const now = new Date();
       await CartItem.create({
         cart_id: cart.id,
         product_id: product.id,
         quantity,
+        created_at: now,
+        updated_at: now,
+        expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
       });
     }
 
@@ -129,6 +134,7 @@ exports.updateItem = async (req, res) => {
     }
 
     item.quantity = quantity;
+    item.updated_at = new Date();
     await item.save();
 
     res.json({ message: "Cart item updated" });
@@ -176,12 +182,17 @@ exports.setCartItems = async (req, res) => {
 
       if (existing) {
         existing.quantity = quantity;
+        existing.updated_at = new Date();
         await existing.save();
       } else {
+        const now = new Date();
         await CartItem.create({
           cart_id: cart.id,
           product_id: product.id,
           quantity,
+          created_at: now,
+          updated_at: now,
+          expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
         });
       }
       touched++;
@@ -224,10 +235,14 @@ exports.updateQuantity = async (req, res) => {
       if (quantity <= 0) {
         return res.json({ message: "Item not in cart" });
       }
+      const now = new Date();
       await CartItem.create({
         cart_id: cart.id,
         product_id: product.id,
         quantity,
+        created_at: now,
+        updated_at: now,
+        expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
       });
       return res.json({ message: "Cart item created" });
     }
@@ -238,6 +253,7 @@ exports.updateQuantity = async (req, res) => {
     }
 
     item.quantity = quantity;
+    item.updated_at = new Date();
     await item.save();
 
     res.json({ message: "Cart item updated" });

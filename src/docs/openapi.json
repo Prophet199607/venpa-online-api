@@ -15,6 +15,7 @@
     { "name": "Checkout" },
     { "name": "Profile" },
     { "name": "Email" },
+    { "name": "Notifications" },
     { "name": "Sync" },
     { "name": "Master" }
   ],
@@ -1039,6 +1040,42 @@
         }
       }
     },
+    "/api/v1/checkout/{order_id}/status": {
+      "put": {
+        "summary": "Update checkout status",
+        "tags": ["Checkout"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Not Found" }
+        }
+      }
+    },
     "/api/v1/email/send": {
       "post": {
         "summary": "Send email verification code",
@@ -1130,6 +1167,84 @@
         "responses": {
           "200": { "description": "OK" },
           "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/api/v1/notifications/token": {
+      "post": {
+        "summary": "Register device token",
+        "tags": ["Notifications"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": { "type": "string" },
+                  "platform": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      },
+      "delete": {
+        "summary": "Remove device token",
+        "tags": ["Notifications"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/v1/notifications/test": {
+      "post": {
+        "summary": "Send test notification",
+        "tags": ["Notifications"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "body"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "body": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" }
         }
       }
     }

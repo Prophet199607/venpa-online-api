@@ -1,4 +1,5 @@
 const { Checkout } = require("../models");
+const { sendToUser } = require("../services/notifications/notificationService");
 
 exports.createCheckout = async (req, res, next) => {
   try {
@@ -38,5 +39,33 @@ exports.listCheckouts = async (req, res, next) => {
       attributes: { exclude: ["id", "user_id"] },
     });
     res.json(items);
+  } catch (e) { next(e); }
+};
+
+exports.updateCheckoutStatus = async (req, res, next) => {
+  try {
+    const { order_id } = req.params;
+    const { status } = req.body || {};
+
+    if (!status) {
+      return res.status(400).json({ message: "status is required" });
+    }
+
+    const checkout = await Checkout.findOne({ where: { order_id } });
+    if (!checkout) return res.status(404).json({ message: "Checkout not found" });
+
+    if (checkout.user_id !== req.user.id) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+
+    await checkout.update({ status, updated_at: new Date() });
+
+    await sendToUser(checkout.user_id, {
+      title: "Order status updated",
+      body: `Your order ${checkout.order_id} status is now ${status}.`,
+      data: { type: "order_status", order_id: String(checkout.order_id), status }
+    });
+
+    res.json({ message: "Checkout status updated", order_id: checkout.order_id, status });
   } catch (e) { next(e); }
 };

@@ -14,6 +14,7 @@ const Checkout = require("./Checkout");
 const EmailVerification = require("./EmailVerification");
 const PasswordReset = require("./PasswordReset");
 const EmailChange = require("./EmailChange");
+const DeviceToken = require("./DeviceToken");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -84,6 +85,10 @@ PasswordReset.belongsTo(User, { foreignKey: "user_id" });
 User.hasMany(EmailChange, { foreignKey: "user_id" });
 EmailChange.belongsTo(User, { foreignKey: "user_id" });
 
+// Device tokens
+User.hasMany(DeviceToken, { foreignKey: "user_id" });
+DeviceToken.belongsTo(User, { foreignKey: "user_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -101,4 +106,5 @@ module.exports = {
   EmailVerification,
   PasswordReset,
   EmailChange,
+  DeviceToken,
 };

@@ -16,6 +16,7 @@ const profileRoutes = require("./routes/profile.routes");
 const reviewRoutes = require("./routes/reviews.routes");
 const checkoutRoutes = require("./routes/checkout.routes");
 const emailVerificationRoutes = require("./routes/emailVerification.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 
 const errorMiddleware = require("./middleware/error.middleware");
 
@@ -87,6 +88,7 @@ app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/checkout", checkoutRoutes);
 app.use("/api/v1/email", emailVerificationRoutes);
+app.use("/api/v1/notifications", notificationsRoutes);
 
 app.use(errorMiddleware);
 
