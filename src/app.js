@@ -17,6 +17,8 @@ const reviewRoutes = require("./routes/reviews.routes");
 const checkoutRoutes = require("./routes/checkout.routes");
 const emailVerificationRoutes = require("./routes/emailVerification.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
+const appVersionRoutes = require("./routes/appVersion.routes");
+const chathuminaWebKatayamRoutes = require("./routes/chathumina_web_katayam.routes");
 
 const errorMiddleware = require("./middleware/error.middleware");
 
@@ -89,6 +91,8 @@ app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/checkout", checkoutRoutes);
 app.use("/api/v1/email", emailVerificationRoutes);
 app.use("/api/v1/notifications", notificationsRoutes);
+app.use("/api/v1/app-version", appVersionRoutes);
+app.use("/api/v1/chathumina_web_katayam", chathuminaWebKatayamRoutes);
 
 app.use(errorMiddleware);
 

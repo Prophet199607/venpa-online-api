@@ -40,6 +40,11 @@ exports.getProfileSummary = async (req, res, next) => {
         lname: user.lname,
         email: user.email,
         phone: user.phone,
+        country: user.country || null,
+        address: user.address || null,
+        city: user.city || null,
+        province: user.province || null,
+        postal_code: user.postal_code || null,
         status: user.status,
         email_verified: Boolean(verification)
       },
@@ -54,15 +59,33 @@ exports.getProfileSummary = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { fname, lname } = req.body || {};
+    const payload = req.body || {};
+    const has = (key) => Object.prototype.hasOwnProperty.call(payload, key);
+    const provinces = has("province") ? payload.province : payload.provinces;
 
-    if (!fname && !lname) {
+    if (
+      !has("fname") &&
+      !has("lname") &&
+      !has("phone") &&
+      !has("country") &&
+      !has("address") &&
+      !has("city") &&
+      !has("province") &&
+      !has("provinces") &&
+      !has("postal_code")
+    ) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
     const updates = {};
-    if (fname) updates.fname = fname;
-    if (lname) updates.lname = lname;
+    if (has("fname")) updates.fname = payload.fname;
+    if (has("lname")) updates.lname = payload.lname;
+    if (has("phone")) updates.phone = payload.phone;
+    if (has("country")) updates.country = payload.country;
+    if (has("address")) updates.address = payload.address;
+    if (has("city")) updates.city = payload.city;
+    if (has("province") || has("provinces")) updates.province = provinces;
+    if (has("postal_code")) updates.postal_code = payload.postal_code;
 
     await req.user.update(updates);
 
@@ -77,6 +100,11 @@ exports.updateProfile = async (req, res, next) => {
         lname: user.lname,
         email: user.email,
         phone: user.phone,
+        country: user.country || null,
+        address: user.address || null,
+        city: user.city || null,
+        province: user.province || null,
+        postal_code: user.postal_code || null,
         status: user.status,
       },
     });

@@ -15,6 +15,7 @@ const EmailVerification = require("./EmailVerification");
 const PasswordReset = require("./PasswordReset");
 const EmailChange = require("./EmailChange");
 const DeviceToken = require("./DeviceToken");
+const AppVersion = require("./AppVersion");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -107,4 +108,5 @@ module.exports = {
   PasswordReset,
   EmailChange,
   DeviceToken,
+  AppVersion,
 };

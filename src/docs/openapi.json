@@ -345,6 +345,37 @@
         }
       }
     },
+    "/api/v1/chathumina_web_katayam": {
+      "get": {
+        "summary": "Get best selling and new arrival products",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "Shared limit for both groups (default: 10, max: 50)"
+          },
+          {
+            "name": "best_selling_limit",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "Limit only for best_selling list"
+          },
+          {
+            "name": "new_arrival_limit",
+            "in": "query",
+            "schema": { "type": "integer" },
+            "description": "Limit only for new_arrival list"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/sync/all": {
       "post": {
         "summary": "Sync all selected tables",
@@ -575,7 +606,14 @@
                 "type": "object",
                 "properties": {
                   "fname": { "type": "string" },
-                  "lname": { "type": "string" }
+                  "lname": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "country": { "type": "string" },
+                  "address": { "type": "string" },
+                  "city": { "type": "string" },
+                  "province": { "type": "string" },
+                  "provinces": { "type": "string" },
+                  "postal_code": { "type": "string" }
                 }
               }
             }
@@ -1186,7 +1224,11 @@
                 "required": ["token"],
                 "properties": {
                   "token": { "type": "string" },
-                  "platform": { "type": "string" }
+                  "platform": {
+                    "type": "string",
+                    "description": "Device platform code. Use android/ios/web or 1/2/3. Stored as string code: android=1, ios=2, web=3.",
+                    "enum": ["1", "2", "3", "android", "ios", "web"]
+                  }
                 }
               }
             }
@@ -1245,6 +1287,57 @@
         },
         "responses": {
           "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/v1/app-version/check": {
+      "post": {
+        "summary": "Check app is latest version",
+        "tags": ["App Version"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["platform", "current_version"],
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "description": "Use android/ios or 1/2"
+                  },
+                  "current_version": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "successful": { "type": "boolean" },
+                    "platform": { "type": "string" },
+                    "current_version": { "type": "string" },
+                    "newest_version": { "type": "string" },
+                    "is_latest": { "type": "boolean" },
+                    "must_update": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Bad Request" },
+          "404": { "description": "Latest version not configured" }
         }
       }
     }
