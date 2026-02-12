@@ -1294,9 +1294,6 @@
       "post": {
         "summary": "Check app is latest version",
         "tags": ["App Version"],
-        "security": [
-          { "bearerAuth": [] }
-        ],
         "requestBody": {
           "required": true,
           "content": {
