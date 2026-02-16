@@ -3,7 +3,15 @@ const { User } = require("../models");
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
+    const authHeader = req.header("Authorization") || req.header("authorization");
+    const xAccessToken = req.header("x-access-token");
+
+    let token = null;
+    if (authHeader) {
+      token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    } else if (xAccessToken) {
+      token = String(xAccessToken).trim();
+    }
 
     if (!token) {
       throw new Error("No authentication token provided");
@@ -20,6 +28,7 @@ const auth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
+    console.warn("Auth failed:", error.message);
     res.status(401).json({ error: "Please authenticate." });
   }
 };
