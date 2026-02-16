@@ -62,6 +62,8 @@ exports.updateProfile = async (req, res, next) => {
     const payload = req.body || {};
     const has = (key) => Object.prototype.hasOwnProperty.call(payload, key);
     const provinces = has("province") ? payload.province : payload.provinces;
+    const userAttrs = req.user.constructor?.rawAttributes || {};
+    const supports = (attr) => Boolean(userAttrs[attr]);
 
     if (
       !has("fname") &&
@@ -81,11 +83,11 @@ exports.updateProfile = async (req, res, next) => {
     if (has("fname")) updates.fname = payload.fname;
     if (has("lname")) updates.lname = payload.lname;
     if (has("phone")) updates.phone = payload.phone;
-    if (has("country")) updates.country = payload.country;
-    if (has("address")) updates.address = payload.address;
-    if (has("city")) updates.city = payload.city;
-    if (has("province") || has("provinces")) updates.province = provinces;
-    if (has("postal_code")) updates.postal_code = payload.postal_code;
+    if (has("country") && supports("country")) updates.country = payload.country;
+    if (has("address") && supports("address")) updates.address = payload.address;
+    if (has("city") && supports("city")) updates.city = payload.city;
+    if ((has("province") || has("provinces")) && supports("province")) updates.province = provinces;
+    if (has("postal_code") && supports("postal_code")) updates.postal_code = payload.postal_code;
 
     await req.user.update(updates);
 
