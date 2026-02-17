@@ -10,13 +10,39 @@ const client = axios.create({
   }
 });
 
+function entityCandidates(entity) {
+  if (entity === "book_types") {
+    const candidates = [
+      process.env.SYNC_BOOK_TYPES_ENTITY,
+      "book_types",
+      "boot_types",
+    ].filter(Boolean);
+    return [...new Set(candidates)];
+  }
+  return [entity];
+}
+
 // Assumption: main API supports ?updated_after=ISO_DATE
 async function fetchEntities(entity, updatedAfter) {
   const params = {};
   if (updatedAfter) params.updated_after = updatedAfter.toISOString();
 
-  const res = await client.get(`/sync/${entity}`, { params });
-  return res.data; // array
+  const candidates = entityCandidates(entity);
+  let lastError = null;
+
+  for (const name of candidates) {
+    try {
+      const res = await client.get(`/sync/${name}`, { params });
+      return res.data; // array
+    } catch (err) {
+      lastError = err;
+      if (err?.response?.status !== 404) {
+        throw err;
+      }
+    }
+  }
+
+  throw lastError || new Error(`Failed to fetch sync entity: ${entity}`);
 }
 
 module.exports = { fetchEntities };

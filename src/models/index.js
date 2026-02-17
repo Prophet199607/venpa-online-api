@@ -3,6 +3,10 @@ const Department = require("./Department");
 const Category = require("./Category");
 const SubCategory = require("./SubCategory");
 const Product = require("./Product");
+const Publisher = require("./Publisher");
+const BookType = require("./BookType");
+const Author = require("./Author");
+const ProductAuthor = require("./ProductAuthor");
 const ProductImage = require("./ProductImage");
 const SyncState = require("./SyncState");
 const User = require("./auth");
@@ -45,6 +49,17 @@ Product.hasMany(ProductImage, {
 ProductImage.belongsTo(Product, {
   foreignKey: "product_id",
   as: "product",
+});
+Publisher.hasMany(Product, {
+  foreignKey: "publisher",
+  sourceKey: "pub_code",
+  constraints: false,
+});
+Product.belongsTo(Publisher, {
+  foreignKey: "publisher",
+  targetKey: "pub_code",
+  as: "publisherDetails",
+  constraints: false,
 });
 
 // Cart Relations
@@ -96,6 +111,10 @@ module.exports = {
   Category,
   SubCategory,
   Product,
+  Publisher,
+  BookType,
+  Author,
+  ProductAuthor,
   ProductImage,
   SyncState,
   User,

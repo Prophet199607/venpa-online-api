@@ -1,4 +1,15 @@
-const { Department, Category, SubCategory, Product, ProductImage, SyncState } = require("../../models");
+const {
+  Department,
+  Category,
+  SubCategory,
+  Product,
+  Publisher,
+  BookType,
+  Author,
+  ProductAuthor,
+  ProductImage,
+  SyncState,
+} = require("../../models");
 const { fetchEntities: fetchFromApi } = require("./otherApiClient");
 const { fetchEntities: fetchFromDb } = require("./localDbClient");
 
@@ -6,7 +17,11 @@ const ENTITY_CONFIG = {
   departments: { model: Department, key: "dep_code" },
   categories: { model: Category, key: "cat_code" },
   sub_categories: { model: SubCategory, key: "scat_code" },
+  publishers: { model: Publisher, key: "pub_code" },
+  book_types: { model: BookType, key: "book_type" },
+  authors: { model: Author, key: "auth_code" },
   products: { model: Product, key: "prod_code" },
+  product_authors: { model: ProductAuthor, key: "id" },
   product_images: { model: ProductImage, key: ["prod_code", "image"] }
 };
 
@@ -92,7 +107,11 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("departments", options));
   results.push(await syncEntity("categories", options));
   results.push(await syncEntity("sub_categories", options));
+  results.push(await syncEntity("publishers", options));
+  results.push(await syncEntity("book_types", options));
+  results.push(await syncEntity("authors", options));
   results.push(await syncEntity("products", options));
+  results.push(await syncEntity("product_authors", options));
   results.push(await syncEntity("product_images", options));
   return results;
 }

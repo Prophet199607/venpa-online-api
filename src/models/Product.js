@@ -23,6 +23,7 @@ const Product = sequelize.define("products", {
   publisher: { type: DataTypes.STRING(255), allowNull: true },
   isbn: { type: DataTypes.STRING(255), allowNull: true },
   publish_year: { type: DataTypes.INTEGER, allowNull: true },
+  pages: { type: DataTypes.INTEGER, allowNull: true },
 
   alert_qty: { type: DataTypes.INTEGER, allowNull: true },
 }, {

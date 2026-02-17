@@ -1,15 +1,15 @@
+const { Op } = require("sequelize");
 const { Product, ProductImage, Review, sequelize } = require("../../models");
+const { enrichProducts } = require("../../services/products/enrichProducts");
 
-function normalizeImages(images, prodCode) {
-  if (!Array.isArray(images)) return [];
-  return images
-    .map((img) => {
-      if (typeof img === "string") return { prod_code: prodCode, image: img };
-      if (img && typeof img.image === "string")
-        return { prod_code: prodCode, image: img.image };
-      return null;
-    })
-    .filter(Boolean);
+function productIncludes() {
+  return [
+    {
+      model: ProductImage,
+      as: "images",
+      attributes: { exclude: ["id", "product_id"] },
+    },
+  ];
 }
 
 exports.list = async (req, res, next) => {
@@ -21,9 +21,7 @@ exports.list = async (req, res, next) => {
     if (category) where.category = category;
     if (sub_category) where.sub_category = sub_category;
 
-    // Simple search
     if (q) {
-      const { Op } = require("sequelize");
       where[Op.or] = [
         { prod_code: { [Op.like]: `%${q}%` } },
         { prod_name: { [Op.like]: `%${q}%` } },
@@ -35,9 +33,10 @@ exports.list = async (req, res, next) => {
       where,
       order: [["id", "DESC"]],
       attributes: { exclude: ["id"] },
-      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
+      include: productIncludes(),
     });
-    res.json(items);
+
+    res.json(await enrichProducts(items));
   } catch (e) {
     next(e);
   }
@@ -50,7 +49,6 @@ exports.search = async (req, res, next) => {
       return res.status(400).json({ message: "Search query is required" });
     }
 
-    const { Op } = require("sequelize");
     const items = await Product.findAll({
       where: {
         [Op.or]: [
@@ -61,11 +59,13 @@ exports.search = async (req, res, next) => {
       },
       order: [["id", "DESC"]],
       attributes: { exclude: ["id"] },
-      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
+      include: productIncludes(),
     });
 
-    res.json(items);
-  } catch (e) { next(e); }
+    res.json(await enrichProducts(items));
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.newArrivals = async (req, res, next) => {
@@ -75,10 +75,13 @@ exports.newArrivals = async (req, res, next) => {
       order: [["id", "DESC"]],
       limit,
       attributes: { exclude: ["id"] },
-      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }]
+      include: productIncludes(),
     });
-    res.json(items);
-  } catch (e) { next(e); }
+
+    res.json(await enrichProducts(items));
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.bestSelling = async (req, res, next) => {
@@ -88,17 +91,21 @@ exports.bestSelling = async (req, res, next) => {
       order: sequelize.random(),
       limit,
       attributes: { exclude: ["id"] },
-      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }]
+      include: productIncludes(),
     });
-    res.json(items);
-  } catch (e) { next(e); }
+
+    res.json(await enrichProducts(items));
+  } catch (e) {
+    next(e);
+  }
 };
+
 exports.getById = async (req, res, next) => {
   try {
     const product = await Product.findOne({
       where: { prod_code: req.params.prod_code },
       attributes: { exclude: ["id"] },
-      include: [{ model: ProductImage, as: "images", attributes: { exclude: ["id", "product_id"] } }],
+      include: productIncludes(),
     });
     if (!product) return res.status(404).json({ message: "Product not found" });
 
@@ -114,8 +121,9 @@ exports.getById = async (req, res, next) => {
       reviews = [];
     }
 
+    const enriched = await enrichProducts([product]);
     res.json({
-      product,
+      product: enriched[0] || null,
       reviews,
     });
   } catch (e) {

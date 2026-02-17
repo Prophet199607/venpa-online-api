@@ -1,4 +1,5 @@
 const { Product, ProductImage, sequelize } = require("../models");
+const { enrichProducts } = require("../services/products/enrichProducts");
 
 function resolveLimit(raw, fallback = 10) {
   const parsed = Number(raw);
@@ -6,18 +7,22 @@ function resolveLimit(raw, fallback = 10) {
   return Math.min(Math.trunc(parsed), 50);
 }
 
+function productIncludes() {
+  return [
+    {
+      model: ProductImage,
+      as: "images",
+      attributes: { exclude: ["id", "product_id"] },
+    },
+  ];
+}
+
 async function fetchNewArrivalProducts(limit) {
   return Product.findAll({
     order: [["id", "DESC"]],
     limit,
     attributes: { exclude: ["id"] },
-    include: [
-      {
-        model: ProductImage,
-        as: "images",
-        attributes: { exclude: ["id", "product_id"] },
-      },
-    ],
+    include: productIncludes(),
   });
 }
 
@@ -26,13 +31,7 @@ async function fetchBestSellingProducts(limit) {
     order: sequelize.random(),
     limit,
     attributes: { exclude: ["id"] },
-    include: [
-      {
-        model: ProductImage,
-        as: "images",
-        attributes: { exclude: ["id", "product_id"] },
-      },
-    ],
+    include: productIncludes(),
   });
 }
 
@@ -47,9 +46,14 @@ exports.getProducts = async (req, res, next) => {
       fetchNewArrivalProducts(newLimit),
     ]);
 
+    const [enrichedBestSelling, enrichedNewArrival] = await Promise.all([
+      enrichProducts(bestSelling),
+      enrichProducts(newArrival),
+    ]);
+
     return res.json({
-      best_selling: bestSelling,
-      new_arrival: newArrival,
+      best_selling: enrichedBestSelling,
+      new_arrival: enrichedNewArrival,
     });
   } catch (e) {
     return next(e);
