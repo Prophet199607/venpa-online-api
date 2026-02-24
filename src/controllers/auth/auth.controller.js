@@ -20,6 +20,11 @@ const registerSchema = z
     lname: z.string({ required_error: "2" }).min(1, "2"),
     email: z.string({ required_error: "3" }).email("3").trim().toLowerCase(),
     phone: z.string({ required_error: "4" }).min(10, "4"),
+    country: z.string().trim().optional(),
+    address: z.string().trim().optional(),
+    city: z.string().trim().optional(),
+    province: z.string().trim().optional(),
+    postal_code: z.string().trim().optional(),
     password: z.string({ required_error: "5" }).min(6, "5"),
     confirm_password: z.string().optional(),
   })
