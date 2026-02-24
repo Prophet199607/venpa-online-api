@@ -1337,6 +1337,68 @@
           "404": { "description": "Latest version not configured" }
         }
       }
+    },
+    "/api/v1/shipping-address": {
+      "get": {
+        "summary": "Get my shipping address",
+        "tags": ["Shipping Address"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "put": {
+        "summary": "Create or update my shipping address",
+        "tags": ["Shipping Address"],
+        "security": [
+          { "bearerAuth": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "receiver_fname",
+                  "receiver_lname",
+                  "phone",
+                  "delivery_address",
+                  "city",
+                  "province",
+                  "postal_code",
+                  "country"
+                ],
+                "properties": {
+                  "is_gift": { "type": "boolean" },
+                  "gift": { "type": "boolean" },
+                  "receiver_fname": { "type": "string" },
+                  "first_name": { "type": "string" },
+                  "receiver_lname": { "type": "string" },
+                  "last_name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "phone": { "type": "string" },
+                  "delivery_address": { "type": "string" },
+                  "address": { "type": "string" },
+                  "city": { "type": "string" },
+                  "province": { "type": "string" },
+                  "provinces": { "type": "string" },
+                  "postal_code": { "type": "string" },
+                  "country": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Bad Request" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
     }
   },
   "components": {

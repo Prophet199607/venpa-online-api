@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const c = require("../../controllers/auth/auth.controller");
+const profileController = require("../../controllers/profile.controller");
 
 const auth = require("../../middleware/auth.middleware");
 
@@ -13,5 +14,6 @@ router.get("/me", auth, (req, res) => {
   delete user.password;
   res.json(user);
 });
+router.put("/me", auth, profileController.updateProfile);
 
 module.exports = router;

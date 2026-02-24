@@ -20,6 +20,7 @@ const PasswordReset = require("./PasswordReset");
 const EmailChange = require("./EmailChange");
 const DeviceToken = require("./DeviceToken");
 const AppVersion = require("./AppVersion");
+const ShippingAddress = require("./ShippingAddress");
 
 // Associations
 Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
@@ -104,6 +105,8 @@ EmailChange.belongsTo(User, { foreignKey: "user_id" });
 // Device tokens
 User.hasMany(DeviceToken, { foreignKey: "user_id" });
 DeviceToken.belongsTo(User, { foreignKey: "user_id" });
+User.hasOne(ShippingAddress, { foreignKey: "user_id" });
+ShippingAddress.belongsTo(User, { foreignKey: "user_id" });
 
 module.exports = {
   sequelize,
@@ -128,4 +131,5 @@ module.exports = {
   EmailChange,
   DeviceToken,
   AppVersion,
+  ShippingAddress,
 };
