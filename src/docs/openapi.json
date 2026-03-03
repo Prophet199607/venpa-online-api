@@ -132,6 +132,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "prod_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Return only subcategories linked to this product code via product_sub_categories"
           }
         ],
         "responses": {
@@ -208,7 +216,7 @@
     },
     "/api/v1/subcategories/{id}": {
       "get": {
-        "summary": "Get subcategory by id",
+        "summary": "Get subcategories by category code, or get one subcategory by id/code",
         "tags": ["Master"],
         "parameters": [
           {
@@ -216,8 +224,9 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer"
-            }
+              "type": "string"
+            },
+            "description": "Preferred: category code to load linked subcategories. Fallback: numeric subcategory id or scat_code."
           }
         ],
         "responses": {

@@ -3,6 +3,7 @@ const Department = require("./Department");
 const Category = require("./Category");
 const SubCategory = require("./SubCategory");
 const Product = require("./Product");
+const ProductSubCategory = require("./ProductSubCategory");
 const Publisher = require("./Publisher");
 const BookType = require("./BookType");
 const Author = require("./Author");
@@ -50,6 +51,30 @@ Product.hasMany(ProductImage, {
 ProductImage.belongsTo(Product, {
   foreignKey: "product_id",
   as: "product",
+});
+Product.hasMany(ProductSubCategory, {
+  foreignKey: "prod_code",
+  sourceKey: "prod_code",
+  constraints: false,
+  as: "productSubCategories",
+});
+ProductSubCategory.belongsTo(Product, {
+  foreignKey: "prod_code",
+  targetKey: "prod_code",
+  constraints: false,
+  as: "product",
+});
+SubCategory.hasMany(ProductSubCategory, {
+  foreignKey: "sub_category_id",
+  sourceKey: "id",
+  constraints: false,
+  as: "productSubCategories",
+});
+ProductSubCategory.belongsTo(SubCategory, {
+  foreignKey: "sub_category_id",
+  targetKey: "id",
+  constraints: false,
+  as: "subcategory",
 });
 Publisher.hasMany(Product, {
   foreignKey: "publisher",
@@ -114,6 +139,7 @@ module.exports = {
   Category,
   SubCategory,
   Product,
+  ProductSubCategory,
   Publisher,
   BookType,
   Author,

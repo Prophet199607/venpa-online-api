@@ -1,9 +1,9 @@
 const { Op } = require("sequelize");
-const { SubCategory } = require("../../models");
+const { SubCategory, ProductSubCategory } = require("../../models");
 
 exports.list = async (req, res, next) => {
   try {
-    const { q, department, status, cat_code } = req.query;
+    const { q, department, status, cat_code, prod_code } = req.query;
     const where = {};
 
     if (department) where.department = department;
@@ -21,7 +21,25 @@ exports.list = async (req, res, next) => {
       ];
     }
 
-    const items = await SubCategory.findAll({ where, order: [["id", "DESC"]] });
+    let items;
+    if (prod_code) {
+      items = await SubCategory.findAll({
+        where,
+        include: [
+          {
+            model: ProductSubCategory,
+            as: "productSubCategories",
+            where: { prod_code },
+            attributes: [],
+            required: true,
+          },
+        ],
+        order: [["id", "DESC"]],
+      });
+    } else {
+      items = await SubCategory.findAll({ where, order: [["id", "DESC"]] });
+    }
+
     res.json(items);
   } catch (e) {
     next(e);
@@ -30,10 +48,28 @@ exports.list = async (req, res, next) => {
 
 exports.getById = async (req, res, next) => {
   try {
-    const item = await SubCategory.findByPk(req.params.id);
-    if (!item)
+    const value = String(req.params.id || "").trim();
+    const linkedItems = await SubCategory.findAll({
+      where: { cat_code: value },
+      order: [["id", "DESC"]],
+    });
+
+    if (linkedItems.length) {
+      return res.json(linkedItems);
+    }
+
+    const numericId = Number(value);
+    const item = await SubCategory.findOne({
+      where:
+        Number.isInteger(numericId) && /^\d+$/.test(value)
+          ? { id: numericId }
+          : { scat_code: value },
+    });
+
+    if (!item) {
       return res.status(404).json({ message: "Subcategory not found" });
-    res.json(item);
+    }
+    return res.json(item);
   } catch (e) {
     next(e);
   }
