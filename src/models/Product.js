@@ -1,6 +1,22 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
 
+function withProductImageBaseUrl(value) {
+  if (!value) return value;
+
+  const raw = String(value).trim();
+  if (!raw) return raw;
+
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  const base = String(process.env.PRODUCT_IMAGE_BASE_URL || "").trim();
+  if (!base) return raw;
+
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  const normalizedPath = raw.replace(/^\/+/, "");
+  return `${normalizedBase}${normalizedPath}`;
+}
+
 const Product = sequelize.define("products", {
   id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
   prod_code: { type: DataTypes.STRING(255), allowNull: false },
@@ -24,7 +40,13 @@ const Product = sequelize.define("products", {
   isbn: { type: DataTypes.STRING(255), allowNull: true },
   publish_year: { type: DataTypes.INTEGER, allowNull: true },
   pages: { type: DataTypes.INTEGER, allowNull: true },
-  prod_image: { type: DataTypes.STRING(255), allowNull: true },
+  prod_image: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    get() {
+      return withProductImageBaseUrl(this.getDataValue("prod_image"));
+    },
+  },
 
   alert_qty: { type: DataTypes.INTEGER, allowNull: true },
 }, {
