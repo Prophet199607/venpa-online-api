@@ -285,6 +285,25 @@
         }
       }
     },
+    "/api/v1/publishers/{id}/books": {
+      "get": {
+        "summary": "Get all books linked to a publisher id or pub_code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Publisher numeric id or pub_code"
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
     "/api/v1/authors": {
       "get": {
         "summary": "List authors",
@@ -323,6 +342,25 @@
             "in": "path",
             "required": true,
             "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" },
+          "404": { "description": "Not found" }
+        }
+      }
+    },
+    "/api/v1/authors/{id}/books": {
+      "get": {
+        "summary": "Get all books linked to an author id or auth_code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Author numeric id or auth_code"
           }
         ],
         "responses": {
