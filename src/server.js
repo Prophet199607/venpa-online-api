@@ -1,7 +1,19 @@
 const path = require("path");
-const envFile =
-  process.env.NODE_ENV === "production" ? ".env.production" : ".env";
-require("dotenv").config({ path: path.resolve(process.cwd(), envFile) });
+const fs = require("fs");
+
+const baseEnvFile = path.resolve(process.cwd(), ".env");
+const productionEnvFile = path.resolve(process.cwd(), ".env.production");
+
+if (fs.existsSync(baseEnvFile)) {
+  require("dotenv").config({ path: baseEnvFile });
+}
+
+if (
+  String(process.env.NODE_ENV || "").trim() === "production" &&
+  fs.existsSync(productionEnvFile)
+) {
+  require("dotenv").config({ path: productionEnvFile, override: true });
+}
 
 const app = require("./app");
 const { sequelize } = require("./models");
@@ -9,6 +21,16 @@ const { startSyncJobs } = require("./services/sync/syncJobs");
 const { startNotificationJobs } = require("./services/notifications/notificationJobs");
 
 const PORT = Number(process.env.PORT || 4000);
+
+function getSyncOptions() {
+  const syncMode = String(process.env.DB_SYNC_MODE || "none").trim().toLowerCase();
+
+  if (syncMode === "none") return null;
+  if (syncMode === "alter") return { alter: true };
+  if (syncMode === "force") return { force: true };
+
+  throw new Error(`Invalid DB_SYNC_MODE: ${syncMode}`);
+}
 
 (async () => {
   try {
@@ -20,11 +42,14 @@ const PORT = Number(process.env.PORT || 4000);
     console.log("Syncing Tables...");
     console.log("Registered Models:", Object.keys(sequelize.models));
 
-    const syncOptions =
-      process.env.NODE_ENV === "development" ? { alter: true } : {};
+    const syncOptions = getSyncOptions();
 
-    await sequelize.sync(syncOptions);
-    console.log(`Database synchronized! (Mode: ${process.env.NODE_ENV})`);
+    if (syncOptions) {
+      await sequelize.sync(syncOptions);
+      console.log(`Database synchronized! (DB_SYNC_MODE: ${process.env.DB_SYNC_MODE})`);
+    } else {
+      console.log("Skipping Sequelize sync on startup (DB_SYNC_MODE=none)");
+    }
 
     if (process.env.SYNC_ENABLED === "true") {
       startSyncJobs();

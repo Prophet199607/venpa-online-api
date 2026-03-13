@@ -8,7 +8,8 @@ module.exports = {
     watch: false,
     max_memory_restart: '1G',
     env: {
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      DB_SYNC_MODE: 'none'
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',
