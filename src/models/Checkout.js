@@ -15,6 +15,7 @@ const Checkout = sequelize.define(
       unique: true,
     },
     user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+    type: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
     payload: { type: DataTypes.JSON, allowNull: false },
     status: { type: DataTypes.STRING(50), allowNull: false, defaultValue: "pending" },
     created_at: { type: DataTypes.DATE, allowNull: true },

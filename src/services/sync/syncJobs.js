@@ -9,7 +9,7 @@ function startSyncJobs() {
     try {
       const results = await syncAll();
       const summary = results
-        .map((r) => `${r.entity}:${r.fetched} (c:${r.created}, u:${r.updated}, f:${r.failed})`)
+        .map((r) => `${r.entity}:${r.fetched} (c:${r.created}, u:${r.updated}, d:${r.deleted || 0}, f:${r.failed})`)
         .join(" | ");
       console.log("Sync done:", summary);
       const errors = results.flatMap((r) => r.errors || []);

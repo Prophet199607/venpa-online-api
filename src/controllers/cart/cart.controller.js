@@ -4,17 +4,36 @@ async function getProductByCode(prodCode) {
   return Product.findOne({ where: { prod_code: prodCode } });
 }
 
+function generateOrderId() {
+  return Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`);
+}
+
+async function ensureCartOrderId(cart) {
+  if (cart && !cart.order_id) {
+    cart.order_id = generateOrderId();
+    await cart.save();
+  }
+
+  return cart;
+}
+
+async function getOrCreateActiveCart(userId) {
+  const [cart] = await Cart.findOrCreate({
+    where: { user_id: userId, status: "active" },
+    defaults: { user_id: userId, order_id: generateOrderId(), status: "active" },
+  });
+
+  // Backfill order ids for older active carts created before this field existed.
+  return ensureCartOrderId(cart);
+}
+
 /**
  * Get the user's active cart. If not exists, return empty or create one.
  */
 exports.getCart = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    const [cart] = await Cart.findOrCreate({
-      where: { user_id: userId, status: "active" },
-      defaults: { user_id: userId, status: "active" },
-    });
+    const cart = await getOrCreateActiveCart(userId);
 
     const cartItems = await CartItem.findAll({
       where: { cart_id: cart.id },
@@ -34,7 +53,7 @@ exports.getCart = async (req, res) => {
     });
 
     res.json({
-      cart: { status: cart.status },
+      cart: { status: cart.status, order_id: cart.order_id },
       items: cartItems.map((item) => ({
         quantity: item.quantity,
         product: item.product || null,
@@ -64,10 +83,7 @@ exports.addToCart = async (req, res) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    const [cart] = await Cart.findOrCreate({
-      where: { user_id: userId, status: "active" },
-      defaults: { user_id: userId, status: "active" },
-    });
+    const cart = await getOrCreateActiveCart(userId);
 
     const existingItem = await CartItem.findOne({
       where: { cart_id: cart.id, product_id: product.id },
@@ -89,7 +105,7 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    res.json({ message: "Item added to cart" });
+    res.json({ message: "Item added to cart", order_id: cart.order_id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -114,6 +130,7 @@ exports.updateItem = async (req, res) => {
     if (!cart) {
       return res.status(404).json({ error: "Cart not found" });
     }
+    await ensureCartOrderId(cart);
 
     const product = await getProductByCode(prod_code);
     if (!product) {
@@ -130,14 +147,14 @@ exports.updateItem = async (req, res) => {
 
     if (quantity <= 0) {
       await item.destroy();
-      return res.json({ message: "Item removed from cart" });
+      return res.json({ message: "Item removed from cart", order_id: cart.order_id });
     }
 
     item.quantity = quantity;
     item.updated_at = new Date();
     await item.save();
 
-    res.json({ message: "Cart item updated" });
+    res.json({ message: "Cart item updated", order_id: cart.order_id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -154,10 +171,7 @@ exports.setCartItems = async (req, res) => {
       return res.status(400).json({ error: "Items array is required" });
     }
 
-    const [cart] = await Cart.findOrCreate({
-      where: { user_id: req.user.id, status: "active" },
-      defaults: { user_id: req.user.id, status: "active" },
-    });
+    const cart = await getOrCreateActiveCart(req.user.id);
 
     let touched = 0;
 
@@ -198,7 +212,7 @@ exports.setCartItems = async (req, res) => {
       touched++;
     }
 
-    res.json({ message: "Cart items updated", items: touched });
+    res.json({ message: "Cart items updated", items: touched, order_id: cart.order_id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -222,10 +236,7 @@ exports.updateQuantity = async (req, res) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    const [cart] = await Cart.findOrCreate({
-      where: { user_id: req.user.id, status: "active" },
-      defaults: { user_id: req.user.id, status: "active" },
-    });
+    const cart = await getOrCreateActiveCart(req.user.id);
 
     const item = await CartItem.findOne({
       where: { cart_id: cart.id, product_id: product.id },
@@ -244,19 +255,19 @@ exports.updateQuantity = async (req, res) => {
         updated_at: now,
         expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
       });
-      return res.json({ message: "Cart item created" });
+      return res.json({ message: "Cart item created", order_id: cart.order_id });
     }
 
     if (quantity <= 0) {
       await item.destroy();
-      return res.json({ message: "Item removed from cart" });
+      return res.json({ message: "Item removed from cart", order_id: cart.order_id });
     }
 
     item.quantity = quantity;
     item.updated_at = new Date();
     await item.save();
 
-    res.json({ message: "Cart item updated" });
+    res.json({ message: "Cart item updated", order_id: cart.order_id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -276,6 +287,7 @@ exports.removeItem = async (req, res) => {
     if (!cart) {
       return res.status(404).json({ error: "Cart not found" });
     }
+    await ensureCartOrderId(cart);
 
     const product = await getProductByCode(prod_code);
     if (!product) {
@@ -290,7 +302,7 @@ exports.removeItem = async (req, res) => {
       return res.status(404).json({ error: "Cart item not found" });
     }
 
-    res.json({ message: "Item removed from cart" });
+    res.json({ message: "Item removed from cart", order_id: cart.order_id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -308,10 +320,11 @@ exports.clearCart = async (req, res) => {
     });
 
     if (cart) {
+      await ensureCartOrderId(cart);
       await CartItem.destroy({ where: { cart_id: cart.id } });
     }
 
-    res.json({ message: "Cart cleared" });
+    res.json({ message: "Cart cleared", order_id: cart?.order_id || null });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

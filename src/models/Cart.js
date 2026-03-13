@@ -8,7 +8,14 @@ const Cart = sequelize.define("carts", {
     autoIncrement: true,
   },
   user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
+  order_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false, unique: true },
   status: { type: DataTypes.STRING, defaultValue: "active" },
 });
 
 module.exports = Cart;
+
+
+
+
+
+

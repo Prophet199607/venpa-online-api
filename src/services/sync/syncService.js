@@ -10,16 +10,17 @@ const {
   ProductImage,
   SyncState,
 } = require("../../models");
+const { Op } = require("sequelize");
 const { fetchEntities: fetchFromApi } = require("./otherApiClient");
 const { fetchEntities: fetchFromDb } = require("./localDbClient");
 
 const ENTITY_CONFIG = {
-  departments: { model: Department, key: "dep_code" },
-  categories: { model: Category, key: "cat_code" },
-  sub_categories: { model: SubCategory, key: "scat_code" },
-  publishers: { model: Publisher, key: "pub_code" },
-  book_types: { model: BookType, key: "book_type" },
-  authors: { model: Author, key: "auth_code" },
+  departments: { model: Department, key: "dep_code", pruneMissing: true },
+  categories: { model: Category, key: "cat_code", pruneMissing: true },
+  sub_categories: { model: SubCategory, key: "scat_code", pruneMissing: true },
+  publishers: { model: Publisher, key: "pub_code", pruneMissing: true },
+  book_types: { model: BookType, key: "book_type", pruneMissing: true },
+  authors: { model: Author, key: "auth_code", pruneMissing: true },
   products: { model: Product, key: "prod_code" },
   product_authors: { model: ProductAuthor, key: "id" },
   product_images: { model: ProductImage, key: ["prod_code", "image"] }
@@ -65,15 +66,65 @@ async function upsertByKey(model, keyField, item) {
   }
 }
 
+function serializeKey(keyField, item) {
+  if (Array.isArray(keyField)) {
+    return keyField.map((key) => String(item[key])).join("::");
+  }
+  return String(item[keyField]);
+}
+
+async function pruneMissingRecords(model, keyField, items) {
+  const validItems = items.filter((item) => hasKeyValue(keyField, item));
+  if (!validItems.length) {
+    // Avoid wiping local tables if the upstream source temporarily returns no rows.
+    return 0;
+  }
+
+  if (!Array.isArray(keyField)) {
+    const sourceValues = [...new Set(validItems.map((item) => item[keyField]))];
+    return model.destroy({
+      where: {
+        [keyField]: {
+          [Op.notIn]: sourceValues,
+        },
+      },
+    });
+  }
+
+  const localRows = await model.findAll({
+    attributes: keyField,
+    raw: true,
+  });
+
+  const sourceKeys = new Set(validItems.map((item) => serializeKey(keyField, item)));
+  const missingWheres = localRows
+    .filter((row) => !sourceKeys.has(serializeKey(keyField, row)))
+    .map((row) =>
+      keyField.reduce((acc, key) => {
+        acc[key] = row[key];
+        return acc;
+      }, {})
+    );
+
+  if (!missingWheres.length) return 0;
+
+  return model.destroy({
+    where: {
+      [Op.or]: missingWheres,
+    },
+  });
+}
+
 async function syncEntity(entity, options = {}) {
   const cfg = ENTITY_CONFIG[entity];
   if (!cfg) throw new Error(`Unknown entity: ${entity}`);
 
-  const last = options.full ? null : await getLastSyncedAt(entity);
+  const useFullSync = Boolean(options.full || cfg.pruneMissing);
+  const last = useFullSync ? null : await getLastSyncedAt(entity);
   const fetchEntities = getFetcher();
   const items = await fetchEntities(entity, last);
 
-  let created = 0, updated = 0, failed = 0;
+  let created = 0, updated = 0, failed = 0, deleted = 0;
   const errors = [];
 
   for (const item of items) {
@@ -88,6 +139,15 @@ async function syncEntity(entity, options = {}) {
     }
   }
 
+  if (cfg.pruneMissing) {
+    try {
+      deleted = await pruneMissingRecords(cfg.model, cfg.key, items);
+    } catch (err) {
+      failed++;
+      errors.push({ key: "__delete__", message: err.message });
+    }
+  }
+
   await setLastSyncedAt(entity, new Date());
 
   return {
@@ -95,6 +155,7 @@ async function syncEntity(entity, options = {}) {
     fetched: items.length,
     created,
     updated,
+    deleted,
     failed,
     errors,
     lastSyncedAt: new Date()

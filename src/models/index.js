@@ -8,6 +8,7 @@ const Publisher = require("./Publisher");
 const BookType = require("./BookType");
 const Author = require("./Author");
 const ProductAuthor = require("./ProductAuthor");
+const CustomDisplayLink = require("./CustomDisplayLink");
 const ProductImage = require("./ProductImage");
 const SyncState = require("./SyncState");
 const User = require("./auth");
@@ -144,6 +145,7 @@ module.exports = {
   BookType,
   Author,
   ProductAuthor,
+  CustomDisplayLink,
   ProductImage,
   SyncState,
   User,
