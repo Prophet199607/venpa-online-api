@@ -4,27 +4,13 @@ async function getProductByCode(prodCode) {
   return Product.findOne({ where: { prod_code: prodCode } });
 }
 
-function generateOrderId() {
-  return Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`);
-}
-
-async function ensureCartOrderId(cart) {
-  if (cart && !cart.order_id) {
-    cart.order_id = generateOrderId();
-    await cart.save();
-  }
-
-  return cart;
-}
-
 async function getOrCreateActiveCart(userId) {
   const [cart] = await Cart.findOrCreate({
     where: { user_id: userId, status: "active" },
-    defaults: { user_id: userId, order_id: generateOrderId(), status: "active" },
+    defaults: { user_id: userId, status: "active" },
   });
 
-  // Backfill order ids for older active carts created before this field existed.
-  return ensureCartOrderId(cart);
+  return cart;
 }
 
 /**
@@ -53,7 +39,7 @@ exports.getCart = async (req, res) => {
     });
 
     res.json({
-      cart: { status: cart.status, order_id: cart.order_id },
+      cart: { status: cart.status },
       items: cartItems.map((item) => ({
         quantity: item.quantity,
         product: item.product || null,
@@ -105,7 +91,7 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    res.json({ message: "Item added to cart", order_id: cart.order_id });
+    res.json({ message: "Item added to cart" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -130,7 +116,6 @@ exports.updateItem = async (req, res) => {
     if (!cart) {
       return res.status(404).json({ error: "Cart not found" });
     }
-    await ensureCartOrderId(cart);
 
     const product = await getProductByCode(prod_code);
     if (!product) {
@@ -147,14 +132,14 @@ exports.updateItem = async (req, res) => {
 
     if (quantity <= 0) {
       await item.destroy();
-      return res.json({ message: "Item removed from cart", order_id: cart.order_id });
+      return res.json({ message: "Item removed from cart" });
     }
 
     item.quantity = quantity;
     item.updated_at = new Date();
     await item.save();
 
-    res.json({ message: "Cart item updated", order_id: cart.order_id });
+    res.json({ message: "Cart item updated" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -212,7 +197,7 @@ exports.setCartItems = async (req, res) => {
       touched++;
     }
 
-    res.json({ message: "Cart items updated", items: touched, order_id: cart.order_id });
+    res.json({ message: "Cart items updated", items: touched });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -255,19 +240,19 @@ exports.updateQuantity = async (req, res) => {
         updated_at: now,
         expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
       });
-      return res.json({ message: "Cart item created", order_id: cart.order_id });
+      return res.json({ message: "Cart item created" });
     }
 
     if (quantity <= 0) {
       await item.destroy();
-      return res.json({ message: "Item removed from cart", order_id: cart.order_id });
+      return res.json({ message: "Item removed from cart" });
     }
 
     item.quantity = quantity;
     item.updated_at = new Date();
     await item.save();
 
-    res.json({ message: "Cart item updated", order_id: cart.order_id });
+    res.json({ message: "Cart item updated" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -287,7 +272,6 @@ exports.removeItem = async (req, res) => {
     if (!cart) {
       return res.status(404).json({ error: "Cart not found" });
     }
-    await ensureCartOrderId(cart);
 
     const product = await getProductByCode(prod_code);
     if (!product) {
@@ -302,7 +286,7 @@ exports.removeItem = async (req, res) => {
       return res.status(404).json({ error: "Cart item not found" });
     }
 
-    res.json({ message: "Item removed from cart", order_id: cart.order_id });
+    res.json({ message: "Item removed from cart" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -320,11 +304,10 @@ exports.clearCart = async (req, res) => {
     });
 
     if (cart) {
-      await ensureCartOrderId(cart);
       await CartItem.destroy({ where: { cart_id: cart.id } });
     }
 
-    res.json({ message: "Cart cleared", order_id: cart?.order_id || null });
+    res.json({ message: "Cart cleared" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

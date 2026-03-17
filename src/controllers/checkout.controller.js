@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { Checkout, Cart, CartItem, Product, sequelize } = require("../models");
+const { Checkout, Cart, CartItem, Product } = require("../models");
 const { sendToUser } = require("../services/notifications/notificationService");
 
 function normalizeCheckoutType(value) {
@@ -12,15 +12,111 @@ function generateOrderId() {
   return Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`);
 }
 
+async function getActiveCartWithProducts(userId) {
+  return Cart.findOne({
+    where: { user_id: userId, status: "active" },
+    include: [
+      {
+        model: CartItem,
+        include: [
+          {
+            model: Product,
+            attributes: ["prod_code", "selling_price"],
+          },
+        ],
+      },
+    ],
+  });
+}
+
+function calculateCartAmount(cart) {
+  return (cart?.cart_items || []).reduce((sum, item) => {
+    const price = Number(item?.product?.selling_price || 0);
+    const quantity = Number(item?.quantity || 0);
+    return sum + (price * quantity);
+  }, 0);
+}
+
+function buildPayHereHash(orderId, amount) {
+  const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
+  const merchantSecret = String(process.env.PAYHERE_MERCHANT_SECRET || "").trim();
+  const currency = String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
+
+  if (!merchantId || !merchantSecret) {
+    return { error: "PayHere merchant configuration is missing" };
+  }
+
+  const secretHash = crypto
+    .createHash("md5")
+    .update(merchantSecret)
+    .digest("hex")
+    .toUpperCase();
+
+  const hash = crypto
+    .createHash("md5")
+    .update(`${merchantId}${orderId}${amount}${currency}${secretHash}`)
+    .digest("hex")
+    .toUpperCase();
+
+  return {
+    order_id: orderId,
+    amount,
+    currency,
+    merchant_id: merchantId,
+    hash,
+  };
+}
+
+async function createCardPaymentResponse(userId, body) {
+  const cart = await getActiveCartWithProducts(userId);
+  if (!cart) {
+    return { status: 404, body: { message: "Active cart not found" } };
+  }
+
+  const amountValue = calculateCartAmount(cart);
+  if (amountValue <= 0) {
+    return { status: 400, body: { message: "Cart is empty or has invalid pricing" } };
+  }
+
+  const orderId = generateOrderId();
+  const { type: _type, ...payload } = body || {};
+  const amount = amountValue.toFixed(2);
+  const hashPayload = buildPayHereHash(orderId, amount);
+
+  if (hashPayload.error) {
+    return { status: 500, body: { message: hashPayload.error } };
+  }
+
+  const checkout = await Checkout.create({
+    order_id: orderId,
+    user_id: userId,
+    type: 1,
+    payload,
+    status: "pending",
+    created_at: new Date(),
+    updated_at: new Date(),
+  });
+
+  return {
+    status: 201,
+    body: {
+      message: "PayHere hash generated",
+      checkout: {
+        order_id: checkout.order_id,
+        type: checkout.type,
+        status: checkout.status,
+        payload: checkout.payload,
+        created_at: checkout.created_at,
+      },
+      ...hashPayload,
+    },
+  };
+}
+
 exports.createCheckout = async (req, res, next) => {
   try {
     if (!req.body || typeof req.body !== "object") {
       return res.status(400).json({ message: "Checkout payload is required" });
-    }
-
-    const orderId = Number(req.body.order_id);
-    if (!Number.isSafeInteger(orderId) || orderId <= 0) {
-      return res.status(400).json({ message: "order_id is required and must be a valid integer" });
     }
 
     const type = normalizeCheckoutType(req.body.type);
@@ -30,47 +126,25 @@ exports.createCheckout = async (req, res, next) => {
       });
     }
 
-    const cart = await Cart.findOne({
-      where: { user_id: req.user.id, status: "active", order_id: orderId },
-    });
-
-    if (!cart) {
-      return res.status(404).json({ message: "Active cart not found for the given order_id" });
+    if (type === 1) {
+      const result = await createCardPaymentResponse(req.user.id, req.body);
+      return res.status(result.status).json(result.body);
     }
 
-    const existingCheckout = await Checkout.findOne({ where: { order_id: orderId } });
-    if (existingCheckout) {
-      return res.status(409).json({ message: "Checkout already exists for this order_id" });
-    }
+    const { type: _type, ...payload } = req.body;
+    const orderId = generateOrderId();
 
-    const { order_id: _orderId, type: _type, ...payload } = req.body;
-    const nextOrderId = generateOrderId();
-
-    const checkout = await sequelize.transaction(async (transaction) => {
-      const createdCheckout = await Checkout.create({
-        order_id: orderId,
-        user_id: req.user.id,
-        type,
-        payload,
-        status: "pending",
-        created_at: new Date(),
-        updated_at: new Date(),
-      }, { transaction });
-
-      await CartItem.destroy({
-        where: { cart_id: cart.id },
-        transaction,
-      });
-
-      await cart.update({
-        order_id: nextOrderId,
-        status: "active",
-      }, { transaction });
-
-      return createdCheckout;
+    const checkout = await Checkout.create({
+      order_id: orderId,
+      user_id: req.user.id,
+      type,
+      payload,
+      status: "pending",
+      created_at: new Date(),
+      updated_at: new Date(),
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Checkout created",
       order_id: orderId,
       checkout: {
@@ -84,70 +158,10 @@ exports.createCheckout = async (req, res, next) => {
   } catch (e) { next(e); }
 };
 
-exports.getPayHereHash = async (req, res, next) => {
+exports.createPayHereHash = async (req, res, next) => {
   try {
-    const orderId = Number(req.params.order_id);
-    if (!Number.isSafeInteger(orderId) || orderId <= 0) {
-      return res.status(400).json({ message: "order_id must be a valid integer" });
-    }
-
-    const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
-    const merchantSecret = String(process.env.PAYHERE_MERCHANT_SECRET || "").trim();
-    const currency = String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
-
-    if (!merchantId || !merchantSecret) {
-      return res.status(500).json({ message: "PayHere merchant configuration is missing" });
-    }
-
-    const cart = await Cart.findOne({
-      where: { user_id: req.user.id, status: "active", order_id: orderId },
-      include: [
-        {
-          model: CartItem,
-          include: [
-            {
-              model: Product,
-              attributes: ["prod_code", "selling_price"],
-            },
-          ],
-        },
-      ],
-    });
-
-    if (!cart) {
-      return res.status(404).json({ message: "Active cart not found for the given order_id" });
-    }
-
-    const amountValue = (cart.cart_items || []).reduce((sum, item) => {
-      const price = Number(item?.product?.selling_price || 0);
-      const quantity = Number(item?.quantity || 0);
-      return sum + (price * quantity);
-    }, 0);
-
-    if (amountValue <= 0) {
-      return res.status(400).json({ message: "Cart is empty or has invalid pricing" });
-    }
-
-    const amount = amountValue.toFixed(2);
-    const secretHash = crypto
-      .createHash("md5")
-      .update(merchantSecret)
-      .digest("hex")
-      .toUpperCase();
-
-    const hash = crypto
-      .createHash("md5")
-      .update(`${merchantId}${orderId}${amount}${currency}${secretHash}`)
-      .digest("hex")
-      .toUpperCase();
-
-    res.json({
-      order_id: orderId,
-      amount,
-      currency,
-      merchant_id: merchantId,
-      hash,
-    });
+    const result = await createCardPaymentResponse(req.user.id, req.body);
+    return res.status(result.status).json(result.body);
   } catch (e) { next(e); }
 };
 
@@ -183,7 +197,7 @@ exports.updateCheckoutStatus = async (req, res, next) => {
     await sendToUser(checkout.user_id, {
       title: "Order status updated",
       body: `Your order ${checkout.order_id} status is now ${status}.`,
-      data: { type: "order_status", order_id: String(checkout.order_id), status }
+      data: { type: "order_status", order_id: String(checkout.order_id), status },
     });
 
     res.json({ message: "Checkout status updated", order_id: checkout.order_id, status });
