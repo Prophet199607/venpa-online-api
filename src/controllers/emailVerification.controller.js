@@ -1,5 +1,5 @@
 const nodemailer = require("nodemailer");
-const { EmailVerification, EmailChange, User } = require("../models");
+const { EmailVerification, EmailChange, PublicEmailOtp, User } = require("../models");
 
 function generateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -13,6 +13,14 @@ function getTransporter() {
       pass: process.env.EMAIL_PASS,
     },
   });
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 exports.sendCode = async (req, res, next) => {
@@ -110,6 +118,77 @@ exports.sendEmailChangeCode = async (req, res, next) => {
     });
 
     res.json({ message: "Email change code sent" });
+  } catch (e) { next(e); }
+};
+
+exports.sendPublicOtp = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ message: "A valid email is required" });
+    }
+
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+    if (!emailUser || !emailPass) {
+      return res.status(400).json({ message: "Email credentials not configured" });
+    }
+
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await PublicEmailOtp.destroy({
+      where: { email, verified_at: null },
+    });
+
+    await PublicEmailOtp.create({
+      email,
+      code,
+      expires_at: expiresAt,
+      verified_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: `Venpaa Bookshop <${emailUser}>`,
+      to: email,
+      subject: "Your Venpaa OTP",
+      text: `Your OTP is ${code}. It expires in 10 minutes.`,
+    });
+
+    res.json({ message: "OTP sent" });
+  } catch (e) { next(e); }
+};
+
+exports.verifyPublicOtp = async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const code = String(req.body?.code || "").trim();
+
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ message: "A valid email is required" });
+    }
+    if (!code) {
+      return res.status(400).json({ message: "code is required" });
+    }
+
+    const record = await PublicEmailOtp.findOne({
+      where: { email, code, verified_at: null },
+      order: [["created_at", "DESC"]],
+    });
+
+    if (!record) {
+      return res.status(400).json({ message: "Invalid code" });
+    }
+    if (record.expires_at < new Date()) {
+      return res.status(400).json({ message: "Code expired" });
+    }
+
+    await record.update({ verified_at: new Date(), updated_at: new Date() });
+
+    res.json({ message: "OTP verified" });
   } catch (e) { next(e); }
 };
 
