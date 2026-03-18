@@ -40,6 +40,7 @@ const Product = sequelize.define("products", {
   isbn: { type: DataTypes.STRING(255), allowNull: true },
   publish_year: { type: DataTypes.INTEGER, allowNull: true },
   pages: { type: DataTypes.INTEGER, allowNull: true },
+  language: { type: DataTypes.STRING(255), allowNull: true },
   prod_image: {
     type: DataTypes.STRING(255),
     allowNull: true,
@@ -47,6 +48,7 @@ const Product = sequelize.define("products", {
       return withProductImageBaseUrl(this.getDataValue("prod_image"));
     },
   },
+  description: { type: DataTypes.STRING(255), allowNull: true },
 
   alert_qty: { type: DataTypes.INTEGER, allowNull: true },
 }, {
