@@ -7,6 +7,7 @@ const ProductSubCategory = require("./ProductSubCategory");
 const Publisher = require("./Publisher");
 const BookType = require("./BookType");
 const Author = require("./Author");
+const Language = require("./Language");
 const ProductAuthor = require("./ProductAuthor");
 const CustomDisplayLink = require("./CustomDisplayLink");
 const ProductImage = require("./ProductImage");
@@ -145,6 +146,7 @@ module.exports = {
   Publisher,
   BookType,
   Author,
+  Language,
   ProductAuthor,
   CustomDisplayLink,
   ProductImage,

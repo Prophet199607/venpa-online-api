@@ -8,6 +8,7 @@ const ENTITY_UPDATED_COLUMN = {
   publishers: "updated_at",
   book_types: "updated_at",
   authors: "updated_at",
+  languages: "updated_at",
   products: "updated_at",
   product_authors: "updated_at",
   product_images: "updated_at"

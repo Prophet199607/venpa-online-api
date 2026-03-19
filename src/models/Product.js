@@ -48,7 +48,7 @@ const Product = sequelize.define("products", {
       return withProductImageBaseUrl(this.getDataValue("prod_image"));
     },
   },
-  description: { type: DataTypes.STRING(255), allowNull: true },
+  description: { type: DataTypes.TEXT("long"), allowNull: true },
 
   alert_qty: { type: DataTypes.INTEGER, allowNull: true },
 }, {

@@ -1,5 +1,11 @@
 const { Op } = require("sequelize");
-const { Publisher, BookType, Author, ProductAuthor } = require("../../models");
+const {
+  Publisher,
+  BookType,
+  Author,
+  Language,
+  ProductAuthor,
+} = require("../../models");
 
 function normalizeCode(value) {
   if (value === null || value === undefined) return null;
@@ -135,19 +141,43 @@ async function buildBookTypeMap(products) {
   return map;
 }
 
+async function buildLanguageMap(products) {
+  const codes = [
+    ...new Set(products.map((item) => normalizeCode(item.language)).filter(Boolean)),
+  ];
+
+  if (!codes.length) return new Map();
+
+  const rows = await Language.findAll({
+    where: { lang_code: { [Op.in]: codes } },
+    attributes: ["lang_code", "lang_name"],
+    raw: true,
+  });
+
+  const map = new Map();
+  for (const row of rows) {
+    const key = normalizeCode(row.lang_code);
+    if (key) map.set(key, row.lang_name || null);
+  }
+  return map;
+}
+
 async function enrichProducts(items) {
   const products = toPlainProducts(items);
   if (!products.length) return [];
 
-  const [publisherMap, bookTypeMap, authorNamesByProduct] = await Promise.all([
+  const [publisherMap, bookTypeMap, languageMap, authorNamesByProduct] =
+    await Promise.all([
     buildPublisherMap(products),
     buildBookTypeMap(products),
+    buildLanguageMap(products),
     buildAuthorNamesByProductMap(products),
-  ]);
+    ]);
 
   return products.map((product) => {
     const normalizedPublisherCode = normalizeCode(product.publisher);
     const normalizedBookTypeCode = normalizeCode(product.book_type);
+    const normalizedLanguageCode = normalizeCode(product.language);
     const normalizedProdCode = normalizeCode(product.prod_code);
     const authorNames = normalizedProdCode
       ? authorNamesByProduct.get(normalizedProdCode) || []
@@ -162,6 +192,9 @@ async function enrichProducts(items) {
         : null,
       book_type_name: normalizedBookTypeCode
         ? bookTypeMap.get(normalizedBookTypeCode) || null
+        : null,
+      language_name: normalizedLanguageCode
+        ? languageMap.get(normalizedLanguageCode) || null
         : null,
       author_name: authorNames[0] || null,
       author_names: authorNames,

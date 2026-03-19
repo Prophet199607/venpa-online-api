@@ -6,6 +6,7 @@ const {
   Publisher,
   BookType,
   Author,
+  Language,
   ProductAuthor,
   ProductImage,
   SyncState,
@@ -21,6 +22,7 @@ const ENTITY_CONFIG = {
   publishers: { model: Publisher, key: "pub_code", pruneMissing: true },
   book_types: { model: BookType, key: "book_type", pruneMissing: true },
   authors: { model: Author, key: "auth_code", pruneMissing: true },
+  languages: { model: Language, key: "lang_code", pruneMissing: true },
   products: { model: Product, key: "prod_code" },
   product_authors: { model: ProductAuthor, key: "id" },
   product_images: { model: ProductImage, key: ["prod_code", "image"] }
@@ -171,6 +173,7 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("publishers", options));
   results.push(await syncEntity("book_types", options));
   results.push(await syncEntity("authors", options));
+  results.push(await syncEntity("languages", options));
   results.push(await syncEntity("products", options));
   results.push(await syncEntity("product_authors", options));
   results.push(await syncEntity("product_images", options));
