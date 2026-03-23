@@ -11,6 +11,7 @@ const ENTITY_UPDATED_COLUMN = {
   languages: "updated_at",
   products: "updated_at",
   product_authors: "updated_at",
+  product_sub_categories: "updated_at",
   product_images: "updated_at"
 };
 

@@ -8,6 +8,7 @@ const {
   Author,
   Language,
   ProductAuthor,
+  ProductSubCategory,
   ProductImage,
   SyncState,
 } = require("../../models");
@@ -25,6 +26,7 @@ const ENTITY_CONFIG = {
   languages: { model: Language, key: "lang_code", pruneMissing: true },
   products: { model: Product, key: "prod_code" },
   product_authors: { model: ProductAuthor, key: "id" },
+  product_sub_categories: { model: ProductSubCategory, key: "id" },
   product_images: { model: ProductImage, key: ["prod_code", "image"] }
 };
 
@@ -176,6 +178,7 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("languages", options));
   results.push(await syncEntity("products", options));
   results.push(await syncEntity("product_authors", options));
+  results.push(await syncEntity("product_sub_categories", options));
   results.push(await syncEntity("product_images", options));
   return results;
 }
