@@ -28,21 +28,28 @@ const AppVersion = require("./AppVersion");
 const ShippingAddress = require("./ShippingAddress");
 
 // Associations
-Department.hasMany(Category, { foreignKey: "dep_code", sourceKey: "dep_code" });
+Department.hasMany(Category, {
+  foreignKey: "dep_code",
+  sourceKey: "dep_code",
+  constraints: false,
+});
 Category.belongsTo(Department, {
   foreignKey: "department",
   targetKey: "dep_code",
   as: "departmentDetails",
+  constraints: false,
 });
 
 Category.hasMany(SubCategory, {
   foreignKey: "cat_code",
   sourceKey: "cat_code",
+  constraints: false,
 });
 
 SubCategory.belongsTo(Category, {
   foreignKey: "cat_code",
   targetKey: "cat_code",
+  constraints: false,
 });
 
 // Product Relations

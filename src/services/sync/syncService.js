@@ -53,21 +53,79 @@ function hasKeyValue(keyField, item) {
   return Boolean(item[keyField]);
 }
 
+function normalizeSyncValue(attr, value) {
+  if (value === undefined) return value;
+  if (value === null) return null;
+
+  const typeKey = attr?.type?.key;
+  if (!typeKey) return value;
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (typeKey === "DATE") {
+      if (
+        !trimmed ||
+        trimmed === "0000-00-00" ||
+        trimmed === "0000-00-00 00:00:00" ||
+        trimmed.toLowerCase() === "invalid date"
+      ) {
+        return null;
+      }
+      return trimmed;
+    }
+
+    if (["INTEGER", "BIGINT", "FLOAT", "DOUBLE", "REAL", "DECIMAL"].includes(typeKey)) {
+      if (!trimmed) {
+        if (attr.allowNull !== false) return null;
+        if (attr.defaultValue !== undefined) return attr.defaultValue;
+        return 0;
+      }
+      return trimmed;
+    }
+  }
+
+  return value;
+}
+
+function sanitizeSyncItem(model, item) {
+  const attrs = model?.rawAttributes || {};
+  const payload = { ...item };
+
+  for (const [key, value] of Object.entries(payload)) {
+    if (!attrs[key]) continue;
+    payload[key] = normalizeSyncValue(attrs[key], value);
+  }
+
+  return payload;
+}
+
+function formatSyncError(err) {
+  if (Array.isArray(err?.errors) && err.errors.length) {
+    return err.errors
+      .map((item) => `${item.path || "field"}: ${item.message}`)
+      .join("; ");
+  }
+  return err?.message || "Unknown sync error";
+}
+
 async function upsertByKey(model, keyField, item) {
+  const payload = sanitizeSyncItem(model, item);
+
   // Find existing by code, otherwise create
   const where = Array.isArray(keyField)
     ? keyField.reduce((acc, key) => {
-        acc[key] = item[key];
+        acc[key] = payload[key];
         return acc;
       }, {})
-    : { [keyField]: item[keyField] };
+    : { [keyField]: payload[keyField] };
   const existing = await model.findOne({ where });
 
   if (existing) {
-    await existing.update(item);
+    await existing.update(payload, { validate: false });
     return { action: "updated" };
   } else {
-    await model.create(item);
+    await model.create(payload, { validate: false });
     return { action: "created" };
   }
 }
@@ -141,7 +199,7 @@ async function syncEntity(entity, options = {}) {
       else updated++;
     } catch (err) {
       failed++;
-      errors.push({ key: item[cfg.key], message: err.message });
+      errors.push({ key: item[cfg.key], message: formatSyncError(err) });
     }
   }
 
@@ -150,11 +208,14 @@ async function syncEntity(entity, options = {}) {
       deleted = await pruneMissingRecords(cfg.model, cfg.key, items);
     } catch (err) {
       failed++;
-      errors.push({ key: "__delete__", message: err.message });
+      errors.push({ key: "__delete__", message: formatSyncError(err) });
     }
   }
 
-  await setLastSyncedAt(entity, new Date());
+  const syncFinishedAt = new Date();
+  if (failed === 0) {
+    await setLastSyncedAt(entity, syncFinishedAt);
+  }
 
   return {
     entity,
@@ -164,7 +225,7 @@ async function syncEntity(entity, options = {}) {
     deleted,
     failed,
     errors,
-    lastSyncedAt: new Date()
+    lastSyncedAt: syncFinishedAt
   };
 }
 
