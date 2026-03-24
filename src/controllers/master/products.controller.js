@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, QueryTypes } = require("sequelize");
 const {
   Product,
   ProductImage,
@@ -6,7 +6,82 @@ const {
   StockMaster,
   sequelize,
 } = require("../../models");
+const sequelizeSource = require("../../config/sourceDb");
 const { enrichProducts } = require("../../services/products/enrichProducts");
+
+function normalizeLocationCode(value) {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+}
+
+function pickTableColumn(columns, candidates) {
+  if (!columns) return null;
+
+  for (const candidate of candidates) {
+    if (candidate && Object.prototype.hasOwnProperty.call(columns, candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+async function queryLocationNameMap(db, locationCodes) {
+  if (!locationCodes.length) return new Map();
+
+  let columns = null;
+  try {
+    columns = await db.getQueryInterface().describeTable("locations");
+  } catch (err) {
+    return new Map();
+  }
+
+  const codeColumn = pickTableColumn(columns, [
+    process.env.LOCATION_CODE_COLUMN,
+    "location",
+    "loc_code",
+    "location_code",
+    "code",
+  ]);
+  const nameColumn = pickTableColumn(columns, [
+    process.env.LOCATION_NAME_COLUMN,
+    "location_name",
+    "loc_name",
+    "name",
+  ]);
+
+  if (!codeColumn) return new Map();
+
+  const rows = await db.query(
+    `SELECT \`${codeColumn}\` AS location_code${
+      nameColumn ? `, \`${nameColumn}\` AS location_name` : ""
+    } FROM \`locations\` WHERE \`${codeColumn}\` IN (:locationCodes)`,
+    {
+      replacements: { locationCodes },
+      type: QueryTypes.SELECT,
+    }
+  );
+
+  const map = new Map();
+  for (const row of rows) {
+    const code = normalizeLocationCode(row.location_code);
+    if (!code) continue;
+    map.set(code, row.location_name || null);
+  }
+
+  return map;
+}
+
+async function buildLocationNameMap(locationCodes) {
+  const normalizedCodes = [...new Set(locationCodes.map(normalizeLocationCode).filter(Boolean))];
+  if (!normalizedCodes.length) return new Map();
+
+  const localMap = await queryLocationNameMap(sequelize, normalizedCodes);
+  if (localMap.size) return localMap;
+
+  return queryLocationNameMap(sequelizeSource, normalizedCodes);
+}
 
 function productIncludes() {
   return [
@@ -169,11 +244,16 @@ exports.pickAndCollectLocations = async (req, res, next) => {
     });
 
     const enriched = await enrichProducts([product]);
+    const locationNameMap = await buildLocationNameMap(
+      locations.map((item) => item.location)
+    );
 
     res.json({
       product: enriched[0] || null,
       locations: locations.map((item) => ({
         location: item.location,
+        location_name:
+          locationNameMap.get(normalizeLocationCode(item.location)) || null,
         available_qty: Number(item.available_qty || 0),
       })),
     });
