@@ -40,14 +40,14 @@ async function queryLocationNameMap(db, locationCodes) {
   const codeColumn = pickTableColumn(columns, [
     process.env.LOCATION_CODE_COLUMN,
     "location",
-    "loc_code",
+    "loca_code",
     "location_code",
     "code",
   ]);
   const nameColumn = pickTableColumn(columns, [
     process.env.LOCATION_NAME_COLUMN,
     "location_name",
-    "loc_name",
+    "loca_name",
     "name",
   ]);
 
