@@ -1,12 +1,12 @@
-const { Op, QueryTypes } = require("sequelize");
+const { Op } = require("sequelize");
 const {
   Product,
   ProductImage,
   Review,
+  Location,
   StockMaster,
   sequelize,
 } = require("../../models");
-const sequelizeSource = require("../../config/sourceDb");
 const { enrichProducts } = require("../../services/products/enrichProducts");
 
 function normalizeLocationCode(value) {
@@ -15,72 +15,23 @@ function normalizeLocationCode(value) {
   return normalized || null;
 }
 
-function pickTableColumn(columns, candidates) {
-  if (!columns) return null;
-
-  for (const candidate of candidates) {
-    if (candidate && Object.prototype.hasOwnProperty.call(columns, candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
-async function queryLocationNameMap(db, locationCodes) {
-  if (!locationCodes.length) return new Map();
-
-  let columns = null;
-  try {
-    columns = await db.getQueryInterface().describeTable("locations");
-  } catch (err) {
-    return new Map();
-  }
-
-  const codeColumn = pickTableColumn(columns, [
-    process.env.LOCATION_CODE_COLUMN,
-    "location",
-    "loca_code",
-    "location_code",
-    "code",
-  ]);
-  const nameColumn = pickTableColumn(columns, [
-    process.env.LOCATION_NAME_COLUMN,
-    "location_name",
-    "loca_name",
-    "name",
-  ]);
-
-  if (!codeColumn) return new Map();
-
-  const rows = await db.query(
-    `SELECT \`${codeColumn}\` AS location_code${
-      nameColumn ? `, \`${nameColumn}\` AS location_name` : ""
-    } FROM \`locations\` WHERE \`${codeColumn}\` IN (:locationCodes)`,
-    {
-      replacements: { locationCodes },
-      type: QueryTypes.SELECT,
-    }
-  );
-
-  const map = new Map();
-  for (const row of rows) {
-    const code = normalizeLocationCode(row.location_code);
-    if (!code) continue;
-    map.set(code, row.location_name || null);
-  }
-
-  return map;
-}
-
-async function buildLocationNameMap(locationCodes) {
+async function buildLocationMap(locationCodes) {
   const normalizedCodes = [...new Set(locationCodes.map(normalizeLocationCode).filter(Boolean))];
   if (!normalizedCodes.length) return new Map();
 
-  const localMap = await queryLocationNameMap(sequelize, normalizedCodes);
-  if (localMap.size) return localMap;
+  const rows = await Location.findAll({
+    where: { loca_code: { [Op.in]: normalizedCodes } },
+    raw: true,
+  });
 
-  return queryLocationNameMap(sequelizeSource, normalizedCodes);
+  const map = new Map();
+  for (const row of rows) {
+    const code = normalizeLocationCode(row.loca_code);
+    if (!code) continue;
+    map.set(code, row);
+  }
+
+  return map;
 }
 
 function productIncludes() {
@@ -244,7 +195,7 @@ exports.pickAndCollectLocations = async (req, res, next) => {
     });
 
     const enriched = await enrichProducts([product]);
-    const locationNameMap = await buildLocationNameMap(
+    const locationMap = await buildLocationMap(
       locations.map((item) => item.location)
     );
 
@@ -253,8 +204,10 @@ exports.pickAndCollectLocations = async (req, res, next) => {
       locations: locations.map((item) => ({
         location: item.location,
         location_name:
-          locationNameMap.get(normalizeLocationCode(item.location)) || null,
+          locationMap.get(normalizeLocationCode(item.location))?.loca_name || null,
         available_qty: Number(item.available_qty || 0),
+        location_details:
+          locationMap.get(normalizeLocationCode(item.location)) || null,
       })),
     });
   } catch (e) {

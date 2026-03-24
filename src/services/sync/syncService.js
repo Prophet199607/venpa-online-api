@@ -7,6 +7,7 @@ const {
   BookType,
   Author,
   Language,
+  Location,
   ProductAuthor,
   ProductSubCategory,
   ProductImage,
@@ -25,6 +26,7 @@ const ENTITY_CONFIG = {
   book_types: { model: BookType, key: "book_type", pruneMissing: true },
   authors: { model: Author, key: "auth_code", pruneMissing: true },
   languages: { model: Language, key: "lang_code", pruneMissing: true },
+  locations: { model: Location, key: "loca_code", pruneMissing: true },
   products: { model: Product, key: "prod_code" },
   product_authors: { model: ProductAuthor, key: "id" },
   product_sub_categories: { model: ProductSubCategory, key: "id" },
@@ -239,6 +241,7 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("book_types", options));
   results.push(await syncEntity("authors", options));
   results.push(await syncEntity("languages", options));
+  results.push(await syncEntity("locations", options));
   results.push(await syncEntity("products", options));
   results.push(await syncEntity("product_authors", options));
   results.push(await syncEntity("product_sub_categories", options));
