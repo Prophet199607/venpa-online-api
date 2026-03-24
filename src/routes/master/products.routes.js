@@ -4,6 +4,7 @@ const c = require("../../controllers/master/products.controller");
 router.get("/new/arrivals", c.newArrivals);
 router.get("/best/selling", c.bestSelling);
 router.get("/search", c.search);
+router.get("/code/:prod_code/pick-and-collect", c.pickAndCollectLocations);
 router.get("/", c.list);
 router.get("/code/:prod_code", c.getById);
 

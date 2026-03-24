@@ -12,7 +12,8 @@ const ENTITY_UPDATED_COLUMN = {
   products: "updated_at",
   product_authors: "updated_at",
   product_sub_categories: "updated_at",
-  product_images: "updated_at"
+  product_images: "updated_at",
+  stock_masters: "updated_at",
 };
 
 function tableCandidates(entity) {

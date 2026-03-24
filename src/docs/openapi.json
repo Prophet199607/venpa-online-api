@@ -506,6 +506,30 @@
         }
       }
     },
+    "/api/v1/products/code/{prod_code}/pick-and-collect": {
+      "get": {
+        "summary": "Get pick and collect locations for a product",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
     "/api/v1/chathumina_web_katayam": {
       "get": {
         "summary": "Get best selling and new arrival products",

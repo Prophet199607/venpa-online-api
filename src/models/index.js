@@ -11,6 +11,7 @@ const Language = require("./Language");
 const ProductAuthor = require("./ProductAuthor");
 const CustomDisplayLink = require("./CustomDisplayLink");
 const ProductImage = require("./ProductImage");
+const StockMaster = require("./StockMaster");
 const SyncState = require("./SyncState");
 const User = require("./auth");
 const Cart = require("./Cart");
@@ -150,6 +151,7 @@ module.exports = {
   ProductAuthor,
   CustomDisplayLink,
   ProductImage,
+  StockMaster,
   SyncState,
   User,
   Cart,

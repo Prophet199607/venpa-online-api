@@ -1,5 +1,11 @@
 const { Op } = require("sequelize");
-const { Product, ProductImage, Review, sequelize } = require("../../models");
+const {
+  Product,
+  ProductImage,
+  Review,
+  StockMaster,
+  sequelize,
+} = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
 
 function productIncludes() {
@@ -125,6 +131,51 @@ exports.getById = async (req, res, next) => {
     res.json({
       product: enriched[0] || null,
       reviews,
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.pickAndCollectLocations = async (req, res, next) => {
+  try {
+    const product = await Product.findOne({
+      where: { prod_code: req.params.prod_code },
+      attributes: { exclude: ["id"] },
+      include: productIncludes(),
+    });
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const locations = await StockMaster.findAll({
+      where: {
+        prod_code: req.params.prod_code,
+        location: {
+          [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }],
+        },
+      },
+      attributes: [
+        "location",
+        [sequelize.fn("SUM", sequelize.col("qty")), "available_qty"],
+      ],
+      group: ["location"],
+      having: sequelize.where(sequelize.fn("SUM", sequelize.col("qty")), {
+        [Op.gt]: 0,
+      }),
+      order: [["location", "ASC"]],
+      raw: true,
+    });
+
+    const enriched = await enrichProducts([product]);
+
+    res.json({
+      product: enriched[0] || null,
+      locations: locations.map((item) => ({
+        location: item.location,
+        available_qty: Number(item.available_qty || 0),
+      })),
     });
   } catch (e) {
     next(e);
