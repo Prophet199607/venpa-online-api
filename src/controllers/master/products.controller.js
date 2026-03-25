@@ -1,10 +1,12 @@
 const { Op } = require("sequelize");
 const {
   Product,
+  ProductSubCategory,
   ProductImage,
   Review,
   Location,
   StockMaster,
+  SubCategory,
   sequelize,
 } = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
@@ -44,14 +46,59 @@ function productIncludes() {
   ];
 }
 
+function resolveFrame(rawValue) {
+  const parsed = Number(rawValue || 1);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.trunc(parsed);
+}
+
+function resolveFrameSize(rawValue) {
+  const parsed = Number(rawValue || 100);
+  if (!Number.isFinite(parsed) || parsed < 1) return 100;
+  return Math.min(Math.trunc(parsed), 200);
+}
+
 exports.list = async (req, res, next) => {
   try {
     const { q, department, category, sub_category } = req.query;
+    const frame = resolveFrame(req.query.frame || req.query.page);
+    const limit = resolveFrameSize(req.query.limit);
+    const offset = (frame - 1) * limit;
 
     const where = {};
+    const countInclude = [];
+    const itemInclude = productIncludes();
     if (department) where.department = department;
     if (category) where.category = category;
-    if (sub_category) where.sub_category = sub_category;
+
+    if (sub_category) {
+      const subCategoryRow = await SubCategory.findOne({
+        where: { scat_code: sub_category },
+        attributes: ["id"],
+        raw: true,
+      });
+
+      if (!subCategoryRow) {
+        return res.json({
+          frame,
+          per_frame: limit,
+          total_products: 0,
+          total_frames: 0,
+          products: [],
+        });
+      }
+
+      const subCategoryInclude = {
+        model: ProductSubCategory,
+        as: "productSubCategories",
+        where: { sub_category_id: subCategoryRow.id },
+        attributes: [],
+        required: true,
+      };
+
+      countInclude.push(subCategoryInclude);
+      itemInclude.push(subCategoryInclude);
+    }
 
     if (q) {
       where[Op.or] = [
@@ -61,13 +108,31 @@ exports.list = async (req, res, next) => {
       ];
     }
 
-    const items = await Product.findAll({
-      where,
-      order: [["id", "DESC"]],
-      include: productIncludes(),
-    });
+    const [totalProducts, items] = await Promise.all([
+      Product.count({
+        where,
+        include: countInclude,
+        distinct: true,
+        col: "id",
+      }),
+      Product.findAll({
+        where,
+        order: [["id", "DESC"]],
+        limit,
+        offset,
+        include: itemInclude,
+      }),
+    ]);
 
-    res.json(await enrichProducts(items));
+    const totalFrames = totalProducts > 0 ? Math.ceil(totalProducts / limit) : 0;
+
+    res.json({
+      frame,
+      per_frame: limit,
+      total_products: totalProducts,
+      total_frames: totalFrames,
+      products: await enrichProducts(items),
+    });
   } catch (e) {
     next(e);
   }

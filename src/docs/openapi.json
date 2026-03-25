@@ -423,6 +423,30 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "frame",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Frame number starting from 1"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Alias for frame"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Products per frame (default: 100, max: 200)"
           }
         ],
         "responses": {
@@ -1955,6 +1979,23 @@
           },
           "sub_category_name": {
             "type": "string",
+            "nullable": true
+          },
+          "sub_categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scat_code": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "scat_name": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            },
             "nullable": true
           },
           "isbn": {

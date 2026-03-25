@@ -9,6 +9,7 @@ const {
   Language,
   StockMaster,
   ProductAuthor,
+  ProductSubCategory,
 } = require("../../models");
 
 function normalizeCode(value) {
@@ -102,6 +103,58 @@ async function buildSubCategoryMap(products) {
     const key = normalizeCode(row.scat_code);
     if (key) map.set(key, row.scat_name || null);
   }
+  return map;
+}
+
+async function buildSubCategoriesByProductMap(products) {
+  const prodCodes = [
+    ...new Set(products.map((item) => normalizeCode(item.prod_code)).filter(Boolean)),
+  ];
+
+  if (!prodCodes.length) return new Map();
+
+  const links = await ProductSubCategory.findAll({
+    where: { prod_code: { [Op.in]: prodCodes } },
+    attributes: ["prod_code", "sub_category_id"],
+    raw: true,
+  });
+
+  if (!links.length) return new Map();
+
+  const subCategoryIds = [
+    ...new Set(links.map((item) => Number(item.sub_category_id)).filter(Boolean)),
+  ];
+
+  if (!subCategoryIds.length) return new Map();
+
+  const subCategoryRows = await SubCategory.findAll({
+    where: { id: { [Op.in]: subCategoryIds } },
+    attributes: ["id", "scat_code", "scat_name"],
+    raw: true,
+  });
+
+  const subCategoryById = new Map();
+  for (const row of subCategoryRows) {
+    subCategoryById.set(Number(row.id), {
+      scat_code: row.scat_code || null,
+      scat_name: row.scat_name || null,
+    });
+  }
+
+  const map = new Map();
+  for (const link of links) {
+    const productCode = normalizeCode(link.prod_code);
+    const subCategory = subCategoryById.get(Number(link.sub_category_id));
+
+    if (!productCode || !subCategory?.scat_code) continue;
+
+    const existing = map.get(productCode) || [];
+    if (!existing.some((item) => normalizeCode(item.scat_code) === normalizeCode(subCategory.scat_code))) {
+      existing.push(subCategory);
+      map.set(productCode, existing);
+    }
+  }
+
   return map;
 }
 
@@ -264,6 +317,7 @@ async function enrichProducts(items) {
     departmentMap,
     categoryMap,
     subCategoryMap,
+    subCategoriesByProduct,
     publisherMap,
     bookTypeMap,
     languageMap,
@@ -274,6 +328,7 @@ async function enrichProducts(items) {
     buildDepartmentMap(products),
     buildCategoryMap(products),
     buildSubCategoryMap(products),
+    buildSubCategoriesByProductMap(products),
     buildPublisherMap(products),
     buildBookTypeMap(products),
     buildLanguageMap(products),
@@ -292,9 +347,26 @@ async function enrichProducts(items) {
     const authorNames = normalizedProdCode
       ? authorNamesByProduct.get(normalizedProdCode) || []
       : [];
+    const linkedSubCategories = normalizedProdCode
+      ? subCategoriesByProduct.get(normalizedProdCode) || []
+      : [];
     const currentAvailableStock = normalizedProdCode
       ? Number(stockMap.get(normalizedProdCode) || 0)
       : 0;
+    const resolvedSubCategoryCode =
+      normalizedSubCategoryCode || normalizeCode(linkedSubCategories[0]?.scat_code);
+    const fallbackSubCategories = resolvedSubCategoryCode
+      ? [{
+          scat_code: resolvedSubCategoryCode,
+          scat_name: subCategoryMap.get(resolvedSubCategoryCode) || null,
+        }]
+      : [];
+    const productSubCategories = linkedSubCategories.length
+      ? linkedSubCategories
+      : fallbackSubCategories;
+    const resolvedSubCategoryName =
+      productSubCategories[0]?.scat_name ||
+      (resolvedSubCategoryCode ? subCategoryMap.get(resolvedSubCategoryCode) || null : null);
 
     const { publisher, ...rest } = product;
 
@@ -306,9 +378,9 @@ async function enrichProducts(items) {
       category_name: normalizedCategoryCode
         ? categoryMap.get(normalizedCategoryCode) || null
         : null,
-      sub_category_name: normalizedSubCategoryCode
-        ? subCategoryMap.get(normalizedSubCategoryCode) || null
-        : null,
+      sub_category: resolvedSubCategoryCode || null,
+      sub_category_name: resolvedSubCategoryName,
+      sub_categories: productSubCategories,
       publisher_name: normalizedPublisherCode
         ? publisherMap.get(normalizedPublisherCode) || null
         : null,
