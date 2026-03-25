@@ -21,7 +21,6 @@ async function fetchNewArrivalProducts(limit) {
   return Product.findAll({
     order: [["id", "DESC"]],
     limit,
-    attributes: { exclude: ["id"] },
     include: productIncludes(),
   });
 }
@@ -30,7 +29,6 @@ async function fetchBestSellingProducts(limit) {
   return Product.findAll({
     order: sequelize.random(),
     limit,
-    attributes: { exclude: ["id"] },
     include: productIncludes(),
   });
 }

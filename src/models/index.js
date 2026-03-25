@@ -99,6 +99,18 @@ Product.belongsTo(Publisher, {
   as: "publisherDetails",
   constraints: false,
 });
+Product.hasMany(StockMaster, {
+  foreignKey: "prod_code",
+  sourceKey: "prod_code",
+  constraints: false,
+  as: "stockEntries",
+});
+StockMaster.belongsTo(Product, {
+  foreignKey: "prod_code",
+  targetKey: "prod_code",
+  constraints: false,
+  as: "product",
+});
 
 // Cart Relations
 User.hasOne(Cart, { foreignKey: "user_id" });

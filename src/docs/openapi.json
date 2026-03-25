@@ -1857,6 +1857,9 @@
       "Product": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "integer"
+          },
           "prod_code": {
             "type": "string"
           },
@@ -1890,6 +1893,22 @@
             "type": "number",
             "format": "float"
           },
+          "discount": {
+            "type": "number",
+            "format": "float"
+          },
+          "dis_per": {
+            "type": "number",
+            "format": "float"
+          },
+          "dis_start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "dis_end_date": {
+            "type": "string",
+            "nullable": true
+          },
           "marked_price": {
             "type": "number",
             "format": "float"
@@ -1898,7 +1917,15 @@
             "type": "number",
             "format": "float"
           },
+          "unconfirm_price": {
+            "type": "integer",
+            "nullable": true
+          },
           "title_in_other_language": {
+            "type": "string",
+            "nullable": true
+          },
+          "tamil_description": {
             "type": "string",
             "nullable": true
           },
@@ -1918,6 +1945,18 @@
             "type": "string",
             "nullable": true
           },
+          "department_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "sub_category_name": {
+            "type": "string",
+            "nullable": true
+          },
           "isbn": {
             "type": "string",
             "nullable": true
@@ -1926,9 +1965,83 @@
             "type": "integer",
             "nullable": true
           },
+          "pages": {
+            "type": "integer",
+            "nullable": true
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "width": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "height": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "depth": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "weight": {
+            "type": "integer",
+            "nullable": true
+          },
           "alert_qty": {
             "type": "integer",
             "nullable": true
+          },
+          "barcode": {
+            "type": "string",
+            "nullable": true
+          },
+          "prod_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "nullable": true
+          },
+          "unit_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "integer",
+            "nullable": true
+          },
+          "updated_by": {
+            "type": "integer",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "current_available_stock": {
+            "type": "number",
+            "format": "float"
+          },
+          "isStock": {
+            "type": "integer",
+            "enum": [0, 1]
           },
           "images": {
             "type": "array",

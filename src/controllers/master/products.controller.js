@@ -64,7 +64,6 @@ exports.list = async (req, res, next) => {
     const items = await Product.findAll({
       where,
       order: [["id", "DESC"]],
-      attributes: { exclude: ["id"] },
       include: productIncludes(),
     });
 
@@ -90,7 +89,6 @@ exports.search = async (req, res, next) => {
         ],
       },
       order: [["id", "DESC"]],
-      attributes: { exclude: ["id"] },
       include: productIncludes(),
     });
 
@@ -106,7 +104,6 @@ exports.newArrivals = async (req, res, next) => {
     const items = await Product.findAll({
       order: [["id", "DESC"]],
       limit,
-      attributes: { exclude: ["id"] },
       include: productIncludes(),
     });
 
@@ -122,7 +119,6 @@ exports.bestSelling = async (req, res, next) => {
     const items = await Product.findAll({
       order: sequelize.random(),
       limit,
-      attributes: { exclude: ["id"] },
       include: productIncludes(),
     });
 
@@ -136,7 +132,6 @@ exports.getById = async (req, res, next) => {
   try {
     const product = await Product.findOne({
       where: { prod_code: req.params.prod_code },
-      attributes: { exclude: ["id"] },
       include: productIncludes(),
     });
     if (!product) return res.status(404).json({ message: "Product not found" });
@@ -167,7 +162,6 @@ exports.pickAndCollectLocations = async (req, res, next) => {
   try {
     const product = await Product.findOne({
       where: { prod_code: req.params.prod_code },
-      attributes: { exclude: ["id"] },
       include: productIncludes(),
     });
 

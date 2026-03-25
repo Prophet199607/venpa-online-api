@@ -1,9 +1,13 @@
-const { Op } = require("sequelize");
+const { Op, fn, col } = require("sequelize");
 const {
+  Department,
+  Category,
+  SubCategory,
   Publisher,
   BookType,
   Author,
   Language,
+  StockMaster,
   ProductAuthor,
 } = require("../../models");
 
@@ -34,6 +38,69 @@ async function buildPublisherMap(products) {
   for (const row of rows) {
     const key = normalizeCode(row.pub_code);
     if (key) map.set(key, row.pub_name || null);
+  }
+  return map;
+}
+
+async function buildDepartmentMap(products) {
+  const codes = [
+    ...new Set(products.map((item) => normalizeCode(item.department)).filter(Boolean)),
+  ];
+
+  if (!codes.length) return new Map();
+
+  const rows = await Department.findAll({
+    where: { dep_code: { [Op.in]: codes } },
+    attributes: ["dep_code", "dep_name"],
+    raw: true,
+  });
+
+  const map = new Map();
+  for (const row of rows) {
+    const key = normalizeCode(row.dep_code);
+    if (key) map.set(key, row.dep_name || null);
+  }
+  return map;
+}
+
+async function buildCategoryMap(products) {
+  const codes = [
+    ...new Set(products.map((item) => normalizeCode(item.category)).filter(Boolean)),
+  ];
+
+  if (!codes.length) return new Map();
+
+  const rows = await Category.findAll({
+    where: { cat_code: { [Op.in]: codes } },
+    attributes: ["cat_code", "cat_name"],
+    raw: true,
+  });
+
+  const map = new Map();
+  for (const row of rows) {
+    const key = normalizeCode(row.cat_code);
+    if (key) map.set(key, row.cat_name || null);
+  }
+  return map;
+}
+
+async function buildSubCategoryMap(products) {
+  const codes = [
+    ...new Set(products.map((item) => normalizeCode(item.sub_category)).filter(Boolean)),
+  ];
+
+  if (!codes.length) return new Map();
+
+  const rows = await SubCategory.findAll({
+    where: { scat_code: { [Op.in]: codes } },
+    attributes: ["scat_code", "scat_name"],
+    raw: true,
+  });
+
+  const map = new Map();
+  for (const row of rows) {
+    const key = normalizeCode(row.scat_code);
+    if (key) map.set(key, row.scat_name || null);
   }
   return map;
 }
@@ -162,19 +229,62 @@ async function buildLanguageMap(products) {
   return map;
 }
 
+async function buildStockMap(products) {
+  const codes = [
+    ...new Set(products.map((item) => normalizeCode(item.prod_code)).filter(Boolean)),
+  ];
+
+  if (!codes.length) return new Map();
+
+  const rows = await StockMaster.findAll({
+    where: { prod_code: { [Op.in]: codes } },
+    attributes: [
+      "prod_code",
+      [fn("SUM", col("qty")), "current_available_stock"],
+    ],
+    group: ["prod_code"],
+    raw: true,
+  });
+
+  const map = new Map();
+  for (const row of rows) {
+    const key = normalizeCode(row.prod_code);
+    if (!key) continue;
+    map.set(key, Number(row.current_available_stock || 0));
+  }
+
+  return map;
+}
+
 async function enrichProducts(items) {
   const products = toPlainProducts(items);
   if (!products.length) return [];
 
-  const [publisherMap, bookTypeMap, languageMap, authorNamesByProduct] =
+  const [
+    departmentMap,
+    categoryMap,
+    subCategoryMap,
+    publisherMap,
+    bookTypeMap,
+    languageMap,
+    authorNamesByProduct,
+    stockMap,
+  ] =
     await Promise.all([
+    buildDepartmentMap(products),
+    buildCategoryMap(products),
+    buildSubCategoryMap(products),
     buildPublisherMap(products),
     buildBookTypeMap(products),
     buildLanguageMap(products),
     buildAuthorNamesByProductMap(products),
+    buildStockMap(products),
     ]);
 
   return products.map((product) => {
+    const normalizedDepartmentCode = normalizeCode(product.department);
+    const normalizedCategoryCode = normalizeCode(product.category);
+    const normalizedSubCategoryCode = normalizeCode(product.sub_category);
     const normalizedPublisherCode = normalizeCode(product.publisher);
     const normalizedBookTypeCode = normalizeCode(product.book_type);
     const normalizedLanguageCode = normalizeCode(product.language);
@@ -182,11 +292,23 @@ async function enrichProducts(items) {
     const authorNames = normalizedProdCode
       ? authorNamesByProduct.get(normalizedProdCode) || []
       : [];
+    const currentAvailableStock = normalizedProdCode
+      ? Number(stockMap.get(normalizedProdCode) || 0)
+      : 0;
 
     const { publisher, ...rest } = product;
 
     return {
       ...rest,
+      department_name: normalizedDepartmentCode
+        ? departmentMap.get(normalizedDepartmentCode) || null
+        : null,
+      category_name: normalizedCategoryCode
+        ? categoryMap.get(normalizedCategoryCode) || null
+        : null,
+      sub_category_name: normalizedSubCategoryCode
+        ? subCategoryMap.get(normalizedSubCategoryCode) || null
+        : null,
       publisher_name: normalizedPublisherCode
         ? publisherMap.get(normalizedPublisherCode) || null
         : null,
@@ -196,6 +318,8 @@ async function enrichProducts(items) {
       language_name: normalizedLanguageCode
         ? languageMap.get(normalizedLanguageCode) || null
         : null,
+      current_available_stock: currentAvailableStock,
+      isStock: currentAvailableStock > 0 ? 1 : 0,
       author_name: authorNames[0] || null,
       author_names: authorNames,
     };
