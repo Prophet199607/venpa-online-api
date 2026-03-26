@@ -1,4 +1,5 @@
 const { Wishlist, Product, ProductImage } = require("../../models");
+const { enrichProducts } = require("../../services/products/enrichProducts");
 
 async function getProductByCode(prodCode) {
   return Product.findOne({ where: { prod_code: prodCode } });
@@ -29,7 +30,7 @@ exports.getWishlist = async (req, res) => {
     });
 
     const products = wishlist.map((item) => item.product).filter(Boolean);
-    res.json(products);
+    res.json(await enrichProducts(products));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
