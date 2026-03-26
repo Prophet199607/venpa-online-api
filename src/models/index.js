@@ -27,6 +27,7 @@ const PublicEmailOtp = require("./PublicEmailOtp");
 const DeviceToken = require("./DeviceToken");
 const AppVersion = require("./AppVersion");
 const ShippingAddress = require("./ShippingAddress");
+const PickAndCollect = require("./PickAndCollect");
 
 // Associations
 Department.hasMany(Category, {
@@ -138,6 +139,34 @@ Review.belongsTo(Product, { foreignKey: "product_id" });
 // Checkouts
 User.hasMany(Checkout, { foreignKey: "user_id" });
 Checkout.belongsTo(User, { foreignKey: "user_id" });
+User.hasMany(PickAndCollect, { foreignKey: "user_id" });
+PickAndCollect.belongsTo(User, { foreignKey: "user_id" });
+
+Product.hasMany(PickAndCollect, {
+  foreignKey: "prod_code",
+  sourceKey: "prod_code",
+  constraints: false,
+  as: "pickAndCollectRequests",
+});
+PickAndCollect.belongsTo(Product, {
+  foreignKey: "prod_code",
+  targetKey: "prod_code",
+  constraints: false,
+  as: "product",
+});
+
+Location.hasMany(PickAndCollect, {
+  foreignKey: "location",
+  sourceKey: "loca_code",
+  constraints: false,
+  as: "pickAndCollectRequests",
+});
+PickAndCollect.belongsTo(Location, {
+  foreignKey: "location",
+  targetKey: "loca_code",
+  constraints: false,
+  as: "locationDetails",
+});
 
 // Email verification
 User.hasMany(EmailVerification, { foreignKey: "user_id" });
@@ -187,4 +216,5 @@ module.exports = {
   DeviceToken,
   AppVersion,
   ShippingAddress,
+  PickAndCollect,
 };

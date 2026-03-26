@@ -158,7 +158,7 @@ async function buildSubCategoriesByProductMap(products) {
   return map;
 }
 
-async function buildAuthorNamesByProductMap(products) {
+async function buildAuthorsByProductMap(products) {
   const prodCodes = [
     ...new Set(products.map((item) => normalizeCode(item.prod_code)).filter(Boolean)),
   ];
@@ -193,7 +193,7 @@ async function buildAuthorNamesByProductMap(products) {
     authorIds.length
       ? Author.findAll({
           where: { id: { [Op.in]: authorIds } },
-          attributes: ["id", "auth_name"],
+          attributes: ["id", "auth_code", "auth_name"],
           raw: true,
         })
       : Promise.resolve([]),
@@ -207,8 +207,10 @@ async function buildAuthorNamesByProductMap(products) {
   ]);
 
   const authorNameById = new Map();
+  const authorCodeById = new Map();
   for (const row of authorsByIdRows) {
     authorNameById.set(Number(row.id), row.auth_name || null);
+    authorCodeById.set(Number(row.id), row.auth_code || null);
   }
 
   const authorNameByCode = new Map();
@@ -217,27 +219,32 @@ async function buildAuthorNamesByProductMap(products) {
     if (key) authorNameByCode.set(key, row.auth_name || null);
   }
 
-  const namesByProduct = new Map();
+  const authorsByProduct = new Map();
   for (const link of links) {
     const productCode = normalizeCode(link.prod_code);
     if (!productCode) continue;
 
+    const codeFromId = link.author_id ? authorCodeById.get(Number(link.author_id)) : null;
     const nameFromId = link.author_id ? authorNameById.get(Number(link.author_id)) : null;
     const nameFromCode = normalizeCode(link.auth_code)
       ? authorNameByCode.get(normalizeCode(link.auth_code))
       : null;
+    const authorCode = normalizeCode(link.auth_code) || normalizeCode(codeFromId);
     const authorName = nameFromId || nameFromCode || null;
 
-    if (!authorName) continue;
+    if (!authorCode && !authorName) continue;
 
-    const existing = namesByProduct.get(productCode) || [];
-    if (!existing.includes(authorName)) {
-      existing.push(authorName);
-      namesByProduct.set(productCode, existing);
+    const existing = authorsByProduct.get(productCode) || [];
+    if (!existing.some((item) => normalizeCode(item.auth_code) === authorCode)) {
+      existing.push({
+        auth_code: authorCode || null,
+        auth_name: authorName || null,
+      });
+      authorsByProduct.set(productCode, existing);
     }
   }
 
-  return namesByProduct;
+  return authorsByProduct;
 }
 
 async function buildBookTypeMap(products) {
@@ -321,7 +328,7 @@ async function enrichProducts(items) {
     publisherMap,
     bookTypeMap,
     languageMap,
-    authorNamesByProduct,
+    authorsByProduct,
     stockMap,
   ] =
     await Promise.all([
@@ -332,7 +339,7 @@ async function enrichProducts(items) {
     buildPublisherMap(products),
     buildBookTypeMap(products),
     buildLanguageMap(products),
-    buildAuthorNamesByProductMap(products),
+    buildAuthorsByProductMap(products),
     buildStockMap(products),
     ]);
 
@@ -344,9 +351,11 @@ async function enrichProducts(items) {
     const normalizedBookTypeCode = normalizeCode(product.book_type);
     const normalizedLanguageCode = normalizeCode(product.language);
     const normalizedProdCode = normalizeCode(product.prod_code);
-    const authorNames = normalizedProdCode
-      ? authorNamesByProduct.get(normalizedProdCode) || []
+    const authors = normalizedProdCode
+      ? authorsByProduct.get(normalizedProdCode) || []
       : [];
+    const authorNames = authors.map((item) => item.auth_name).filter(Boolean);
+    const authorCodes = authors.map((item) => item.auth_code).filter(Boolean);
     const linkedSubCategories = normalizedProdCode
       ? subCategoriesByProduct.get(normalizedProdCode) || []
       : [];
@@ -368,10 +377,8 @@ async function enrichProducts(items) {
       productSubCategories[0]?.scat_name ||
       (resolvedSubCategoryCode ? subCategoryMap.get(resolvedSubCategoryCode) || null : null);
 
-    const { publisher, ...rest } = product;
-
     return {
-      ...rest,
+      ...product,
       department_name: normalizedDepartmentCode
         ? departmentMap.get(normalizedDepartmentCode) || null
         : null,
@@ -392,6 +399,8 @@ async function enrichProducts(items) {
         : null,
       current_available_stock: currentAvailableStock,
       isStock: currentAvailableStock > 0 ? 1 : 0,
+      author_code: authorCodes[0] || null,
+      author_codes: authorCodes,
       author_name: authorNames[0] || null,
       author_names: authorNames,
     };
