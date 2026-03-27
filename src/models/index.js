@@ -10,7 +10,7 @@ const Author = require("./Author");
 const Language = require("./Language");
 const Location = require("./Location");
 const ProductAuthor = require("./ProductAuthor");
-const CustomDisplayLink = require("./CustomDisplayLink");
+const CustomNavItem = require("./CustomNavItem");
 const ProductImage = require("./ProductImage");
 const StockMaster = require("./StockMaster");
 const SyncState = require("./SyncState");
@@ -199,7 +199,7 @@ module.exports = {
   Language,
   Location,
   ProductAuthor,
-  CustomDisplayLink,
+  CustomNavItem,
   ProductImage,
   StockMaster,
   SyncState,

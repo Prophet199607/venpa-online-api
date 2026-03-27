@@ -10,7 +10,7 @@ const categoriesRoutes = require("./routes/master/categories.routes");
 const subcategoriesRoutes = require("./routes/master/subcategories.routes");
 const publishersRoutes = require("./routes/master/publishers.routes");
 const authorsRoutes = require("./routes/master/authors.routes");
-const customDisplayRoutes = require("./routes/master/customDisplay.routes");
+const customNavItemRoutes = require("./routes/webManagement/customNavItem.routes");
 const productsRoutes = require("./routes/master/products.routes");
 const wishlistRoutes = require("./routes/cart/wishlist.routes");
 const cartRoutes = require("./routes/cart/cart.routes");
@@ -31,11 +31,12 @@ const app = express();
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.ALLOWED_ORIGINS?.split(',') || '*'
-    : '*',
+  origin:
+    process.env.NODE_ENV === "production"
+      ? process.env.ALLOWED_ORIGINS?.split(",") || "*"
+      : "*",
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
@@ -47,7 +48,7 @@ app.use((req, res, next) => {
   function normalizeBody(body) {
     if (Array.isArray(body)) {
       return body.map((item) =>
-        item && typeof item.toJSON === "function" ? item.toJSON() : item
+        item && typeof item.toJSON === "function" ? item.toJSON() : item,
       );
     }
     if (body && typeof body.toJSON === "function") {
@@ -60,7 +61,11 @@ app.use((req, res, next) => {
     const successful = res.statusCode < 400;
     const normalized = normalizeBody(body);
 
-    if (normalized && typeof normalized === "object" && !Array.isArray(normalized)) {
+    if (
+      normalized &&
+      typeof normalized === "object" &&
+      !Array.isArray(normalized)
+    ) {
       if (!Object.prototype.hasOwnProperty.call(normalized, "successful")) {
         return originalJson({ ...normalized, successful });
       }
@@ -76,7 +81,7 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => res.redirect("/api/docs"));
 
 app.get("/health", (req, res) =>
-  res.json({ ok: true, service: "venpa-online-api" })
+  res.json({ ok: true, service: "venpa-online-api" }),
 );
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
@@ -89,7 +94,7 @@ app.use("/api/v1/categories", categoriesRoutes);
 app.use("/api/v1/subcategories", subcategoriesRoutes);
 app.use("/api/v1/publishers", publishersRoutes);
 app.use("/api/v1/authors", authorsRoutes);
-app.use("/api/v1/custom-display", customDisplayRoutes);
+app.use("/api/v1/custom-navitems", customNavItemRoutes);
 app.use("/api/v1/products", productsRoutes);
 app.use("/api/v1/sync", syncRoutes);
 app.use("/api/v1/cart", cartRoutes);

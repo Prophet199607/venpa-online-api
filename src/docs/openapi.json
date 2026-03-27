@@ -44,6 +44,9 @@
     },
     {
       "name": "Pick & Collect"
+    },
+    {
+      "name": "Web Management"
     }
   ],
   "paths": {
@@ -51,9 +54,7 @@
       "get": {
         "summary": "Health check",
         "description": "Check if the API is running and healthy",
-        "tags": [
-          "System"
-        ],
+        "tags": ["System"],
         "responses": {
           "200": {
             "description": "API is healthy",
@@ -81,9 +82,7 @@
     "/api/v1/departments": {
       "get": {
         "summary": "List departments",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -110,9 +109,7 @@
     "/api/v1/departments/{id}": {
       "get": {
         "summary": "Get department by id",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -136,9 +133,7 @@
     "/api/v1/categories": {
       "get": {
         "summary": "List categories",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -187,9 +182,7 @@
     "/api/v1/categories/{id}": {
       "get": {
         "summary": "Get category by id",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -213,9 +206,7 @@
     "/api/v1/subcategories": {
       "get": {
         "summary": "List subcategories",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -256,9 +247,7 @@
     "/api/v1/subcategories/{id}": {
       "get": {
         "summary": "Get subcategories by category code, or get one subcategory by id/code",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -283,9 +272,7 @@
     "/api/v1/publishers": {
       "get": {
         "summary": "List publishers",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -319,9 +306,7 @@
     "/api/v1/publishers/{id}": {
       "get": {
         "summary": "Get publisher by id or pub_code",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -345,9 +330,7 @@
     "/api/v1/publishers/{id}/books": {
       "get": {
         "summary": "Get all books linked to a publisher id or pub_code",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -372,9 +355,7 @@
     "/api/v1/authors": {
       "get": {
         "summary": "List authors",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -408,9 +389,7 @@
     "/api/v1/authors/{id}": {
       "get": {
         "summary": "Get author by id or auth_code",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -434,9 +413,7 @@
     "/api/v1/authors/{id}/books": {
       "get": {
         "summary": "Get all books linked to an author id or auth_code",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -458,22 +435,17 @@
         }
       }
     },
-    "/api/v1/custom-display": {
+    "/api/v1/custom-navitems": {
       "get": {
-        "summary": "List manually configured display bar items",
-        "tags": [
-          "Master"
-        ],
+        "summary": "List custom navigation items",
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "item_type",
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "department",
-                "category"
-              ]
+              "enum": ["department", "category"]
             }
           },
           {
@@ -490,14 +462,52 @@
             "description": "OK"
           }
         }
+      },
+      "post": {
+        "summary": "Create a new custom navigation item",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["item_type", "ref_code"],
+                "properties": {
+                  "item_type": {
+                    "type": "string",
+                    "enum": ["department", "category"]
+                  },
+                  "ref_code": {
+                    "type": "string"
+                  },
+                  "display_order": {
+                    "type": "integer",
+                    "default": 1
+                  },
+                  "status": {
+                    "type": "integer",
+                    "default": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
       }
     },
     "/api/v1/products": {
       "get": {
         "summary": "List products",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "q",
@@ -562,9 +572,7 @@
     "/api/v1/products/new/arrivals": {
       "get": {
         "summary": "Get new arrivals",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -584,9 +592,7 @@
     "/api/v1/products/search": {
       "get": {
         "summary": "Search products",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "q",
@@ -616,9 +622,7 @@
     "/api/v1/products/best/selling": {
       "get": {
         "summary": "Get best selling (danata random ewa enne)",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -638,9 +642,7 @@
     "/api/v1/products/code/{prod_code}": {
       "get": {
         "summary": "Get product by code",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "prod_code",
@@ -664,9 +666,7 @@
     "/api/v1/products/code/{prod_code}/pick-and-collect": {
       "get": {
         "summary": "Get pick and collect locations for a product",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "prod_code",
@@ -690,9 +690,7 @@
     "/api/v1/chathumina_web_katayam": {
       "get": {
         "summary": "Get best selling and new arrival products",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -729,9 +727,7 @@
     "/api/v1/sync/all": {
       "post": {
         "summary": "Sync all selected tables",
-        "tags": [
-          "Sync"
-        ],
+        "tags": ["Sync"],
         "parameters": [
           {
             "name": "full",
@@ -751,9 +747,7 @@
     "/api/v1/sync/{entity}": {
       "post": {
         "summary": "Sync one table",
-        "tags": [
-          "Sync"
-        ],
+        "tags": ["Sync"],
         "parameters": [
           {
             "name": "entity",
@@ -774,9 +768,7 @@
     "/api/v1/auth/register": {
       "post": {
         "summary": "Register a new user",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
@@ -831,19 +823,14 @@
     "/api/v1/auth/login": {
       "post": {
         "summary": "Login user",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "password"
-                ],
+                "required": ["email", "password"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -874,18 +861,14 @@
     "/api/v1/auth/google-login": {
       "post": {
         "summary": "Google login",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "idToken"
-                ],
+                "required": ["idToken"],
                 "properties": {
                   "idToken": {
                     "type": "string"
@@ -917,18 +900,14 @@
     "/api/v1/auth/password/forgot": {
       "post": {
         "summary": "Send password reset code",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email"
-                ],
+                "required": ["email"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -955,20 +934,14 @@
     "/api/v1/auth/password/reset": {
       "post": {
         "summary": "Reset password with code",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "code",
-                  "new_password"
-                ],
+                "required": ["email", "code", "new_password"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -1001,9 +974,7 @@
     "/api/v1/auth/me": {
       "get": {
         "summary": "Get current user profile",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "responses": {
           "200": {
             "description": "OK"
@@ -1014,9 +985,7 @@
     "/api/v1/profile/summary": {
       "get": {
         "summary": "Profile summary (user + orders/reviews/points)",
-        "tags": [
-          "Profile"
-        ],
+        "tags": ["Profile"],
         "responses": {
           "200": {
             "description": "OK"
@@ -1028,9 +997,7 @@
       },
       "put": {
         "summary": "Update profile summary details",
-        "tags": [
-          "Profile"
-        ],
+        "tags": ["Profile"],
         "security": [
           {
             "bearerAuth": []
@@ -1088,9 +1055,7 @@
     "/api/v1/cart": {
       "get": {
         "summary": "Get user's active cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1127,9 +1092,7 @@
       },
       "post": {
         "summary": "Add item to cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1141,10 +1104,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "quantity"
-                ],
+                "required": ["prod_code", "quantity"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -1165,9 +1125,7 @@
       },
       "delete": {
         "summary": "Clear entire cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1183,9 +1141,7 @@
     "/api/v1/cart/items": {
       "post": {
         "summary": "Bulk ekak widihata cart items adding",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1210,16 +1166,11 @@
                           "type": "integer"
                         }
                       },
-                      "required": [
-                        "prod_code",
-                        "quantity"
-                      ]
+                      "required": ["prod_code", "quantity"]
                     }
                   }
                 },
-                "required": [
-                  "items"
-                ]
+                "required": ["items"]
               }
             }
           }
@@ -1234,9 +1185,7 @@
     "/api/v1/cart/product/{prod_code}": {
       "put": {
         "summary": "Update cart item quantity by product code",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1258,9 +1207,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "quantity"
-                ],
+                "required": ["quantity"],
                 "properties": {
                   "quantity": {
                     "type": "integer"
@@ -1278,9 +1225,7 @@
       },
       "delete": {
         "summary": "Remove item from cart by product code",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1306,9 +1251,7 @@
     "/api/v1/wishlist": {
       "get": {
         "summary": "Get user's wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -1322,9 +1265,7 @@
       },
       "post": {
         "summary": "Add item to wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -1336,9 +1277,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code"
-                ],
+                "required": ["prod_code"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -1356,9 +1295,7 @@
       },
       "delete": {
         "summary": "Clear wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -1374,9 +1311,7 @@
     "/api/v1/wishlist/products": {
       "get": {
         "summary": "Get wishlist products only",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -1392,9 +1327,7 @@
     "/api/v1/wishlist/product/{prod_code}/count": {
       "get": {
         "summary": "Count wishlists for a product",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "parameters": [
           {
             "name": "prod_code",
@@ -1418,9 +1351,7 @@
     "/api/v1/wishlist/items": {
       "post": {
         "summary": "Add wishlist items in bulk",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -1442,15 +1373,11 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "prod_code"
-                      ]
+                      "required": ["prod_code"]
                     }
                   }
                 },
-                "required": [
-                  "items"
-                ]
+                "required": ["items"]
               }
             }
           }
@@ -1465,9 +1392,7 @@
     "/api/v1/wishlist/product/{prod_code}": {
       "delete": {
         "summary": "Remove item from wishlist by product code",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -1493,9 +1418,7 @@
     "/api/v1/cart/quantity": {
       "put": {
         "summary": "Update cart item quantity by product code",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -1515,10 +1438,7 @@
                     "type": "integer"
                   }
                 },
-                "required": [
-                  "prod_code",
-                  "quantity"
-                ]
+                "required": ["prod_code", "quantity"]
               }
             }
           }
@@ -1533,9 +1453,7 @@
     "/api/v1/reviews/product/{prod_code}": {
       "get": {
         "summary": "List reviews for a product",
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "parameters": [
           {
             "name": "prod_code",
@@ -1559,9 +1477,7 @@
     "/api/v1/reviews/product/{prod_code}/average": {
       "get": {
         "summary": "Average rating point ekak gannawa product ekata",
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "parameters": [
           {
             "name": "prod_code",
@@ -1585,9 +1501,7 @@
     "/api/v1/reviews": {
       "post": {
         "summary": "Create or update a review",
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "security": [
           {
             "bearerAuth": []
@@ -1599,10 +1513,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "rating"
-                ],
+                "required": ["prod_code", "rating"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -1631,9 +1542,7 @@
     "/api/v1/checkout": {
       "get": {
         "summary": "List user's checkouts",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -1654,10 +1563,7 @@
                       },
                       "type": {
                         "type": "integer",
-                        "enum": [
-                          1,
-                          2
-                        ],
+                        "enum": [1, 2],
                         "description": "1 = card payment, 2 = cash on delivery"
                       },
                       "payload": {
@@ -1684,9 +1590,7 @@
       },
       "post": {
         "summary": "Create checkout or start card payment flow",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -1698,16 +1602,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "properties": {
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2
-                    ],
+                    "enum": [1, 2],
                     "description": "1 = card payment and returns PayHere hash flow, 2 = cash on delivery and creates normal checkout"
                   }
                 }
@@ -1751,10 +1650,7 @@
                         },
                         "type": {
                           "type": "integer",
-                          "enum": [
-                            1,
-                            2
-                          ],
+                          "enum": [1, 2],
                           "description": "1 = card payment, 2 = cash on delivery"
                         },
                         "status": {
@@ -1780,9 +1676,7 @@
     "/api/v1/checkout/payhere-hash": {
       "post": {
         "summary": "Generate PayHere hash and create pending card order",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -1797,9 +1691,7 @@
                 "properties": {
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      1
-                    ],
+                    "enum": [1],
                     "description": "Optional. Card payments always use type 1."
                   }
                 }
@@ -1843,9 +1735,7 @@
                         },
                         "type": {
                           "type": "integer",
-                          "enum": [
-                            1
-                          ]
+                          "enum": [1]
                         },
                         "status": {
                           "type": "string"
@@ -1879,9 +1769,7 @@
     "/api/v1/checkout/{order_id}/status": {
       "put": {
         "summary": "Update checkout status",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -1903,9 +1791,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "status"
-                ],
+                "required": ["status"],
                 "properties": {
                   "status": {
                     "type": "string"
@@ -1931,18 +1817,14 @@
     "/api/v1/email/otp/send": {
       "post": {
         "summary": "Send public email OTP",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email"
-                ],
+                "required": ["email"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -1966,19 +1848,14 @@
     "/api/v1/email/otp/verify": {
       "post": {
         "summary": "Verify public email OTP",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "code"
-                ],
+                "required": ["email", "code"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -2005,9 +1882,7 @@
     "/api/v1/email/send": {
       "post": {
         "summary": "Send email verification code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -2026,9 +1901,7 @@
     "/api/v1/email/verify": {
       "post": {
         "summary": "Verify email code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -2040,9 +1913,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "code"
-                ],
+                "required": ["code"],
                 "properties": {
                   "code": {
                     "type": "string"
@@ -2065,9 +1936,7 @@
     "/api/v1/email/change/send": {
       "post": {
         "summary": "Send email change code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -2079,9 +1948,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "new_email"
-                ],
+                "required": ["new_email"],
                 "properties": {
                   "new_email": {
                     "type": "string",
@@ -2105,9 +1972,7 @@
     "/api/v1/email/change/verify": {
       "post": {
         "summary": "Verify email change code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -2119,9 +1984,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "code"
-                ],
+                "required": ["code"],
                 "properties": {
                   "code": {
                     "type": "string"
@@ -2144,9 +2007,7 @@
     "/api/v1/notifications/token": {
       "post": {
         "summary": "Register device token",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -2158,9 +2019,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "token"
-                ],
+                "required": ["token"],
                 "properties": {
                   "token": {
                     "type": "string"
@@ -2168,14 +2027,7 @@
                   "platform": {
                     "type": "string",
                     "description": "Device platform code. Use android/ios/web or 1/2/3. Stored as string code: android=1, ios=2, web=3.",
-                    "enum": [
-                      "1",
-                      "2",
-                      "3",
-                      "android",
-                      "ios",
-                      "web"
-                    ]
+                    "enum": ["1", "2", "3", "android", "ios", "web"]
                   }
                 }
               }
@@ -2190,9 +2042,7 @@
       },
       "delete": {
         "summary": "Remove device token",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -2204,9 +2054,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "token"
-                ],
+                "required": ["token"],
                 "properties": {
                   "token": {
                     "type": "string"
@@ -2226,9 +2074,7 @@
     "/api/v1/notifications/test": {
       "post": {
         "summary": "Send test notification",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -2240,10 +2086,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "title",
-                  "body"
-                ],
+                "required": ["title", "body"],
                 "properties": {
                   "title": {
                     "type": "string"
@@ -2266,19 +2109,14 @@
     "/api/v1/app-version/check": {
       "post": {
         "summary": "Check app is latest version",
-        "tags": [
-          "App Version"
-        ],
+        "tags": ["App Version"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "platform",
-                  "current_version"
-                ],
+                "required": ["platform", "current_version"],
                 "properties": {
                   "platform": {
                     "type": "string",
@@ -2335,9 +2173,7 @@
     "/api/v1/shipping-address": {
       "get": {
         "summary": "Get my shipping address",
-        "tags": [
-          "Shipping Address"
-        ],
+        "tags": ["Shipping Address"],
         "security": [
           {
             "bearerAuth": []
@@ -2354,9 +2190,7 @@
       },
       "put": {
         "summary": "Create or update my shipping address",
-        "tags": [
-          "Shipping Address"
-        ],
+        "tags": ["Shipping Address"],
         "security": [
           {
             "bearerAuth": []
@@ -2445,9 +2279,7 @@
     "/api/v1/pick-and-collect": {
       "get": {
         "summary": "List my pick and collect requests",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -2474,9 +2306,7 @@
       },
       "post": {
         "summary": "Create a pick and collect request or start PayHere flow",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -2488,12 +2318,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "location",
-                  "type",
-                  "picked_qty"
-                ],
+                "required": ["prod_code", "location", "type", "picked_qty"],
                 "properties": {
                   "prod_code": {
                     "type": "string",
@@ -2517,10 +2342,7 @@
                   },
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2
-                    ],
+                    "enum": [1, 2],
                     "description": "1 = PayHere, 2 = cash on delivery"
                   },
                   "picked_qty": {
@@ -2559,9 +2381,7 @@
     "/api/v1/pick-and-collect/payhere-hash": {
       "post": {
         "summary": "Generate PayHere hash and create pending pick and collect record",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -2573,11 +2393,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "location",
-                  "picked_qty"
-                ],
+                "required": ["prod_code", "location", "picked_qty"],
                 "properties": {
                   "prod_code": {
                     "type": "string",
@@ -2942,10 +2758,7 @@
           },
           "isStock": {
             "type": "integer",
-            "enum": [
-              0,
-              1
-            ]
+            "enum": [0, 1]
           },
           "images": {
             "type": "array",
