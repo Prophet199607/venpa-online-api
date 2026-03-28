@@ -165,6 +165,7 @@ async function serializeRows(rows) {
       pick_and_collect_id: item.pick_and_collect_id,
       prod_code: item.prod_code,
       location: item.location,
+      location_name: item.location_name,
       type: Number(item.type || 0),
       type_name: item.type_name,
       picked_qty: Number(item.picked_qty || 0),
@@ -282,7 +283,8 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     return validated.error;
   }
 
-  const { prodCode, locationCode, type, pickedQty, product } = validated;
+  const { prodCode, locationCode, type, pickedQty, product, location } =
+    validated;
 
   const pickAndCollectId = generatePickAndCollectId();
   const now = new Date();
@@ -307,6 +309,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       user_id: userId,
       prod_code: prodCode,
       location: locationCode,
+      location_name: location.loca_name,
       type,
       type_name: "pick & collect",
       picked_qty: pickedQty,
@@ -331,6 +334,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     user_id: userId,
     prod_code: prodCode,
     location: locationCode,
+    location_name: location.loca_name,
     type,
     type_name: "pick & collect",
     picked_qty: pickedQty,

@@ -1573,6 +1573,12 @@
                       "payload": {
                         "type": "object"
                       },
+                      "location": {
+                        "type": "string"
+                      },
+                      "location_name": {
+                        "type": "string"
+                      },
                       "status": {
                         "type": "string"
                       },
@@ -2322,6 +2328,7 @@
                           "pick_and_collect_id": { "type": "integer" },
                           "prod_code": { "type": "string" },
                           "location": { "type": "string" },
+                          "location_name": { "type": "string" },
                           "type": { "type": "integer" },
                           "type_name": { "type": "string" },
                           "picked_qty": { "type": "number" },
@@ -2418,6 +2425,8 @@
                       "type": "object",
                       "properties": {
                         "pick_and_collect_id": { "type": "integer" },
+                        "location": { "type": "string" },
+                        "location_name": { "type": "string" },
                         "type": { "type": "integer" },
                         "type_name": { "type": "string" },
                         "status": { "type": "string" }
@@ -2507,6 +2516,8 @@
                       "type": "object",
                       "properties": {
                         "pick_and_collect_id": { "type": "integer" },
+                        "location": { "type": "string" },
+                        "location_name": { "type": "string" },
                         "type": { "type": "integer" },
                         "type_name": { "type": "string" },
                         "status": { "type": "string" }
