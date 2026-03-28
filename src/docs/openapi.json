@@ -1541,7 +1541,7 @@
     },
     "/api/v1/checkout": {
       "get": {
-        "summary": "List user's checkouts",
+        "summary": "List user's checkouts and pick & collect requests",
         "tags": ["Checkout"],
         "security": [
           {
@@ -1565,6 +1565,10 @@
                         "type": "integer",
                         "enum": [1, 2],
                         "description": "1 = card payment, 2 = cash on delivery"
+                      },
+                      "type_name": {
+                        "type": "string",
+                        "description": "Short name for the transaction type (e.g. checkout, pick & collect)"
                       },
                       "payload": {
                         "type": "object"
@@ -1653,6 +1657,9 @@
                           "enum": [1, 2],
                           "description": "1 = card payment, 2 = cash on delivery"
                         },
+                        "type_name": {
+                          "type": "string"
+                        },
                         "status": {
                           "type": "string"
                         },
@@ -1736,6 +1743,9 @@
                         "type": {
                           "type": "integer",
                           "enum": [1]
+                        },
+                        "type_name": {
+                          "type": "string"
                         },
                         "status": {
                           "type": "string"
@@ -2297,7 +2307,40 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "pick_and_collect_id": { "type": "integer" },
+                          "prod_code": { "type": "string" },
+                          "location": { "type": "string" },
+                          "type": { "type": "integer" },
+                          "type_name": { "type": "string" },
+                          "picked_qty": { "type": "number" },
+                          "status": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized"
@@ -2364,7 +2407,26 @@
         },
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "pick_and_collect": {
+                      "type": "object",
+                      "properties": {
+                        "pick_and_collect_id": { "type": "integer" },
+                        "type": { "type": "integer" },
+                        "type_name": { "type": "string" },
+                        "status": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request"
@@ -2434,7 +2496,26 @@
         },
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "pick_and_collect": {
+                      "type": "object",
+                      "properties": {
+                        "pick_and_collect_id": { "type": "integer" },
+                        "type": { "type": "integer" },
+                        "type_name": { "type": "string" },
+                        "status": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request"
