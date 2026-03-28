@@ -1,5 +1,11 @@
 const crypto = require("crypto");
-const { Checkout, Cart, CartItem, Product } = require("../models");
+const {
+  Checkout,
+  PickAndCollect,
+  Cart,
+  CartItem,
+  Product,
+} = require("../models");
 const { sendToUser } = require("../services/notifications/notificationService");
 
 function normalizeCheckoutType(value) {
@@ -9,7 +15,11 @@ function normalizeCheckoutType(value) {
 }
 
 function generateOrderId() {
-  return Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`);
+  return Number(
+    `${Date.now()}${Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")}`,
+  );
 }
 
 async function getActiveCartWithProducts(userId) {
@@ -33,14 +43,17 @@ function calculateCartAmount(cart) {
   return (cart?.cart_items || []).reduce((sum, item) => {
     const price = Number(item?.product?.selling_price || 0);
     const quantity = Number(item?.quantity || 0);
-    return sum + (price * quantity);
+    return sum + price * quantity;
   }, 0);
 }
 
 function buildPayHereHash(orderId, amount) {
   const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
-  const merchantSecret = String(process.env.PAYHERE_MERCHANT_SECRET || "").trim();
-  const currency = String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
+  const merchantSecret = String(
+    process.env.PAYHERE_MERCHANT_SECRET || "",
+  ).trim();
+  const currency =
+    String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
 
   if (!merchantId || !merchantSecret) {
     return { error: "PayHere merchant configuration is missing" };
@@ -75,7 +88,10 @@ async function createCardPaymentResponse(userId, body) {
 
   const amountValue = calculateCartAmount(cart);
   if (amountValue <= 0) {
-    return { status: 400, body: { message: "Cart is empty or has invalid pricing" } };
+    return {
+      status: 400,
+      body: { message: "Cart is empty or has invalid pricing" },
+    };
   }
 
   const orderId = generateOrderId();
@@ -91,6 +107,7 @@ async function createCardPaymentResponse(userId, body) {
     order_id: orderId,
     user_id: userId,
     type: 1,
+    type_name: "checkout",
     payload,
     status: "pending",
     created_at: new Date(),
@@ -104,6 +121,7 @@ async function createCardPaymentResponse(userId, body) {
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
+        type_name: checkout.type_name,
         status: checkout.status,
         payload: checkout.payload,
         created_at: checkout.created_at,
@@ -122,7 +140,8 @@ exports.createCheckout = async (req, res, next) => {
     const type = normalizeCheckoutType(req.body.type);
     if (!type) {
       return res.status(400).json({
-        message: "type is required and must be 1 (card payment) or 2 (cash on delivery)",
+        message:
+          "type is required and must be 1 (card payment) or 2 (cash on delivery)",
       });
     }
 
@@ -138,6 +157,7 @@ exports.createCheckout = async (req, res, next) => {
       order_id: orderId,
       user_id: req.user.id,
       type,
+      type_name: "checkout",
       payload,
       status: "pending",
       created_at: new Date(),
@@ -150,30 +170,49 @@ exports.createCheckout = async (req, res, next) => {
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
+        type_name: checkout.type_name,
         status: checkout.status,
         payload: checkout.payload,
         created_at: checkout.created_at,
       },
     });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.createPayHereHash = async (req, res, next) => {
   try {
     const result = await createCardPaymentResponse(req.user.id, req.body);
     return res.status(result.status).json(result.body);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.listCheckouts = async (req, res, next) => {
   try {
-    const items = await Checkout.findAll({
-      where: { user_id: req.user.id },
-      order: [["created_at", "DESC"]],
-      attributes: { exclude: ["id", "user_id"] },
+    const [checkouts, pickAndCollects] = await Promise.all([
+      Checkout.findAll({
+        where: { user_id: req.user.id },
+        attributes: { exclude: ["id", "user_id"] },
+      }),
+      PickAndCollect.findAll({
+        where: { user_id: req.user.id },
+        attributes: { exclude: ["id", "user_id"] },
+      }),
+    ]);
+
+    const items = [...checkouts, ...pickAndCollects].sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return dateB - dateA;
     });
+
     res.json(items);
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.updateCheckoutStatus = async (req, res, next) => {
@@ -186,7 +225,8 @@ exports.updateCheckoutStatus = async (req, res, next) => {
     }
 
     const checkout = await Checkout.findOne({ where: { order_id } });
-    if (!checkout) return res.status(404).json({ message: "Checkout not found" });
+    if (!checkout)
+      return res.status(404).json({ message: "Checkout not found" });
 
     if (checkout.user_id !== req.user.id) {
       return res.status(403).json({ message: "Not allowed" });
@@ -197,9 +237,19 @@ exports.updateCheckoutStatus = async (req, res, next) => {
     await sendToUser(checkout.user_id, {
       title: "Order status updated",
       body: `Your order ${checkout.order_id} status is now ${status}.`,
-      data: { type: "order_status", order_id: String(checkout.order_id), status },
+      data: {
+        type: "order_status",
+        order_id: String(checkout.order_id),
+        status,
+      },
     });
 
-    res.json({ message: "Checkout status updated", order_id: checkout.order_id, status });
-  } catch (e) { next(e); }
+    res.json({
+      message: "Checkout status updated",
+      order_id: checkout.order_id,
+      status,
+    });
+  } catch (e) {
+    next(e);
+  }
 };

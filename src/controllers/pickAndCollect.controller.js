@@ -34,13 +34,20 @@ function normalizePickAndCollectType(value) {
 }
 
 function generatePickAndCollectId() {
-  return Number(`${Date.now()}${Math.floor(Math.random() * 1000).toString().padStart(3, "0")}`);
+  return Number(
+    `${Date.now()}${Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")}`,
+  );
 }
 
 function buildPayHereHash(pickAndCollectId, amount) {
   const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
-  const merchantSecret = String(process.env.PAYHERE_MERCHANT_SECRET || "").trim();
-  const currency = String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
+  const merchantSecret = String(
+    process.env.PAYHERE_MERCHANT_SECRET || "",
+  ).trim();
+  const currency =
+    String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
 
   if (!merchantId || !merchantSecret) {
     return { error: "PayHere merchant configuration is missing" };
@@ -73,9 +80,7 @@ async function getAvailableQty(prodCode, location) {
       prod_code: prodCode,
       location,
     },
-    attributes: [
-      [sequelize.fn("SUM", sequelize.col("qty")), "available_qty"],
-    ],
+    attributes: [[sequelize.fn("SUM", sequelize.col("qty")), "available_qty"]],
     raw: true,
   });
 
@@ -89,8 +94,16 @@ function buildStockKey(prodCode, location) {
 async function serializeRows(rows) {
   if (!rows.length) return [];
 
-  const prodCodes = [...new Set(rows.map((row) => normalizeString(row.prod_code)).filter(Boolean))];
-  const locationCodes = [...new Set(rows.map((row) => normalizeString(row.location)).filter(Boolean))];
+  const prodCodes = [
+    ...new Set(
+      rows.map((row) => normalizeString(row.prod_code)).filter(Boolean),
+    ),
+  ];
+  const locationCodes = [
+    ...new Set(
+      rows.map((row) => normalizeString(row.location)).filter(Boolean),
+    ),
+  ];
 
   const [productRows, locationRows, stockRows] = await Promise.all([
     prodCodes.length
@@ -124,16 +137,22 @@ async function serializeRows(rows) {
 
   const enrichedProducts = await enrichProducts(productRows);
   const productMap = new Map(
-    enrichedProducts.map((product) => [normalizeKey(product.prod_code), product])
+    enrichedProducts.map((product) => [
+      normalizeKey(product.prod_code),
+      product,
+    ]),
   );
   const locationMap = new Map(
-    locationRows.map((location) => [normalizeKey(location.loca_code), location])
+    locationRows.map((location) => [
+      normalizeKey(location.loca_code),
+      location,
+    ]),
   );
   const stockMap = new Map(
     stockRows.map((item) => [
       buildStockKey(item.prod_code, item.location),
       Number(item.available_qty || 0),
-    ])
+    ]),
   );
 
   return rows.map((row) => {
@@ -147,17 +166,24 @@ async function serializeRows(rows) {
       prod_code: item.prod_code,
       location: item.location,
       type: Number(item.type || 0),
+      type_name: item.type_name,
       picked_qty: Number(item.picked_qty || 0),
       status: item.status,
       created_at: item.created_at || null,
       updated_at: item.updated_at || null,
-      product: normalizedProdCode ? productMap.get(normalizedProdCode) || null : null,
+      product: normalizedProdCode
+        ? productMap.get(normalizedProdCode) || null
+        : null,
       location_details: normalizedLocation
         ? locationMap.get(normalizedLocation) || null
         : null,
       available_qty:
         normalizedProdCode && normalizedLocation
-          ? Number(stockMap.get(buildStockKey(normalizedProdCode, normalizedLocation)) || 0)
+          ? Number(
+              stockMap.get(
+                buildStockKey(normalizedProdCode, normalizedLocation),
+              ) || 0,
+            )
           : 0,
     };
   });
@@ -165,9 +191,13 @@ async function serializeRows(rows) {
 
 async function validatePickAndCollectPayload(body) {
   const prodCode = normalizeString(body.prod_code ?? body.product_code);
-  const locationCode = normalizeString(body.location ?? body.loca_code ?? body.location_code);
+  const locationCode = normalizeString(
+    body.location ?? body.loca_code ?? body.location_code,
+  );
   const type = normalizePickAndCollectType(body.type);
-  const pickedQty = normalizeQuantity(body.picked_qty ?? body.qty ?? body.quantity);
+  const pickedQty = normalizeQuantity(
+    body.picked_qty ?? body.qty ?? body.quantity,
+  );
 
   const missingFields = [];
   if (!prodCode) missingFields.push("prod_code");
@@ -189,7 +219,10 @@ async function validatePickAndCollectPayload(body) {
 
   const [product, location] = await Promise.all([
     Product.findOne({ where: { prod_code: prodCode } }),
-    Location.findOne({ where: { loca_code: locationCode, is_active: 1 }, raw: true }),
+    Location.findOne({
+      where: { loca_code: locationCode, is_active: 1 },
+      raw: true,
+    }),
   ]);
 
   if (!product) {
@@ -197,7 +230,12 @@ async function validatePickAndCollectPayload(body) {
   }
 
   if (!location) {
-    return { error: { status: 404, body: { message: "Location not found or inactive" } } };
+    return {
+      error: {
+        status: 404,
+        body: { message: "Location not found or inactive" },
+      },
+    };
   }
 
   const availableQty = await getAvailableQty(prodCode, locationCode);
@@ -205,7 +243,9 @@ async function validatePickAndCollectPayload(body) {
     return {
       error: {
         status: 400,
-        body: { message: "Selected location has no available stock for this product" },
+        body: {
+          message: "Selected location has no available stock for this product",
+        },
       },
     };
   }
@@ -215,7 +255,8 @@ async function validatePickAndCollectPayload(body) {
       error: {
         status: 400,
         body: {
-          message: "picked_qty exceeds available stock at the selected location",
+          message:
+            "picked_qty exceeds available stock at the selected location",
           available_qty: availableQty,
         },
       },
@@ -234,19 +275,14 @@ async function validatePickAndCollectPayload(body) {
 }
 
 async function createPickAndCollectResponse(userId, body, forcedType = null) {
-  const normalizedBody = forcedType === null ? body : { ...(body || {}), type: forcedType };
+  const normalizedBody =
+    forcedType === null ? body : { ...(body || {}), type: forcedType };
   const validated = await validatePickAndCollectPayload(normalizedBody || {});
   if (validated.error) {
     return validated.error;
   }
 
-  const {
-    prodCode,
-    locationCode,
-    type,
-    pickedQty,
-    product,
-  } = validated;
+  const { prodCode, locationCode, type, pickedQty, product } = validated;
 
   const pickAndCollectId = generatePickAndCollectId();
   const now = new Date();
@@ -272,6 +308,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       prod_code: prodCode,
       location: locationCode,
       type,
+      type_name: "pick & collect",
       picked_qty: pickedQty,
       status: "pending",
       created_at: now,
@@ -295,6 +332,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     prod_code: prodCode,
     location: locationCode,
     type,
+    type_name: "pick & collect",
     picked_qty: pickedQty,
     status: "pending",
     created_at: now,
