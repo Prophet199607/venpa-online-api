@@ -1,0 +1,280 @@
+const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
+
+function getTransporter() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+}
+
+function buildItemsRows(cartItems) {
+  if (!cartItems || cartItems.length === 0) return "";
+  return cartItems
+    .map((item) => {
+      const unitPrice = Number(item.product?.selling_price || 0);
+      const qty = Number(item.quantity || 1);
+      const subtotal = unitPrice * qty;
+
+      return `
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px;">
+          ${item.product?.prod_name || "Unknown Product"}
+        </td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: center;">
+          ${qty}
+        </td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: right;">
+          Rs. ${unitPrice.toFixed(2)}
+        </td>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #f0f0f0; color: #111827; font-size: 13px; font-weight: 600; text-align: right;">
+          Rs. ${subtotal.toFixed(2)}
+        </td>
+      </tr>
+    `;
+    })
+    .join("");
+}
+
+exports.sendOrderConfirmationEmail = async (
+  user,
+  checkoutData,
+  cartItems = [],
+) => {
+  const emailUser = process.env.EMAIL_USER;
+  if (!emailUser) {
+    console.warn("EMAIL_USER not set. Skipping order confirmation email.");
+    return;
+  }
+
+  const transporter = getTransporter();
+
+  // Read the logo and embed as inline CID attachment
+  const logoPath = path.resolve(__dirname, "../../public/images/Logo.png");
+  let logoAttachment = null;
+  let logoImgTag = "";
+
+  if (fs.existsSync(logoPath)) {
+    logoAttachment = {
+      filename: "Logo.png",
+      path: logoPath,
+      cid: "venpa-logo",
+    };
+    logoImgTag = `
+      <div style="text-align: center; margin-bottom: 8px;">
+        <img
+          src="cid:venpa-logo"
+          alt="Venpaa Bookshop"
+          width="160"
+          style="display: block; margin: 0 auto; max-width: 160px; height: auto;"
+        />
+      </div>
+    `;
+  }
+
+  const paymentMethod =
+    checkoutData.type === 1 ? "Card Payment" : "Cash on Delivery";
+  const paymentBadgeColor = checkoutData.type === 1 ? "#6366F1" : "#10B981";
+
+  // Calculate Net Total
+  const netTotal = cartItems.reduce((acc, item) => {
+    return (
+      acc +
+      Number(item.product?.selling_price || 0) * Number(item.quantity || 1)
+    );
+  }, 0);
+
+  const itemsSection =
+    cartItems.length > 0
+      ? `
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 8px;">
+        <thead>
+          <tr style="background-color: #F9FAFB;">
+            <th style="padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #E5E7EB;">Product</th>
+            <th style="padding: 12px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #E5E7EB;">Qty</th>
+            <th style="padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #E5E7EB;">Unit Price</th>
+            <th style="padding: 12px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #E5E7EB;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildItemsRows(cartItems)}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" style="padding: 16px; text-align: right; font-size: 14px; font-weight: 700; color: #374151;">Net Total:</td>
+            <td style="padding: 16px; text-align: right; font-size: 16px; font-weight: 800; color: #111827;">Rs. ${netTotal.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    `
+      : `<p style="margin: 0; color: #6B7280; font-size: 14px;">Products: ${
+          checkoutData.payload?.prod_codes?.join(", ") || "N/A"
+        }</p>`;
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Confirmation</title>
+  <style>
+    body { background-color: #F3F4F6 !important; }
+    .email-card { background-color: #ffffff !important; }
+    .order-details-card { background-color: #F9FAFB !important; border-color: #E5E7EB !important; }
+    .row-divider { border-bottom-color: #E5E7EB !important; }
+    .label-text { color: #6B7280 !important; }
+    .value-text { color: #111827 !important; }
+    .item-row-td { border-bottom-color: #f0f0f0 !important; color: #374151 !important; }
+    .info-box { background-color: #EFF6FF !important; border-left-color: #2563EB !important; }
+    .info-box p { color: #1E40AF !important; }
+    .footer-text { color: #9CA3AF !important; }
+    .footer-sub { color: #D1D5DB !important; }
+
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #111827 !important; }
+      .email-card { background-color: #1F2937 !important; }
+      .order-details-card { background-color: #374151 !important; border-color: #4B5563 !important; }
+      .row-divider { border-bottom-color: #4B5563 !important; }
+      .label-text { color: #9CA3AF !important; }
+      .value-text { color: #F9FAFB !important; }
+      .item-row-td { border-bottom-color: #374151 !important; color: #E5E7EB !important; }
+      .items-table-head { background-color: #374151 !important; }
+      .items-head-th { color: #9CA3AF !important; border-bottom-color: #4B5563 !important; }
+      .info-box { background-color: #1E3A5F !important; border-left-color: #3B82F6 !important; border-right-color: #3B82F6 !important; }
+      .info-box p { color: #BFDBFE !important; }
+      .footer-text { color: #6B7280 !important; }
+      .footer-sub { color: #4B5563 !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" class="email-card" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08); max-width: 600px; width: 100%;">
+
+          <!-- Header Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%); padding: 16px 40px 16px; text-align: center;">
+              ${logoImgTag}
+              <h1 style="margin: 0 0 4px; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Order Confirmed!</h1>
+              <p style="margin: 0; color: rgba(255,255,255,0.85); font-size: 14px;">Thank you for shopping with us, ${user.fname || "Customer"}.</p>
+            </td>
+          </tr>
+
+          <!-- Order Details -->
+          <tr>
+            <td style="padding: 24px 40px 0;">
+              <h2 style="margin: 0 0 16px; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" class="value-text">Order Details</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" class="order-details-card" style="border-radius: 10px; overflow: hidden; border: 1px solid #E5E7EB;">
+                <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
+                  <td style="padding: 14px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size: 13px;">Order ID</td>
+                        <td class="value-text" style="font-size: 14px; font-weight: 600; text-align: right;">#${checkoutData.order_id}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
+                  <td style="padding: 14px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size: 13px;">Payment Method</td>
+                        <td style="text-align: right;">
+                          <span style="display: inline-block; background-color: ${paymentBadgeColor}22; color: ${paymentBadgeColor}; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">${paymentMethod}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
+                  <td style="padding: 14px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size: 13px;">Order Date</td>
+                        <td class="value-text" style="font-size: 14px; font-weight: 500; text-align: right;">${new Date(checkoutData.created_at || Date.now()).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size: 13px;">Status</td>
+                        <td style="text-align: right;">
+                          <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: capitalize;">${checkoutData.status}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Items Ordered -->
+          <tr>
+            <td style="padding: 24px 40px 0;">
+              <h2 style="margin: 0 0 14px; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" class="value-text">Items Ordered</h2>
+              <div style="border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden;">
+                ${itemsSection}
+              </div>
+            </td>
+          </tr>
+
+          <!-- Centered Info Note -->
+          <tr>
+            <td style="padding: 24px 40px 0;" align="center">
+            <table cellpadding="0" cellspacing="0" class="info-box" style="border-radius: 10px; background-color: #EFF6FF; border-left: 4px solid #2563EB; border-right: 4px solid #2563EB; display: inline-block;">
+                <tr>
+                <td style="padding: 12px 24px;">
+                    <p style="margin: 0; color: #1E40AF; font-size: 13px; line-height: 1.6; text-align: center;">We will notify you once your order status is updated.</p>
+                </td>
+                </tr>
+            </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px; text-align: center; margin-top: 20px;">
+              <p class="footer-text" style="margin: 0 0 4px; font-size: 13px;">© ${new Date().getFullYear()} Venpaa Bookshop. All rights reserved.</p>
+              <p class="footer-sub" style="margin: 0; font-size: 12px;">This is an automated email, please do not reply directly.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+
+  const attachments = logoAttachment ? [logoAttachment] : [];
+
+  try {
+    const info = await transporter.sendMail({
+      from: `Venpaa Bookshop <${process.env.EMAIL_USER}>`,
+      replyTo: `no-reply@venpaa.lk`,
+      to: user.email,
+      subject: `Order Confirmed #${checkoutData.order_id} — Venpaa Bookshop`,
+      html: htmlContent,
+      attachments,
+    });
+    console.log(
+      `Order confirmation email sent to ${user.email}: ${info.messageId}`,
+    );
+  } catch (error) {
+    console.error("Failed to send order confirmation email:", error);
+  }
+};

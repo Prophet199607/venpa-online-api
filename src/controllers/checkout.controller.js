@@ -5,8 +5,12 @@ const {
   Cart,
   CartItem,
   Product,
+  User,
 } = require("../models");
 const { sendToUser } = require("../services/notifications/notificationService");
+const {
+  sendOrderConfirmationEmail,
+} = require("../services/notifications/emailService");
 
 function normalizeCheckoutType(value) {
   if (value === 1 || value === "1") return 1;
@@ -31,7 +35,7 @@ async function getActiveCartWithProducts(userId) {
         include: [
           {
             model: Product,
-            attributes: ["prod_code", "selling_price"],
+            attributes: ["prod_code", "prod_name", "selling_price"],
           },
         ],
       },
@@ -119,6 +123,15 @@ async function createCardPaymentResponse(userId, body) {
     updated_at: new Date(),
   });
 
+  const user = await User.findOne({ where: { id: userId } });
+  if (user) {
+    sendOrderConfirmationEmail(
+      user.toJSON(),
+      checkout.toJSON(),
+      cart.cart_items || [],
+    ).catch(console.error);
+  }
+
   return {
     status: 201,
     body: {
@@ -176,6 +189,15 @@ exports.createCheckout = async (req, res, next) => {
       created_at: new Date(),
       updated_at: new Date(),
     });
+
+    const user = await User.findOne({ where: { id: req.user.id } });
+    if (user) {
+      sendOrderConfirmationEmail(
+        user.toJSON(),
+        checkout.toJSON(),
+        cart ? cart.cart_items : [],
+      ).catch(console.error);
+    }
 
     return res.status(201).json({
       message: "Checkout created",
