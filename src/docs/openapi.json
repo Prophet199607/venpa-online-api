@@ -1557,9 +1557,35 @@
                   "type": "array",
                   "items": {
                     "type": "object",
+                    "description": "Each item can be either a checkout or a pick & collect record",
                     "properties": {
+                      "record_type": {
+                        "type": "string",
+                        "enum": ["checkout", "pick_and_collect"],
+                        "description": "Indicates the source table of this record"
+                      },
                       "order_id": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "Present for checkout records only"
+                      },
+                      "pick_and_collect_id": {
+                        "type": "integer",
+                        "description": "Present for pick & collect records only"
+                      },
+                      "prod_code": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Product code — populated for pick & collect, null for checkout (cart-based)"
+                      },
+                      "location": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Location code — present for pick & collect only"
+                      },
+                      "location_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Location name — present for pick & collect only"
                       },
                       "type": {
                         "type": "integer",
@@ -1571,13 +1597,14 @@
                         "description": "Short name for the transaction type (e.g. checkout, pick & collect)"
                       },
                       "payload": {
-                        "type": "object"
+                        "type": "object",
+                        "nullable": true,
+                        "description": "Cart payload — present for checkout records only"
                       },
-                      "location": {
-                        "type": "string"
-                      },
-                      "location_name": {
-                        "type": "string"
+                      "picked_qty": {
+                        "type": "number",
+                        "nullable": true,
+                        "description": "Quantity — present for pick & collect records only"
                       },
                       "status": {
                         "type": "string"

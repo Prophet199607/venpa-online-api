@@ -107,7 +107,7 @@ async function createCardPaymentResponse(userId, body) {
     order_id: orderId,
     user_id: userId,
     type: 1,
-    type_name: "checkout",
+    type_name: "delivery",
     payload,
     status: "pending",
     created_at: new Date(),
@@ -157,7 +157,7 @@ exports.createCheckout = async (req, res, next) => {
       order_id: orderId,
       user_id: req.user.id,
       type,
-      type_name: "checkout",
+      type_name: "delivery",
       payload,
       status: "pending",
       created_at: new Date(),
@@ -195,19 +195,51 @@ exports.listCheckouts = async (req, res, next) => {
     const [checkouts, pickAndCollects] = await Promise.all([
       Checkout.findAll({
         where: { user_id: req.user.id },
-        attributes: { exclude: ["id", "user_id"] },
       }),
       PickAndCollect.findAll({
         where: { user_id: req.user.id },
-        attributes: { exclude: ["id", "user_id"] },
       }),
     ]);
 
-    const items = [...checkouts, ...pickAndCollects].sort((a, b) => {
-      const dateA = new Date(a.created_at || 0);
-      const dateB = new Date(b.created_at || 0);
-      return dateB - dateA;
+    const normalizedCheckouts = checkouts.map((c) => {
+      const item = c.toJSON ? c.toJSON() : c;
+      return {
+        record_type: "checkout",
+        order_id: item.order_id,
+        prod_code: null,
+        type: item.type,
+        type_name: item.type_name,
+        payload: item.payload,
+        status: item.status,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      };
     });
+
+    const normalizedPickAndCollects = pickAndCollects.map((p) => {
+      const item = p.toJSON ? p.toJSON() : p;
+      return {
+        record_type: "pick_and_collect",
+        pick_and_collect_id: item.pick_and_collect_id,
+        prod_code: item.prod_code,
+        location: item.location,
+        location_name: item.location_name,
+        type: item.type,
+        type_name: item.type_name,
+        picked_qty: Number(item.picked_qty || 0),
+        status: item.status,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      };
+    });
+
+    const items = [...normalizedCheckouts, ...normalizedPickAndCollects].sort(
+      (a, b) => {
+        const dateA = new Date(a.created_at || 0);
+        const dateB = new Date(b.created_at || 0);
+        return dateB - dateA;
+      },
+    );
 
     res.json(items);
   } catch (e) {
