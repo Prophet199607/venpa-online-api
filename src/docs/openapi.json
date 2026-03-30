@@ -1558,66 +1558,71 @@
                   "items": {
                     "type": "object",
                     "description": "Each item can be either a checkout or a pick & collect record",
-                    "properties": {
-                      "record_type": {
-                        "type": "string",
-                        "enum": ["checkout", "pick_and_collect"],
-                        "description": "Indicates the source table of this record"
-                      },
-                      "order_id": {
-                        "type": "integer",
-                        "description": "Present for checkout records only"
-                      },
-                      "pick_and_collect_id": {
-                        "type": "integer",
-                        "description": "Present for pick & collect records only"
-                      },
-                      "prod_code": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Product code — populated for pick & collect, null for checkout (cart-based)"
-                      },
-                      "location": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Location code — present for pick & collect only"
-                      },
-                      "location_name": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Location name — present for pick & collect only"
-                      },
-                      "type": {
-                        "type": "integer",
-                        "enum": [1, 2],
-                        "description": "1 = card payment, 2 = cash on delivery"
-                      },
-                      "type_name": {
-                        "type": "string",
-                        "description": "Short name for the transaction type (e.g. checkout, pick & collect)"
-                      },
-                      "payload": {
+                    "oneOf": [
+                      {
                         "type": "object",
-                        "nullable": true,
-                        "description": "Cart payload — present for checkout records only"
+                        "description": "Checkout Array Item",
+                        "properties": {
+                          "record_type": {
+                            "type": "string",
+                            "example": "checkout"
+                          },
+                          "order_id": { "type": "integer" },
+                          "type": { "type": "integer", "enum": [1, 2] },
+                          "type_name": {
+                            "type": "string",
+                            "example": "delivery"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "properties": {
+                              "prod_codes": {
+                                "type": "array",
+                                "items": { "type": "string" }
+                              }
+                            }
+                          },
+                          "status": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
                       },
-                      "picked_qty": {
-                        "type": "number",
-                        "nullable": true,
-                        "description": "Quantity — present for pick & collect records only"
-                      },
-                      "status": {
-                        "type": "string"
-                      },
-                      "created_at": {
-                        "type": "string",
-                        "format": "date-time"
-                      },
-                      "updated_at": {
-                        "type": "string",
-                        "format": "date-time"
+                      {
+                        "type": "object",
+                        "description": "Pick & Collect Array Item",
+                        "properties": {
+                          "record_type": {
+                            "type": "string",
+                            "example": "pick_and_collect"
+                          },
+                          "pick_and_collect_id": { "type": "integer" },
+                          "prod_code": { "type": "string" },
+                          "location": { "type": "string" },
+                          "location_name": { "type": "string" },
+                          "type": { "type": "integer", "enum": [1, 2] },
+                          "type_name": {
+                            "type": "string",
+                            "example": "pick & collect"
+                          },
+                          "picked_qty": { "type": "number" },
+                          "status": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
                       }
-                    }
+                    ]
                   }
                 }
               }
@@ -1697,7 +1702,14 @@
                           "type": "string"
                         },
                         "payload": {
-                          "type": "object"
+                          "type": "object",
+                          "description": "Cart payload. Contains prod_codes array with product codes from the cart.",
+                          "properties": {
+                            "prod_codes": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            }
+                          }
                         },
                         "created_at": {
                           "type": "string",
@@ -1784,7 +1796,14 @@
                           "type": "string"
                         },
                         "payload": {
-                          "type": "object"
+                          "type": "object",
+                          "description": "Cart payload. Contains prod_codes array with product codes from the cart.",
+                          "properties": {
+                            "prod_codes": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            }
+                          }
                         },
                         "created_at": {
                           "type": "string",

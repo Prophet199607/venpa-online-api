@@ -103,12 +103,17 @@ async function createCardPaymentResponse(userId, body) {
     return { status: 500, body: { message: hashPayload.error } };
   }
 
+  // Extract prod_codes from cart items
+  const prodCodes = (cart.cart_items || [])
+    .map((item) => item?.product?.prod_code)
+    .filter(Boolean);
+
   const checkout = await Checkout.create({
     order_id: orderId,
     user_id: userId,
     type: 1,
     type_name: "delivery",
-    payload,
+    payload: { ...payload, prod_codes: prodCodes },
     status: "pending",
     created_at: new Date(),
     updated_at: new Date(),
@@ -153,12 +158,20 @@ exports.createCheckout = async (req, res, next) => {
     const { type: _type, ...payload } = req.body;
     const orderId = generateOrderId();
 
+    // For type 2 (COD), also fetch cart and extract prod_codes
+    const cart = await getActiveCartWithProducts(req.user.id);
+    const prodCodes = cart
+      ? (cart.cart_items || [])
+          .map((item) => item?.product?.prod_code)
+          .filter(Boolean)
+      : [];
+
     const checkout = await Checkout.create({
       order_id: orderId,
       user_id: req.user.id,
       type,
       type_name: "delivery",
-      payload,
+      payload: { ...payload, prod_codes: prodCodes },
       status: "pending",
       created_at: new Date(),
       updated_at: new Date(),
@@ -206,7 +219,6 @@ exports.listCheckouts = async (req, res, next) => {
       return {
         record_type: "checkout",
         order_id: item.order_id,
-        prod_code: null,
         type: item.type,
         type_name: item.type_name,
         payload: item.payload,
