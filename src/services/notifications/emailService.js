@@ -22,7 +22,7 @@ function buildItemsRows(cartItems) {
       return `
       <tr>
         <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px;">
-          ${product.prod_name || "Unknown Product"}
+          ${product.prod_name}
         </td>
         <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: center;">
           ${qty}
@@ -53,6 +53,12 @@ exports.generateOrderInvoiceHtml = (
   const paymentBadgeColor = checkoutData.type === 1 ? "#6366F1" : "#10B981";
   const brandColor = "#0d5b82";
 
+  const orderTypeDisplay =
+    checkoutData.type_name === "delivery" ||
+    checkoutData.type_name === "checkout"
+      ? "Delivery"
+      : "Collect from Store";
+
   const netTotal = cartItems.reduce((acc, item) => {
     return (
       acc +
@@ -63,7 +69,7 @@ exports.generateOrderInvoiceHtml = (
   const itemsSection =
     cartItems.length > 0
       ? `
-      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; margin-top: 4px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
         <thead>
           <tr style="background-color: #F9FAFB;">
             <th style="padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Product</th>
@@ -138,14 +144,14 @@ exports.generateOrderInvoiceHtml = (
 </head>
 <body style="margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" style="padding: 30px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0">
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" class="email-card" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); max-width: 600px; width: 100%;">
 
           <!-- Header Banner -->
           <tr>
-            <td style="background: linear-gradient(135deg, ${brandColor} 0%, #3160c4 100%); padding: 12px 24px;">
+            <td style="background: linear-gradient(135deg, #3160c4 0%, ${brandColor} 100%); padding: 12px 24px;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td width="110">
@@ -171,6 +177,16 @@ exports.generateOrderInvoiceHtml = (
                       <tr>
                         <td class="label-text" style="font-size: 12px;">Order ID</td>
                         <td class="value-text" style="font-size: 13px; font-weight: 600; text-align: right;">#${checkoutData.order_id}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
+                  <td style="padding: 10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size: 12px;">Order Type</td>
+                        <td class="value-text" style="font-size: 13px; font-weight: 600; text-align: right;">${orderTypeDisplay}</td>
                       </tr>
                     </table>
                   </td>

@@ -1596,7 +1596,6 @@
                               },
                               "prod_codes": {
                                 "type": "array",
-                                "description": "Deprecated. Use items instead.",
                                 "items": { "type": "string" }
                               }
                             }
@@ -1743,7 +1742,6 @@
                             },
                             "prod_codes": {
                               "type": "array",
-                              "description": "Deprecated. Use items instead.",
                               "items": { "type": "string" }
                             }
                           }
@@ -1893,7 +1891,6 @@
                             },
                             "prod_codes": {
                               "type": "array",
-                              "description": "Deprecated. Use items instead.",
                               "items": { "type": "string" }
                             }
                           }
