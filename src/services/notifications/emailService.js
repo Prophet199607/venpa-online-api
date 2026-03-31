@@ -21,16 +21,16 @@ function buildItemsRows(cartItems) {
 
       return `
       <tr>
-        <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px;">
+        <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px;">
           ${product.prod_name}
         </td>
-        <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: center;">
+        <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: center;">
           ${qty}
         </td>
-        <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: right;">
+        <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: right;">
           Rs. ${unitPrice.toFixed(2)}
         </td>
-        <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #111827; font-size: 13px; font-weight: 600; text-align: right;">
+        <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #111827; font-size: 13px; font-weight: 600; text-align: right;">
           Rs. ${subtotal.toFixed(2)}
         </td>
       </tr>
@@ -71,11 +71,11 @@ exports.generateOrderInvoiceHtml = (
       ? `
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
         <thead>
-          <tr style="background-color: #F9FAFB;">
-            <th style="padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Product</th>
-            <th style="padding: 10px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Qty</th>
-            <th style="padding: 10px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Unit</th>
-            <th style="padding: 10px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Subtotal</th>
+          <tr class="items-table-head" style="background-color: #F9FAFB;">
+            <th class="items-head-th" style="padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Product</th>
+            <th class="items-head-th" style="padding: 10px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Qty</th>
+            <th class="items-head-th" style="padding: 10px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Unit</th>
+            <th class="items-head-th" style="padding: 10px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Subtotal</th>
           </tr>
         </thead>
         <tbody>
@@ -83,8 +83,8 @@ exports.generateOrderInvoiceHtml = (
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="3" style="padding: 12px 16px; text-align: right; font-size: 13px; font-weight: 700; color: #374151;">Net Total:</td>
-            <td style="padding: 12px 16px; text-align: right; font-size: 15px; font-weight: 800; color: #111827;">Rs. ${netTotal.toFixed(2)}</td>
+            <td colspan="3" class="value-text" style="padding: 12px 16px; text-align: right; font-size: 13px; font-weight: 700; color: #374151;">Net Total:</td>
+            <td class="value-text" style="padding: 12px 16px; text-align: right; font-size: 15px; font-weight: 800; color: #111827;">Rs. ${netTotal.toFixed(2)}</td>
           </tr>
         </tfoot>
       </table>
