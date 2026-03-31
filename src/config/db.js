@@ -1,22 +1,22 @@
 const { Sequelize } = require("sequelize");
 
 const sequelize = new Sequelize(
-  process.env.MYSQL_DB,
-  process.env.MYSQL_USER,
-  process.env.MYSQL_PASS,
+  process.env.DB_DATABASE || process.env.MYSQL_DB,
+  process.env.DB_USERNAME || process.env.MYSQL_USER,
+  process.env.DB_PASSWORD || process.env.MYSQL_PASS,
   {
-    host: process.env.MYSQL_HOST,
-    port: Number(process.env.MYSQL_PORT || 3306),
+    host: process.env.DB_HOST || process.env.MYSQL_HOST,
+    port: Number(process.env.DB_PORT || process.env.MYSQL_PORT || 3306),
     dialect: "mysql",
     logging: false,
     define: {
-      freezeTableName: true, // use table name exactly as in DB
-      underscored: true, // maps created_at, updated_at
+      freezeTableName: true,
+      underscored: true,
       engine: "InnoDB",
       charset: "utf8mb4",
-      collate: "utf8mb4_general_ci"
+      collate: "utf8mb4_general_ci",
     },
-  }
+  },
 );
 
 module.exports = sequelize;
