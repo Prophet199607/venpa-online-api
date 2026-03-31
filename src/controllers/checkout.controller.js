@@ -109,15 +109,15 @@ async function createCardPaymentResponse(userId, body) {
   }
 
   // Extract items data for payload and email reconstruction
-  const rawCartItems = cart.cart_items || cart.CartItems || [];
-  const items = rawCartItems
+  const cartItemsResult = cart.cart_items || cart.CartItems || [];
+  const items = cartItemsResult
     .map((item) => ({
       product: {
         prod_code: item?.product?.prod_code,
         prod_name: item?.product?.prod_name,
         selling_price: item?.product?.selling_price,
       },
-      quantity: item?.quantity,
+      quantity: item?.quantity || 1,
     }))
     .filter((it) => it.product.prod_code);
 
@@ -133,12 +133,11 @@ async function createCardPaymentResponse(userId, body) {
   });
 
   const user = await User.findOne({ where: { id: userId } });
-
   if (user) {
     sendOrderConfirmationEmail(
       user.get({ plain: true }),
       checkout.get({ plain: true }),
-      items,
+      items
     ).catch(console.error);
   }
 
@@ -183,8 +182,8 @@ exports.createCheckout = async (req, res, next) => {
 
     // For type 2 (COD), also fetch cart and extract items
     const cart = await getActiveCartWithProducts(req.user.id);
-    const rawCartItems = cart ? cart.cart_items || cart.CartItems || [] : [];
-    const items = rawCartItems
+    const cartItemsResult = cart ? (cart.cart_items || cart.CartItems || []) : [];
+    const items = cartItemsResult
       .map((item) => ({
         product: {
           prod_code: item?.product?.prod_code,
@@ -211,7 +210,7 @@ exports.createCheckout = async (req, res, next) => {
       sendOrderConfirmationEmail(
         user.get({ plain: true }),
         checkout.get({ plain: true }),
-        items,
+        items
       ).catch(console.error);
     }
 
@@ -228,6 +227,7 @@ exports.createCheckout = async (req, res, next) => {
       },
     });
   } catch (e) {
+    console.error("COD Checkout Error:", e);
     next(e);
   }
 };
@@ -350,19 +350,11 @@ exports.getCheckoutBill = async (req, res, next) => {
 
     const user = await User.findOne({ where: { id: req.user.id } });
 
-    // Reconstruct cartItems from the stored payload items (prefer items, fallback to prod_codes)
+    // Reconstruct cartItems from payload (prefer items, fallback to prod_codes for old data)
     let cartItems = [];
     if (checkout.payload?.items) {
-      cartItems = checkout.payload.items.map((item) => ({
-        product: {
-          prod_code: item.prod_code,
-          prod_name: item.prod_name,
-          selling_price: item.selling_price,
-        },
-        quantity: item.quantity,
-      }));
+      cartItems = checkout.payload.items;
     } else if (checkout.payload?.prod_codes) {
-      // Fallback for older data format
       const products = await Product.findAll({
         where: { prod_code: checkout.payload.prod_codes },
         attributes: ["prod_code", "prod_name", "selling_price"],
@@ -378,7 +370,7 @@ exports.getCheckoutBill = async (req, res, next) => {
       checkout.get({ plain: true }),
       cartItems,
       process.env.EMAIL_LOGO_URL ||
-        "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png",
+        "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png"
     );
 
     return res.status(200).set("Content-Type", "text/html").send(htmlContent);
@@ -386,6 +378,6 @@ exports.getCheckoutBill = async (req, res, next) => {
     console.error("Error in getCheckoutBill:", e);
     return res
       .status(500)
-      .json({ message: "Internal server error while generating bill" });
+      .json({ message: "Error generating invoice bill" });
   }
 };
