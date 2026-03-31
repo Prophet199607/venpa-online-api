@@ -45,8 +45,12 @@ function getSyncOptions() {
     const syncOptions = getSyncOptions();
 
     if (syncOptions) {
-      await sequelize.sync(syncOptions);
-      console.log(`Database synchronized! (DB_SYNC_MODE: ${process.env.DB_SYNC_MODE})`);
+      try {
+        await sequelize.sync(syncOptions);
+        console.log(`Database synchronized! (DB_SYNC_MODE: ${process.env.DB_SYNC_MODE})`);
+      } catch (syncError) {
+        console.error("❌ Synchronization error occurred, but continuing startup:", syncError.message);
+      }
     } else {
       console.log("Skipping Sequelize sync on startup (DB_SYNC_MODE=none)");
     }
