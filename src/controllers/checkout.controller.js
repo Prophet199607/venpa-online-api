@@ -109,17 +109,18 @@ async function createCardPaymentResponse(userId, body) {
   }
 
   // Extract items data for payload and email reconstruction
-  const cartItemsResult = cart.cart_items || cart.CartItems || [];
-  const items = cartItemsResult
+  const cartJson = typeof cart.toJSON === 'function' ? cart.toJSON() : cart;
+  const rawCartItems = cartJson.cart_items || cartJson.CartItems || cartJson.items || [];
+  const items = rawCartItems
     .map((item) => ({
       product: {
-        prod_code: item?.product?.prod_code,
-        prod_name: item?.product?.prod_name,
-        selling_price: item?.product?.selling_price,
+        prod_code: item.product?.prod_code || item.product_code || item.prod_code || "N/A",
+        prod_name: item.product?.prod_name || item.product_name || "Unknown Product",
+        selling_price: item.product?.selling_price || item.price || 0,
       },
-      quantity: item?.quantity || 1,
+      quantity: Number(item.quantity || 1),
     }))
-    .filter((it) => it.product.prod_code);
+    .filter((it) => it.product.prod_code !== "N/A");
 
   const checkout = await Checkout.create({
     order_id: orderId,
@@ -135,8 +136,8 @@ async function createCardPaymentResponse(userId, body) {
   const user = await User.findOne({ where: { id: userId } });
   if (user) {
     sendOrderConfirmationEmail(
-      user.get({ plain: true }),
-      checkout.get({ plain: true }),
+      typeof user.toJSON === 'function' ? user.toJSON() : user,
+      typeof checkout.toJSON === 'function' ? checkout.toJSON() : checkout,
       items
     ).catch(console.error);
   }
@@ -182,17 +183,21 @@ exports.createCheckout = async (req, res, next) => {
 
     // For type 2 (COD), also fetch cart and extract items
     const cart = await getActiveCartWithProducts(req.user.id);
-    const cartItemsResult = cart ? (cart.cart_items || cart.CartItems || []) : [];
-    const items = cartItemsResult
-      .map((item) => ({
-        product: {
-          prod_code: item?.product?.prod_code,
-          prod_name: item?.product?.prod_name,
-          selling_price: item?.product?.selling_price,
-        },
-        quantity: item?.quantity || 1,
-      }))
-      .filter((it) => it.product.prod_code);
+    let items = [];
+    if (cart) {
+      const cartJson = typeof cart.toJSON === 'function' ? cart.toJSON() : cart;
+      const rawCartItems = cartJson.cart_items || cartJson.CartItems || cartJson.items || [];
+      items = rawCartItems
+        .map((item) => ({
+          product: {
+            prod_code: item.product?.prod_code || item.product_code || item.prod_code || "N/A",
+            prod_name: item.product?.prod_name || item.product_name || "Unknown Product",
+            selling_price: item.product?.selling_price || item.price || 0,
+          },
+          quantity: Number(item.quantity || 1),
+        }))
+        .filter((it) => it.product.prod_code !== "N/A");
+    }
 
     const checkout = await Checkout.create({
       order_id: orderId,
@@ -206,10 +211,10 @@ exports.createCheckout = async (req, res, next) => {
     });
 
     const user = await User.findOne({ where: { id: req.user.id } });
-    if (user && cart) {
+    if (user) {
       sendOrderConfirmationEmail(
-        user.get({ plain: true }),
-        checkout.get({ plain: true }),
+        typeof user.toJSON === 'function' ? user.toJSON() : user,
+        typeof checkout.toJSON === 'function' ? checkout.toJSON() : checkout,
         items
       ).catch(console.error);
     }
@@ -338,36 +343,67 @@ exports.updateCheckoutStatus = async (req, res, next) => {
 
 exports.getCheckoutBill = async (req, res, next) => {
   try {
-    const { order_id } = req.params;
+    const { order_id: rawOrderId } = req.params;
+    const order_id = rawOrderId ? String(rawOrderId).trim() : "";
 
-    const checkout = await Checkout.findOne({
+    // First try finding in Checkouts
+    let checkout = await Checkout.findOne({
       where: { order_id, user_id: req.user.id },
     });
 
-    if (!checkout) {
-      return res.status(404).json({ message: "Order not found" });
+    let cartItems = [];
+    let checkoutObj = null;
+
+    if (checkout) {
+      checkoutObj = checkout.toJSON();
+      // Reconstruct cartItems from payload (prefer items, fallback to prod_codes for old data)
+      if (checkoutObj.payload?.items) {
+        cartItems = checkoutObj.payload.items;
+      } else if (checkoutObj.payload?.prod_codes) {
+        const products = await Product.findAll({
+          where: { prod_code: checkoutObj.payload.prod_codes },
+          attributes: ["prod_code", "prod_name", "selling_price"],
+        });
+        cartItems = products.map((p) => ({
+          product: p.get({ plain: true }),
+          quantity: 1,
+        }));
+      }
+    } else {
+      // Try finding in PickAndCollects
+      const pickAndCollect = await PickAndCollect.findOne({
+        where: { pick_and_collect_id: order_id, user_id: req.user.id },
+      });
+
+      if (pickAndCollect) {
+        const pc = pickAndCollect.toJSON();
+        const product = await Product.findOne({ where: { prod_code: pc.prod_code } });
+        
+        checkoutObj = {
+          order_id: pc.pick_and_collect_id,
+          type: pc.type,
+          type_name: pc.type_name || "pick & collect",
+          status: pc.status,
+          created_at: pc.created_at,
+          payload: { prod_codes: [pc.prod_code] }
+        };
+
+        cartItems = [{
+          product: product ? product.toJSON() : { prod_code: pc.prod_code, prod_name: pc.prod_name || "Unknown", selling_price: 0 },
+          quantity: pc.picked_qty || 1
+        }];
+      }
+    }
+
+    if (!checkoutObj) {
+      return res.status(404).json({ message: "Order or Pick & Collect record not found" });
     }
 
     const user = await User.findOne({ where: { id: req.user.id } });
 
-    // Reconstruct cartItems from payload (prefer items, fallback to prod_codes for old data)
-    let cartItems = [];
-    if (checkout.payload?.items) {
-      cartItems = checkout.payload.items;
-    } else if (checkout.payload?.prod_codes) {
-      const products = await Product.findAll({
-        where: { prod_code: checkout.payload.prod_codes },
-        attributes: ["prod_code", "prod_name", "selling_price"],
-      });
-      cartItems = products.map((p) => ({
-        product: p.get({ plain: true }),
-        quantity: 1,
-      }));
-    }
-
     const htmlContent = generateOrderInvoiceHtml(
-      user ? user.get({ plain: true }) : req.user,
-      checkout.get({ plain: true }),
+      user ? user.toJSON() : req.user,
+      checkoutObj,
       cartItems,
       process.env.EMAIL_LOGO_URL ||
         "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png"

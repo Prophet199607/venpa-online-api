@@ -1575,9 +1575,28 @@
                           },
                           "payload": {
                             "type": "object",
+                            "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
                             "properties": {
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "product": {
+                                      "type": "object",
+                                      "properties": {
+                                        "prod_code": { "type": "string" },
+                                        "prod_name": { "type": "string" },
+                                        "selling_price": { "type": "number" }
+                                      }
+                                    },
+                                    "quantity": { "type": "integer" }
+                                  }
+                                }
+                              },
                               "prod_codes": {
                                 "type": "array",
+                                "description": "Deprecated. Use items instead.",
                                 "items": { "type": "string" }
                               }
                             }
@@ -1703,10 +1722,28 @@
                         },
                         "payload": {
                           "type": "object",
-                          "description": "Cart payload. Contains prod_codes array with product codes from the cart.",
+                          "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
                           "properties": {
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "product": {
+                                    "type": "object",
+                                    "properties": {
+                                      "prod_code": { "type": "string" },
+                                      "prod_name": { "type": "string" },
+                                      "selling_price": { "type": "number" }
+                                    }
+                                  },
+                                  "quantity": { "type": "integer" }
+                                }
+                              }
+                            },
                             "prod_codes": {
                               "type": "array",
+                              "description": "Deprecated. Use items instead.",
                               "items": { "type": "string" }
                             }
                           }
@@ -1835,10 +1872,28 @@
                         },
                         "payload": {
                           "type": "object",
-                          "description": "Cart payload. Contains prod_codes array with product codes from the cart.",
+                          "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
                           "properties": {
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "product": {
+                                    "type": "object",
+                                    "properties": {
+                                      "prod_code": { "type": "string" },
+                                      "prod_name": { "type": "string" },
+                                      "selling_price": { "type": "number" }
+                                    }
+                                  },
+                                  "quantity": { "type": "integer" }
+                                }
+                              }
+                            },
                             "prod_codes": {
                               "type": "array",
+                              "description": "Deprecated. Use items instead.",
                               "items": { "type": "string" }
                             }
                           }

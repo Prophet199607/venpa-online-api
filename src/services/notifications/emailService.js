@@ -46,7 +46,7 @@ exports.generateOrderInvoiceHtml = (
   user,
   checkoutData,
   cartItems = [],
-  logoUrl = ""
+  logoUrl = "",
 ) => {
   const paymentMethod =
     checkoutData.type === 1 ? "Card Payment" : "Cash on Delivery";
@@ -191,8 +191,20 @@ exports.generateOrderInvoiceHtml = (
                   <td style="padding: 10px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size: 12px;">Date & Time</td>
+                        <td class="label-text" style="font-size: 12px;">Order Date & Time</td>
                         <td class="value-text" style="font-size: 13px; font-weight: 500; text-align: right;">${new Date(checkoutData.created_at || Date.now()).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 14px 20px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size: 13px;">Status</td>
+                        <td style="text-align: right;">
+                          <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: capitalize;">${checkoutData.status}</span>
+                        </td>
                       </tr>
                     </table>
                   </td>
@@ -244,24 +256,26 @@ exports.generateOrderInvoiceHtml = (
 exports.sendOrderConfirmationEmail = async (
   user,
   checkoutData,
-  cartItems = []
+  cartItems = [],
 ) => {
   const emailUser = process.env.EMAIL_USER;
   if (!emailUser) {
-    console.warn("EMAIL_USER not set. Skipping email.");
+    console.warn("Email address not set. Skipping email.");
     return;
   }
 
   const transporter = getTransporter();
 
   // Use EMAIL_LOGO_URL from env if available
-  const logoUrl = process.env.EMAIL_LOGO_URL || "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png";
+  const logoUrl =
+    process.env.EMAIL_LOGO_URL ||
+    "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png";
 
   const htmlContent = exports.generateOrderInvoiceHtml(
     user,
     checkoutData,
     cartItems,
-    logoUrl
+    logoUrl,
   );
 
   try {
