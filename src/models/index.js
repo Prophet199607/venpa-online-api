@@ -117,8 +117,8 @@ StockMaster.belongsTo(Product, {
 User.hasOne(Cart, { foreignKey: "user_id" });
 Cart.belongsTo(User, { foreignKey: "user_id" });
 
-Cart.hasMany(CartItem, { foreignKey: "cart_id" });
-CartItem.belongsTo(Cart, { foreignKey: "cart_id" });
+Cart.hasMany(CartItem, { foreignKey: "cart_id", as: "items" });
+CartItem.belongsTo(Cart, { foreignKey: "cart_id", as: "cart" });
 
 CartItem.belongsTo(Product, { foreignKey: "product_id" });
 Product.hasMany(CartItem, { foreignKey: "product_id" });
