@@ -1725,6 +1725,44 @@
         }
       }
     },
+    "/api/v1/checkout/{order_id}/bill": {
+      "get": {
+        "summary": "View Order Invoice Bill HTML",
+        "description": "Returns the order confirmation bill in HTML format suitable for viewing in a browser.",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique Order ID of the checkout"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML content of the generated bill invoice",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      }
+    },
     "/api/v1/checkout/payhere-hash": {
       "post": {
         "summary": "Generate PayHere hash and create pending card order",

@@ -10,6 +10,7 @@ const {
 const { sendToUser } = require("../services/notifications/notificationService");
 const {
   sendOrderConfirmationEmail,
+  generateOrderInvoiceHtml,
 } = require("../services/notifications/emailService");
 
 function normalizeCheckoutType(value) {
@@ -315,6 +316,50 @@ exports.updateCheckoutStatus = async (req, res, next) => {
       order_id: checkout.order_id,
       status,
     });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.getCheckoutBill = async (req, res, next) => {
+  try {
+    const { order_id } = req.params;
+
+    const checkout = await Checkout.findOne({
+      where: { order_id, user_id: req.user.id },
+    });
+
+    if (!checkout) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const user = await User.findOne({ where: { id: req.user.id } });
+
+    // Attempt to reconstruct cartItems from prod_codes
+    const prodCodes = checkout.payload?.prod_codes || [];
+    let cartItems = [];
+
+    if (prodCodes.length > 0) {
+      const products = await Product.findAll({
+        where: { prod_code: prodCodes },
+        attributes: ["prod_code", "prod_name", "selling_price"],
+      });
+
+      cartItems = products.map((product) => ({
+        product: product.toJSON(),
+        quantity: 1, // Defaulting to 1 as individual quantities are not stored in Checkout payload currently
+      }));
+    }
+
+    const htmlContent = generateOrderInvoiceHtml(
+      user ? user.toJSON() : req.user,
+      checkout.toJSON(),
+      cartItems,
+      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/Logo.png", // Use external logo for API rendering
+    );
+
+    res.set("Content-Type", "text/html");
+    return res.send(htmlContent);
   } catch (e) {
     next(e);
   }

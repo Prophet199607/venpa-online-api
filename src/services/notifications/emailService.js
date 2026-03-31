@@ -40,47 +40,19 @@ function buildItemsRows(cartItems) {
     .join("");
 }
 
-exports.sendOrderConfirmationEmail = async (
+/**
+ * Generates the Order Invoice HTML
+ */
+exports.generateOrderInvoiceHtml = (
   user,
   checkoutData,
   cartItems = [],
+  logoUrl = "",
 ) => {
-  const emailUser = process.env.EMAIL_USER;
-  if (!emailUser) {
-    console.warn("EMAIL_USER not set. Skipping order confirmation email.");
-    return;
-  }
-
-  const transporter = getTransporter();
-
-  // Read the logo and embed as inline CID attachment
-  const logoPath = path.resolve(__dirname, "../../public/images/Logo.png");
-  let logoAttachment = null;
-  let logoImgTag = "";
-
-  if (fs.existsSync(logoPath)) {
-    logoAttachment = {
-      filename: "Logo.png",
-      path: logoPath,
-      cid: "venpa-logo",
-    };
-    logoImgTag = `
-      <div style="text-align: center; margin-bottom: 8px;">
-        <img
-          src="cid:venpa-logo"
-          alt="Venpaa Bookshop"
-          width="160"
-          style="display: block; margin: 0 auto; max-width: 160px; height: auto;"
-        />
-      </div>
-    `;
-  }
-
   const paymentMethod =
     checkoutData.type === 1 ? "Card Payment" : "Cash on Delivery";
   const paymentBadgeColor = checkoutData.type === 1 ? "#6366F1" : "#10B981";
 
-  // Calculate Net Total
   const netTotal = cartItems.reduce((acc, item) => {
     return (
       acc +
@@ -115,7 +87,21 @@ exports.sendOrderConfirmationEmail = async (
           checkoutData.payload?.prod_codes?.join(", ") || "N/A"
         }</p>`;
 
-  const htmlContent = `
+  let logoImgTag = "";
+  if (logoUrl) {
+    logoImgTag = `
+      <div style="text-align: center; margin-bottom: 8px;">
+        <img
+          src="${logoUrl}"
+          alt="Venpaa Bookshop"
+          width="160"
+          style="display: block; margin: 0 auto; max-width: 160px; height: auto;"
+        />
+      </div>
+    `;
+  }
+
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -259,6 +245,39 @@ exports.sendOrderConfirmationEmail = async (
 </body>
 </html>
   `;
+};
+
+exports.sendOrderConfirmationEmail = async (
+  user,
+  checkoutData,
+  cartItems = [],
+) => {
+  const emailUser = process.env.EMAIL_USER;
+  if (!emailUser) {
+    console.warn("EMAIL_USER not set. Skipping order confirmation email.");
+    return;
+  }
+
+  const transporter = getTransporter();
+
+  // Read the logo and embed as inline CID attachment
+  const logoPath = path.resolve(__dirname, "../../public/images/Logo.png");
+  let logoAttachment = null;
+
+  if (fs.existsSync(logoPath)) {
+    logoAttachment = {
+      filename: "Logo.png",
+      path: logoPath,
+      cid: "venpa-logo",
+    };
+  }
+
+  const htmlContent = module.exports.generateOrderInvoiceHtml(
+    user,
+    checkoutData,
+    cartItems,
+    "cid:venpa-logo",
+  );
 
   const attachments = logoAttachment ? [logoAttachment] : [];
 
