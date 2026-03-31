@@ -36,7 +36,7 @@ async function getActiveCartWithProducts(userId) {
         include: [
           {
             model: Product,
-            attributes: ["prod_code", "prod_name", "selling_price"],
+            attributes: ["id", "prod_code", "prod_name", "selling_price"],
           },
         ],
       },
@@ -108,28 +108,37 @@ async function createCardPaymentResponse(userId, body) {
     return { status: 500, body: { message: hashPayload.error } };
   }
 
-  // Extract prod_codes from cart items
-  const prodCodes = (cart.cart_items || [])
-    .map((item) => item?.product?.prod_code)
-    .filter(Boolean);
+  // Extract items data for payload and email reconstruction
+  const rawCartItems = cart.cart_items || cart.CartItems || [];
+  const items = rawCartItems
+    .map((item) => ({
+      product: {
+        prod_code: item?.product?.prod_code,
+        prod_name: item?.product?.prod_name,
+        selling_price: item?.product?.selling_price,
+      },
+      quantity: item?.quantity,
+    }))
+    .filter((it) => it.product.prod_code);
 
   const checkout = await Checkout.create({
     order_id: orderId,
     user_id: userId,
     type: 1,
     type_name: "delivery",
-    payload: { ...payload, prod_codes: prodCodes },
+    payload: { ...payload, items },
     status: "pending",
     created_at: new Date(),
     updated_at: new Date(),
   });
 
   const user = await User.findOne({ where: { id: userId } });
+
   if (user) {
     sendOrderConfirmationEmail(
-      user.toJSON(),
-      checkout.toJSON(),
-      cart.cart_items || [],
+      user.get({ plain: true }),
+      checkout.get({ plain: true }),
+      items,
     ).catch(console.error);
   }
 
@@ -172,31 +181,37 @@ exports.createCheckout = async (req, res, next) => {
     const { type: _type, ...payload } = req.body;
     const orderId = generateOrderId();
 
-    // For type 2 (COD), also fetch cart and extract prod_codes
+    // For type 2 (COD), also fetch cart and extract items
     const cart = await getActiveCartWithProducts(req.user.id);
-    const prodCodes = cart
-      ? (cart.cart_items || [])
-          .map((item) => item?.product?.prod_code)
-          .filter(Boolean)
-      : [];
+    const rawCartItems = cart ? cart.cart_items || cart.CartItems || [] : [];
+    const items = rawCartItems
+      .map((item) => ({
+        product: {
+          prod_code: item?.product?.prod_code,
+          prod_name: item?.product?.prod_name,
+          selling_price: item?.product?.selling_price,
+        },
+        quantity: item?.quantity || 1,
+      }))
+      .filter((it) => it.product.prod_code);
 
     const checkout = await Checkout.create({
       order_id: orderId,
       user_id: req.user.id,
       type,
       type_name: "delivery",
-      payload: { ...payload, prod_codes: prodCodes },
+      payload: { ...payload, items },
       status: "pending",
       created_at: new Date(),
       updated_at: new Date(),
     });
 
     const user = await User.findOne({ where: { id: req.user.id } });
-    if (user) {
+    if (user && cart) {
       sendOrderConfirmationEmail(
-        user.toJSON(),
-        checkout.toJSON(),
-        cart ? cart.cart_items : [],
+        user.get({ plain: true }),
+        checkout.get({ plain: true }),
+        items,
       ).catch(console.error);
     }
 
@@ -335,32 +350,42 @@ exports.getCheckoutBill = async (req, res, next) => {
 
     const user = await User.findOne({ where: { id: req.user.id } });
 
-    // Attempt to reconstruct cartItems from prod_codes
-    const prodCodes = checkout.payload?.prod_codes || [];
+    // Reconstruct cartItems from the stored payload items (prefer items, fallback to prod_codes)
     let cartItems = [];
-
-    if (prodCodes.length > 0) {
+    if (checkout.payload?.items) {
+      cartItems = checkout.payload.items.map((item) => ({
+        product: {
+          prod_code: item.prod_code,
+          prod_name: item.prod_name,
+          selling_price: item.selling_price,
+        },
+        quantity: item.quantity,
+      }));
+    } else if (checkout.payload?.prod_codes) {
+      // Fallback for older data format
       const products = await Product.findAll({
-        where: { prod_code: prodCodes },
+        where: { prod_code: checkout.payload.prod_codes },
         attributes: ["prod_code", "prod_name", "selling_price"],
       });
-
-      cartItems = products.map((product) => ({
-        product: product.toJSON(),
-        quantity: 1, // Defaulting to 1 as individual quantities are not stored in Checkout payload currently
+      cartItems = products.map((p) => ({
+        product: p.get({ plain: true }),
+        quantity: 1,
       }));
     }
 
     const htmlContent = generateOrderInvoiceHtml(
-      user ? user.toJSON() : req.user,
-      checkout.toJSON(),
+      user ? user.get({ plain: true }) : req.user,
+      checkout.get({ plain: true }),
       cartItems,
-      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/Logo.png", // Use external logo for API rendering
+      process.env.EMAIL_LOGO_URL ||
+        "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png",
     );
 
-    res.set("Content-Type", "text/html");
-    return res.send(htmlContent);
+    return res.status(200).set("Content-Type", "text/html").send(htmlContent);
   } catch (e) {
-    next(e);
+    console.error("Error in getCheckoutBill:", e);
+    return res
+      .status(500)
+      .json({ message: "Internal server error while generating bill" });
   }
 };

@@ -1,6 +1,4 @@
 const nodemailer = require("nodemailer");
-const fs = require("fs");
-const path = require("path");
 
 function getTransporter() {
   return nodemailer.createTransport({
@@ -52,6 +50,7 @@ exports.generateOrderInvoiceHtml = (
   const paymentMethod =
     checkoutData.type === 1 ? "Card Payment" : "Cash on Delivery";
   const paymentBadgeColor = checkoutData.type === 1 ? "#6366F1" : "#10B981";
+  const brandColor = "#0d5b82";
 
   const netTotal = cartItems.reduce((acc, item) => {
     return (
@@ -90,14 +89,12 @@ exports.generateOrderInvoiceHtml = (
   let logoImgTag = "";
   if (logoUrl) {
     logoImgTag = `
-      <div style="text-align: center; margin-bottom: 8px;">
-        <img
-          src="${logoUrl}"
-          alt="Venpaa Bookshop"
-          width="160"
-          style="display: block; margin: 0 auto; max-width: 160px; height: auto;"
-        />
-      </div>
+      <img
+        src="${logoUrl}"
+        alt="Venpaa"
+        width="110"
+        style="display: block; max-width: 110px; height: auto;"
+      />
     `;
   }
 
@@ -116,7 +113,7 @@ exports.generateOrderInvoiceHtml = (
     .label-text { color: #6B7280 !important; }
     .value-text { color: #111827 !important; }
     .item-row-td { border-bottom-color: #f0f0f0 !important; color: #374151 !important; }
-    .info-box { background-color: #EFF6FF !important; border-left-color: #2563EB !important; }
+    .info-box { background-color: #EFF6FF !important; border-left-color: ${brandColor} !important; }
     .info-box p { color: #1E40AF !important; }
     .footer-text { color: #9CA3AF !important; }
     .footer-sub { color: #D1D5DB !important; }
@@ -131,7 +128,7 @@ exports.generateOrderInvoiceHtml = (
       .item-row-td { border-bottom-color: #374151 !important; color: #E5E7EB !important; }
       .items-table-head { background-color: #374151 !important; }
       .items-head-th { color: #9CA3AF !important; border-bottom-color: #4B5563 !important; }
-      .info-box { background-color: #1E3A5F !important; border-left-color: #3B82F6 !important; border-right-color: #3B82F6 !important; }
+      .info-box { background-color: #1E3A5F !important; border-left-color: ${brandColor} !important; border-right-color: ${brandColor} !important; }
       .info-box p { color: #BFDBFE !important; }
       .footer-text { color: #6B7280 !important; }
       .footer-sub { color: #4B5563 !important; }
@@ -147,57 +144,65 @@ exports.generateOrderInvoiceHtml = (
 
           <!-- Header Banner -->
           <tr>
-            <td style="background: linear-gradient(135deg, #1E3A5F 0%, #2563EB 100%); padding: 16px 40px 16px; text-align: center;">
-              ${logoImgTag}
-              <h1 style="margin: 0 0 4px; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Order Confirmed!</h1>
-              <p style="margin: 0; color: rgba(255,255,255,0.85); font-size: 14px;">Thank you for shopping with us, ${user.fname || "Customer"}.</p>
+            <td style="background: linear-gradient(135deg, ${brandColor} 0%, #3160c4ff 100%); padding: 12px 28px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="110">
+                    ${logoImgTag}
+                  </td>
+                  <td style="padding-left: 20px; text-align: right;">
+                    <h1 style="margin: 0 0 2px; color: #ffffff; font-size: 19px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1;">Order Confirmed!</h1>
+                    <p style="margin: 0; color: rgba(255,255,255,0.85); font-size: 12px; line-height: 1.2;">Thank you for shopping, ${user.fname || "Customer"}.</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
 
           <!-- Order Details -->
           <tr>
-            <td style="padding: 24px 40px 0;">
-              <h2 style="margin: 0 0 16px; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" class="value-text">Order Details</h2>
-              <table width="100%" cellpadding="0" cellspacing="0" class="order-details-card" style="border-radius: 10px; overflow: hidden; border: 1px solid #E5E7EB;">
+            <td style="padding: 16px 28px 0;">
+              <h2 style="margin: 0 0 12px; font-size: 15px; font-weight: 700; letter-spacing: -0.3px;" class="value-text">Order Details</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" class="order-details-card" style="border-radius: 8px; overflow: hidden; border: 1px solid #E5E7EB;">
                 <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
-                  <td style="padding: 14px 20px;">
+                  <td style="padding: 12px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size: 13px;">Order ID</td>
-                        <td class="value-text" style="font-size: 14px; font-weight: 600; text-align: right;">#${checkoutData.order_id}</td>
+                        <td class="label-text" style="font-size: 12px;">Order ID</td>
+                        <td class="value-text" style="font-size: 13px; font-weight: 600; text-align: right;">#${checkoutData.order_id}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
-                  <td style="padding: 14px 20px;">
+                  <td style="padding: 12px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size: 13px;">Payment Method</td>
+                        <td class="label-text" style="font-size: 12px;">Payment Method</td>
                         <td style="text-align: right;">
-                          <span style="display: inline-block; background-color: ${paymentBadgeColor}22; color: ${paymentBadgeColor}; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px;">${paymentMethod}</span>
+                          <span style="display: inline-block; background-color: ${paymentBadgeColor}22; color: ${paymentBadgeColor}; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;">${paymentMethod}</span>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr class="row-divider" style="border-bottom: 1px solid #E5E7EB;">
-                  <td style="padding: 14px 20px;">
+                  <td style="padding: 12px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size: 13px;">Order Date</td>
-                        <td class="value-text" style="font-size: 14px; font-weight: 500; text-align: right;">${new Date(checkoutData.created_at || Date.now()).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</td>
+                        <td class="label-text" style="font-size: 12px;">Order Date</td>
+                        <td class="value-text" style="font-size: 13px; font-weight: 500; text-align: right;">${new Date(checkoutData.created_at || Date.now()).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 14px 20px;">
+                  <td style="padding: 12px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size: 13px;">Status</td>
+                        <td class="label-text" style="font-size: 12px;">Status</td>
                         <td style="text-align: right;">
-                          <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: capitalize;">${checkoutData.status}</span>
+                          <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; text-transform: capitalize;">${checkoutData.status}</span>
                         </td>
                       </tr>
                     </table>
@@ -209,9 +214,9 @@ exports.generateOrderInvoiceHtml = (
 
           <!-- Items Ordered -->
           <tr>
-            <td style="padding: 24px 40px 0;">
-              <h2 style="margin: 0 0 14px; font-size: 16px; font-weight: 700; letter-spacing: -0.3px;" class="value-text">Items Ordered</h2>
-              <div style="border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden;">
+            <td style="padding: 16px 28px 0;">
+              <h2 style="margin: 0 0 10px; font-size: 15px; font-weight: 700; letter-spacing: -0.3px;" class="value-text">Items Ordered</h2>
+              <div style="border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden;">
                 ${itemsSection}
               </div>
             </td>
@@ -219,11 +224,11 @@ exports.generateOrderInvoiceHtml = (
 
           <!-- Centered Info Note -->
           <tr>
-            <td style="padding: 24px 40px 0;" align="center">
-            <table cellpadding="0" cellspacing="0" class="info-box" style="border-radius: 10px; background-color: #EFF6FF; border-left: 4px solid #2563EB; border-right: 4px solid #2563EB; display: inline-block;">
+            <td style="padding: 16px 28px 0;" align="center">
+            <table cellpadding="0" cellspacing="0" class="info-box" style="border-radius: 8px; background-color: #EFF6FF; border-left: 3px solid ${brandColor}; border-right: 3px solid ${brandColor}; display: inline-block;">
                 <tr>
-                <td style="padding: 12px 24px;">
-                    <p style="margin: 0; color: #1E40AF; font-size: 13px; line-height: 1.6; text-align: center;">We will notify you once your order status is updated.</p>
+                <td style="padding: 10px 20px;">
+                    <p style="margin: 0; color: #1E40AF; font-size: 12px; line-height: 1.4; text-align: center;">We will notify you once your order status is updated.</p>
                 </td>
                 </tr>
             </table>
@@ -232,9 +237,9 @@ exports.generateOrderInvoiceHtml = (
 
           <!-- Footer -->
           <tr>
-            <td style="padding: 32px 40px; text-align: center; margin-top: 20px;">
-              <p class="footer-text" style="margin: 0 0 4px; font-size: 13px;">© ${new Date().getFullYear()} Venpaa Bookshop. All rights reserved.</p>
-              <p class="footer-sub" style="margin: 0; font-size: 12px;">This is an automated email, please do not reply directly.</p>
+            <td style="padding: 24px 40px; text-align: center; margin-top: 10px;">
+              <p class="footer-text" style="margin: 0 0 4px; font-size: 12px;">© ${new Date().getFullYear()} Venpaa Bookshop. All rights reserved.</p>
+              <p class="footer-sub" style="margin: 0; font-size: 11px;">This is an automated email, please do not reply directly.</p>
             </td>
           </tr>
 
@@ -254,32 +259,24 @@ exports.sendOrderConfirmationEmail = async (
 ) => {
   const emailUser = process.env.EMAIL_USER;
   if (!emailUser) {
-    console.warn("EMAIL_USER not set. Skipping order confirmation email.");
+    console.warn("Email address not set. Skipping order confirmation email.");
     return;
   }
 
   const transporter = getTransporter();
 
-  // Read the logo and embed as inline CID attachment
-  const logoPath = path.resolve(__dirname, "../../public/images/Logo.png");
-  let logoAttachment = null;
+  const finalLogoUrl =
+    process.env.EMAIL_LOGO_URL ||
+    "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png";
 
-  if (fs.existsSync(logoPath)) {
-    logoAttachment = {
-      filename: "Logo.png",
-      path: logoPath,
-      cid: "venpa-logo",
-    };
-  }
-
-  const htmlContent = module.exports.generateOrderInvoiceHtml(
+  const htmlContent = exports.generateOrderInvoiceHtml(
     user,
     checkoutData,
     cartItems,
-    "cid:venpa-logo",
+    finalLogoUrl,
   );
 
-  const attachments = logoAttachment ? [logoAttachment] : [];
+  const attachments = [];
 
   try {
     const info = await transporter.sendMail({
