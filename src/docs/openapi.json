@@ -1169,7 +1169,10 @@
                         "courierCharge": {
                           "type": "number"
                         },
-                        "netTotal": {
+                        "netTotalWithCod": {
+                          "type": "number"
+                        },
+                        "netTotalWithoutCod": {
                           "type": "number"
                         }
                       }
@@ -1693,7 +1696,20 @@
                               },
                               "prod_codes": {
                                 "type": "array",
-                                "items": { "type": "string" }
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "totals": {
+                                "type": "object",
+                                "properties": {
+                                  "subTotal": { "type": "number" },
+                                  "totalWeight": { "type": "number" },
+                                  "codCharge": { "type": "number" },
+                                  "courierCharge": { "type": "number" },
+                                  "netTotalWithCod": { "type": "number" },
+                                  "netTotalWithOutCod": { "type": "number" }
+                                }
                               }
                             }
                           },
@@ -1840,6 +1856,17 @@
                             "prod_codes": {
                               "type": "array",
                               "items": { "type": "string" }
+                            },
+                            "totals": {
+                              "type": "object",
+                              "properties": {
+                                "subTotal": { "type": "number" },
+                                "totalWeight": { "type": "number" },
+                                "codCharge": { "type": "number" },
+                                "courierCharge": { "type": "number" },
+                                "netTotalWithCod": { "type": "number" },
+                                "netTotalWithOutCod": { "type": "number" }
+                              }
                             }
                           }
                         },
@@ -1989,6 +2016,17 @@
                             "prod_codes": {
                               "type": "array",
                               "items": { "type": "string" }
+                            },
+                            "totals": {
+                              "type": "object",
+                              "properties": {
+                                "subTotal": { "type": "number" },
+                                "totalWeight": { "type": "number" },
+                                "codCharge": { "type": "number" },
+                                "courierCharge": { "type": "number" },
+                                "netTotalWithCod": { "type": "number" },
+                                "netTotalWithOutCod": { "type": "number" }
+                              }
                             }
                           }
                         },

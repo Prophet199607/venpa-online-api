@@ -86,7 +86,8 @@ exports.getCart = async (req, res) => {
     });
     const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
-    const netTotal = subTotal + codCharge + courierCharge;
+    const netTotalWithCod = subTotal + codCharge + courierCharge;
+    const netTotalWithOutCod = subTotal + courierCharge;
 
     res.json({
       cart: {
@@ -95,7 +96,8 @@ exports.getCart = async (req, res) => {
         totalWeight,
         codCharge,
         courierCharge,
-        netTotal,
+        netTotalWithCod,
+        netTotalWithOutCod,
       },
       items: formattedItems,
     });

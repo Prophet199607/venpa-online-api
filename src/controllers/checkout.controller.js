@@ -6,7 +6,10 @@ const {
   CartItem,
   Product,
   User,
+  CodValueCharge,
+  CourierWeightCharge,
 } = require("../models");
+const { Op } = require("sequelize");
 const { sendToUser } = require("../services/notifications/notificationService");
 const {
   sendOrderConfirmationEmail,
@@ -37,7 +40,13 @@ async function getActiveCartWithProducts(userId) {
         include: [
           {
             model: Product,
-            attributes: ["id", "prod_code", "prod_name", "selling_price"],
+            attributes: [
+              "id",
+              "prod_code",
+              "prod_name",
+              "selling_price",
+              "weight",
+            ],
           },
         ],
       },
@@ -45,12 +54,48 @@ async function getActiveCartWithProducts(userId) {
   });
 }
 
-function calculateCartAmount(cart) {
-  return (cart?.cart_items || []).reduce((sum, item) => {
-    const price = Number(item?.product?.selling_price || 0);
-    const quantity = Number(item?.quantity || 0);
-    return sum + price * quantity;
-  }, 0);
+async function calculateTotals(cart) {
+  let subTotal = 0;
+  let totalWeight = 0;
+
+  const items = cart?.items || cart?.cart_items || [];
+  items.forEach((item) => {
+    const price = parseFloat(item?.product?.selling_price || 0);
+    const weight = parseFloat(item?.product?.weight || 0);
+    const quantity = parseInt(item?.quantity || 1, 10);
+    subTotal += price * quantity;
+    totalWeight += weight * quantity;
+  });
+
+  // Calculate COD Charge
+  const codChargeEntry = await CodValueCharge.findOne({
+    where: {
+      value_from: { [Op.lte]: subTotal },
+      value_to: { [Op.gte]: subTotal },
+    },
+  });
+  const codCharge = parseFloat(codChargeEntry?.charge || 0);
+
+  // Calculate Courier Charge
+  const courierChargeEntry = await CourierWeightCharge.findOne({
+    where: {
+      weight_from: { [Op.lte]: totalWeight },
+      weight_to: { [Op.gte]: totalWeight },
+    },
+  });
+  const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
+
+  const netTotalWithCod = subTotal + courierCharge + codCharge;
+  const netTotalWithOutCod = subTotal + courierCharge;
+
+  return {
+    subTotal,
+    totalWeight,
+    codCharge,
+    courierCharge,
+    netTotalWithCod,
+    netTotalWithOutCod,
+  };
 }
 
 function buildPayHereHash(orderId, amount) {
@@ -92,14 +137,15 @@ async function createCardPaymentResponse(userId, body) {
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  const amountValue = calculateCartAmount(cart);
-  if (amountValue <= 0) {
+  const totals = await calculateTotals(cart);
+  if (totals.subTotal <= 0) {
     return {
       status: 400,
       body: { message: "Cart is empty or has invalid pricing" },
     };
   }
 
+  const amountValue = totals.netTotalWithOutCod;
   const orderId = generateOrderId();
   const { type: _type, ...payload } = body || {};
   const amount = amountValue.toFixed(2);
@@ -110,13 +156,19 @@ async function createCardPaymentResponse(userId, body) {
   }
 
   // Extract items data for payload and email reconstruction
-  const cartJson = typeof cart.toJSON === 'function' ? cart.toJSON() : cart;
-  const rawCartItems = cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
+  const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
+  const rawCartItems =
+    cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
   const items = rawCartItems
     .map((item) => ({
       product: {
-        prod_code: item.product?.prod_code || item.product_code || item.prod_code || "N/A",
-        prod_name: item.product?.prod_name || item.product_name || "Unknown Product",
+        prod_code:
+          item.product?.prod_code ||
+          item.product_code ||
+          item.prod_code ||
+          "N/A",
+        prod_name:
+          item.product?.prod_name || item.product_name || "Unknown Product",
         selling_price: item.product?.selling_price || item.price || 0,
       },
       quantity: Number(item.quantity || 1),
@@ -132,6 +184,7 @@ async function createCardPaymentResponse(userId, body) {
       ...payload,
       items,
       prod_codes: items.map((i) => i.product.prod_code),
+      totals,
     },
     status: "pending",
     created_at: new Date(),
@@ -141,9 +194,9 @@ async function createCardPaymentResponse(userId, body) {
   const user = await User.findOne({ where: { id: userId } });
   if (user) {
     sendOrderConfirmationEmail(
-      typeof user.toJSON === 'function' ? user.toJSON() : user,
-      typeof checkout.toJSON === 'function' ? checkout.toJSON() : checkout,
-      items
+      typeof user.toJSON === "function" ? user.toJSON() : user,
+      typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+      items,
     ).catch(console.error);
   }
 
@@ -190,19 +243,27 @@ exports.createCheckout = async (req, res, next) => {
     const cart = await getActiveCartWithProducts(req.user.id);
     let items = [];
     if (cart) {
-      const cartJson = typeof cart.toJSON === 'function' ? cart.toJSON() : cart;
-      const rawCartItems = cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
+      const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
+      const rawCartItems =
+        cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
       items = rawCartItems
         .map((item) => ({
           product: {
-            prod_code: item.product?.prod_code || item.product_code || item.prod_code || "N/A",
-            prod_name: item.product?.prod_name || item.product_name || "Unknown Product",
+            prod_code:
+              item.product?.prod_code ||
+              item.product_code ||
+              item.prod_code ||
+              "N/A",
+            prod_name:
+              item.product?.prod_name || item.product_name || "Unknown Product",
             selling_price: item.product?.selling_price || item.price || 0,
           },
           quantity: Number(item.quantity || 1),
         }))
         .filter((it) => it.product.prod_code !== "N/A");
     }
+
+    const totals = await calculateTotals(cart);
 
     const checkout = await Checkout.create({
       order_id: orderId,
@@ -213,6 +274,7 @@ exports.createCheckout = async (req, res, next) => {
         ...payload,
         items,
         prod_codes: items.map((i) => i.product.prod_code),
+        totals,
       },
       status: "pending",
       created_at: new Date(),
@@ -222,9 +284,9 @@ exports.createCheckout = async (req, res, next) => {
     const user = await User.findOne({ where: { id: req.user.id } });
     if (user) {
       sendOrderConfirmationEmail(
-        typeof user.toJSON === 'function' ? user.toJSON() : user,
-        typeof checkout.toJSON === 'function' ? checkout.toJSON() : checkout,
-        items
+        typeof user.toJSON === "function" ? user.toJSON() : user,
+        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+        items,
       ).catch(console.error);
     }
 
@@ -358,11 +420,11 @@ exports.getCheckoutBill = async (req, res, next) => {
     // First try finding in Checkouts
     // Use both string and numeric variants for more robust lookup
     const orderIdValue = isNaN(Number(order_id)) ? order_id : Number(order_id);
-    
+
     let checkout = await Checkout.findOne({
-      where: { 
-        order_id: orderIdValue, 
-        user_id: req.user.id 
+      where: {
+        order_id: orderIdValue,
+        user_id: req.user.id,
       },
     });
 
@@ -370,44 +432,67 @@ exports.getCheckoutBill = async (req, res, next) => {
     let checkoutObj = null;
 
     if (checkout) {
-      checkoutObj = typeof checkout.toJSON === 'function' ? checkout.toJSON() : checkout;
-      
+      checkoutObj =
+        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout;
+
       // Ensure payload is an object (it might be a string in some DB configurations)
       let payload = checkoutObj.payload;
-      if (typeof payload === 'string') {
+      if (typeof payload === "string") {
         try {
           payload = JSON.parse(payload);
         } catch (e) {
-          console.error(`[Bill] Failed to parse payload string for ${order_id}:`, e.message);
+          console.error(
+            `[Bill] Failed to parse payload string for ${order_id}:`,
+            e.message,
+          );
         }
       }
       checkoutObj.payload = payload;
 
-      console.log(`[Bill] Found Checkout record for ${order_id}. Payload keys:`, payload ? Object.keys(payload) : "null");
-      
+      console.log(
+        `[Bill] Found Checkout record for ${order_id}. Payload keys:`,
+        payload ? Object.keys(payload) : "null",
+      );
+
       // Reconstruct cartItems from payload (prefer items, fallback to prod_codes for old data)
-      if (payload?.items && Array.isArray(payload.items) && payload.items.length > 0) {
+      if (
+        payload?.items &&
+        Array.isArray(payload.items) &&
+        payload.items.length > 0
+      ) {
         cartItems = payload.items;
-      } else if (payload?.prod_codes && Array.isArray(payload.prod_codes) && payload.prod_codes.length > 0) {
-        console.log(`[Bill] Reconstructing ${payload.prod_codes.length} items from prod_codes for ${order_id}.`);
+      } else if (
+        payload?.prod_codes &&
+        Array.isArray(payload.prod_codes) &&
+        payload.prod_codes.length > 0
+      ) {
+        console.log(
+          `[Bill] Reconstructing ${payload.prod_codes.length} items from prod_codes for ${order_id}.`,
+        );
         const products = await Product.findAll({
           where: { prod_code: payload.prod_codes },
           attributes: ["prod_code", "prod_name", "selling_price"],
         });
-        
+
         // Use a map to preserve order and handle duplicates if any
         const productMap = {};
-        products.forEach(p => {
-          const pJson = typeof p.toJSON === 'function' ? p.toJSON() : p;
+        products.forEach((p) => {
+          const pJson = typeof p.toJSON === "function" ? p.toJSON() : p;
           productMap[pJson.prod_code] = pJson;
         });
 
         cartItems = payload.prod_codes.map((code) => ({
-          product: productMap[code] || { prod_code: code, prod_name: "Product " + code, selling_price: 0 },
+          product: productMap[code] || {
+            prod_code: code,
+            prod_name: "Product " + code,
+            selling_price: 0,
+          },
           quantity: 1,
         }));
       } else {
-        console.warn(`[Bill] Checkout ${order_id} found but payload has NO items or prod_codes!`);
+        console.warn(
+          `[Bill] Checkout ${order_id} found but payload has NO items or prod_codes!`,
+        );
       }
     } else {
       // Try finding in PickAndCollects
@@ -418,27 +503,43 @@ exports.getCheckoutBill = async (req, res, next) => {
       if (pickAndCollect) {
         const pc = pickAndCollect.toJSON();
         console.log(`[Bill] Found Pick & Collect record for ${order_id}.`);
-        const product = await Product.findOne({ where: { prod_code: pc.prod_code } });
-        
+        const product = await Product.findOne({
+          where: { prod_code: pc.prod_code },
+        });
+
         checkoutObj = {
           order_id: pc.pick_and_collect_id,
           type: pc.type,
           type_name: pc.type_name || "pick & collect",
           status: pc.status,
           created_at: pc.created_at,
-          payload: { prod_codes: [pc.prod_code] }
+          payload: { prod_codes: [pc.prod_code] },
         };
 
-        cartItems = [{
-          product: product ? (typeof product.toJSON === 'function' ? product.toJSON() : product) : { prod_code: pc.prod_code, prod_name: pc.prod_name || "Unknown", selling_price: 0 },
-          quantity: pc.picked_qty || 1
-        }];
+        cartItems = [
+          {
+            product: product
+              ? typeof product.toJSON === "function"
+                ? product.toJSON()
+                : product
+              : {
+                  prod_code: pc.prod_code,
+                  prod_name: pc.prod_name || "Unknown",
+                  selling_price: 0,
+                },
+            quantity: pc.picked_qty || 1,
+          },
+        ];
       }
     }
 
     if (!checkoutObj) {
-      console.error(`[Bill] No record found in either table for order_id: ${order_id}, user_id: ${req.user.id}`);
-      return res.status(404).json({ message: "Order or Pick & Collect record not found" });
+      console.error(
+        `[Bill] No record found in either table for order_id: ${order_id}, user_id: ${req.user.id}`,
+      );
+      return res
+        .status(404)
+        .json({ message: "Order or Pick & Collect record not found" });
     }
 
     const user = await User.findOne({ where: { id: req.user.id } });
@@ -448,14 +549,12 @@ exports.getCheckoutBill = async (req, res, next) => {
       checkoutObj,
       cartItems,
       process.env.EMAIL_LOGO_URL ||
-        "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png"
+        "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png",
     );
 
     return res.status(200).set("Content-Type", "text/html").send(htmlContent);
   } catch (e) {
     console.error("Error in getCheckoutBill:", e);
-    return res
-      .status(500)
-      .json({ message: "Error generating invoice bill" });
+    return res.status(500).json({ message: "Error generating invoice bill" });
   }
 };
