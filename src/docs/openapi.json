@@ -1074,6 +1074,21 @@
                       "properties": {
                         "status": {
                           "type": "string"
+                        },
+                        "subTotal": {
+                          "type": "number"
+                        },
+                        "totalWeight": {
+                          "type": "number"
+                        },
+                        "codCharge": {
+                          "type": "number"
+                        },
+                        "courierCharge": {
+                          "type": "number"
+                        },
+                        "netTotal": {
+                          "type": "number"
                         }
                       }
                     },

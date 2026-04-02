@@ -1,4 +1,12 @@
-const { Cart, CartItem, Product, ProductImage } = require("../../models");
+const {
+  Cart,
+  CartItem,
+  Product,
+  ProductImage,
+  CodValueCharge,
+  CourierWeightCharge,
+} = require("../../models");
+const { Op } = require("sequelize");
 
 async function getProductByCode(prodCode) {
   return Product.findOne({ where: { prod_code: prodCode } });
@@ -38,12 +46,58 @@ exports.getCart = async (req, res) => {
       ],
     });
 
-    res.json({
-      cart: { status: cart.status },
-      items: cartItems.map((item) => ({
+    let subTotal = 0;
+    let totalWeight = 0;
+
+    const formattedItems = cartItems.map((item) => {
+      const product = item.product
+        ? item.product.toJSON
+          ? item.product.toJSON()
+          : item.product
+        : null;
+      const quantity = parseInt(item.quantity || 0, 10);
+      const price = parseFloat(product?.selling_price || 0);
+      const weight = parseFloat(product?.weight || 0);
+
+      subTotal += price * quantity;
+      totalWeight += weight * quantity;
+
+      return {
         quantity: item.quantity,
-        product: item.product || null,
-      })),
+        product: product,
+      };
+    });
+
+    // Calculate COD Charge
+    const codChargeEntry = await CodValueCharge.findOne({
+      where: {
+        value_from: { [Op.lte]: subTotal },
+        value_to: { [Op.gte]: subTotal },
+      },
+    });
+    const codCharge = parseFloat(codChargeEntry?.charge || 0);
+
+    // Calculate Courier Charge
+    const courierChargeEntry = await CourierWeightCharge.findOne({
+      where: {
+        weight_from: { [Op.lte]: totalWeight },
+        weight_to: { [Op.gte]: totalWeight },
+      },
+    });
+    const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
+
+    const netTotal = subTotal + codCharge + courierCharge;
+
+    res.json({
+      cart: {
+        status: cart.status,
+        subTotal,
+        totalWeight,
+        codCharge,
+        courierCharge,
+        netTotal,
+      },
+      items: formattedItems,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
