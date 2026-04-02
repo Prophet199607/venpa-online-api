@@ -15,6 +15,8 @@ const ENTITY_UPDATED_COLUMN = {
   product_sub_categories: "updated_at",
   product_images: "updated_at",
   stock_masters: "updated_at",
+  cod_value_charges: "updated_at",
+  courier_weight_charges: "updated_at",
 };
 
 function tableCandidates(entity) {
@@ -38,7 +40,7 @@ async function queryTable(table, updatedColumn, updatedAfter) {
         {
           replacements: { updatedAfter },
           type: QueryTypes.SELECT,
-        }
+        },
       );
     } catch (err) {
       // Fallback to full fetch for this table name.

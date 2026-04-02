@@ -28,6 +28,8 @@ const DeviceToken = require("./DeviceToken");
 const AppVersion = require("./AppVersion");
 const ShippingAddress = require("./ShippingAddress");
 const PickAndCollect = require("./PickAndCollect");
+const CodValueCharge = require("./CodValueCharge");
+const CourierWeightCharge = require("./CourierWeightCharge");
 
 // Associations
 Department.hasMany(Category, {
@@ -217,4 +219,6 @@ module.exports = {
   AppVersion,
   ShippingAddress,
   PickAndCollect,
+  CodValueCharge,
+  CourierWeightCharge,
 };

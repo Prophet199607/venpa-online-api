@@ -12,6 +12,8 @@ const {
   ProductSubCategory,
   ProductImage,
   StockMaster,
+  CodValueCharge,
+  CourierWeightCharge,
   SyncState,
 } = require("../../models");
 const { Op } = require("sequelize");
@@ -27,6 +29,12 @@ const ENTITY_CONFIG = {
   authors: { model: Author, key: "auth_code", pruneMissing: true },
   languages: { model: Language, key: "lang_code", pruneMissing: true },
   locations: { model: Location, key: "loca_code", pruneMissing: true },
+  cod_value_charges: { model: CodValueCharge, key: "id", pruneMissing: true },
+  courier_weight_charges: {
+    model: CourierWeightCharge,
+    key: "id",
+    pruneMissing: true,
+  },
   products: { model: Product, key: "prod_code" },
   product_authors: { model: ProductAuthor, key: "id" },
   product_sub_categories: { model: ProductSubCategory, key: "id" },
@@ -44,7 +52,10 @@ async function getLastSyncedAt(entity) {
 }
 
 async function setLastSyncedAt(entity, date) {
-  const [row] = await SyncState.findOrCreate({ where: { entity }, defaults: { last_synced_at: date } });
+  const [row] = await SyncState.findOrCreate({
+    where: { entity },
+    defaults: { last_synced_at: date },
+  });
   await row.update({ last_synced_at: date });
 }
 
@@ -77,7 +88,11 @@ function normalizeSyncValue(attr, value) {
       return trimmed;
     }
 
-    if (["INTEGER", "BIGINT", "FLOAT", "DOUBLE", "REAL", "DECIMAL"].includes(typeKey)) {
+    if (
+      ["INTEGER", "BIGINT", "FLOAT", "DOUBLE", "REAL", "DECIMAL"].includes(
+        typeKey,
+      )
+    ) {
       if (!trimmed) {
         if (attr.allowNull !== false) return null;
         if (attr.defaultValue !== undefined) return attr.defaultValue;
@@ -162,14 +177,16 @@ async function pruneMissingRecords(model, keyField, items) {
     raw: true,
   });
 
-  const sourceKeys = new Set(validItems.map((item) => serializeKey(keyField, item)));
+  const sourceKeys = new Set(
+    validItems.map((item) => serializeKey(keyField, item)),
+  );
   const missingWheres = localRows
     .filter((row) => !sourceKeys.has(serializeKey(keyField, row)))
     .map((row) =>
       keyField.reduce((acc, key) => {
         acc[key] = row[key];
         return acc;
-      }, {})
+      }, {}),
     );
 
   if (!missingWheres.length) return 0;
@@ -190,7 +207,10 @@ async function syncEntity(entity, options = {}) {
   const fetchEntities = getFetcher();
   const items = await fetchEntities(entity, last);
 
-  let created = 0, updated = 0, failed = 0, deleted = 0;
+  let created = 0,
+    updated = 0,
+    failed = 0,
+    deleted = 0;
   const errors = [];
 
   for (const item of items) {
@@ -227,7 +247,7 @@ async function syncEntity(entity, options = {}) {
     deleted,
     failed,
     errors,
-    lastSyncedAt: syncFinishedAt
+    lastSyncedAt: syncFinishedAt,
   };
 }
 
@@ -247,6 +267,8 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("product_sub_categories", options));
   results.push(await syncEntity("product_images", options));
   results.push(await syncEntity("stock_masters", options));
+  results.push(await syncEntity("cod_value_charges", options));
+  results.push(await syncEntity("courier_weight_charges", options));
   return results;
 }
 
