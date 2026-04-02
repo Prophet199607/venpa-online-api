@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const c = require("../../controllers/webManagement/customNavItem.controller");
+const c = require("../../controllers/web/customNavItem.controller");
 
 router.get("/", c.list);
 router.post("/", c.create);
