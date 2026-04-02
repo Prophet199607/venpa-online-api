@@ -30,6 +30,7 @@ const ShippingAddress = require("./ShippingAddress");
 const PickAndCollect = require("./PickAndCollect");
 const CodValueCharge = require("./CodValueCharge");
 const CourierWeightCharge = require("./CourierWeightCharge");
+const MediaAsset = require("./MediaAsset");
 
 // Associations
 Department.hasMany(Category, {
@@ -221,4 +222,5 @@ module.exports = {
   PickAndCollect,
   CodValueCharge,
   CourierWeightCharge,
+  MediaAsset,
 };

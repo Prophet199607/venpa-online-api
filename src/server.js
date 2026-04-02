@@ -16,41 +16,49 @@ if (
 }
 
 const app = require("./app");
-const { sequelize } = require("./models");
+const { sequelize, ...models } = require("./models");
 const { startSyncJobs } = require("./services/sync/syncJobs");
-const { startNotificationJobs } = require("./services/notifications/notificationJobs");
+const {
+  startNotificationJobs,
+} = require("./services/notifications/notificationJobs");
 
 const PORT = Number(process.env.PORT || 4000);
 
-function getSyncOptions() {
-  const syncMode = String(process.env.DB_SYNC_MODE || "none").trim().toLowerCase();
+const syncMode = String(process.env.DB_SYNC_MODE || "none")
+  .trim()
+  .toLowerCase();
 
-  if (syncMode === "none") return null;
-  if (syncMode === "alter") return { alter: true };
-  if (syncMode === "force") return { force: true };
-
-  throw new Error(`Invalid DB_SYNC_MODE: ${syncMode}`);
+/**
+ * Safely sync a single model. Errors are caught per-model so one
+ * failure never blocks the rest.
+ */
+async function safeSyncModel(Model) {
+  const name = Model.tableName || Model.name;
+  try {
+    if (syncMode === "alter") {
+      await Model.sync({ alter: true });
+    } else if (syncMode === "force") {
+      await Model.sync({ force: true });
+    }
+  } catch (err) {
+    console.error(`❌ Could not sync table "${name}": ${err.message}`);
+  }
 }
 
 (async () => {
   try {
-    console.log("MYSQL_USER:", process.env.MYSQL_USER);
-
     await sequelize.authenticate();
     console.log("MySQL connect wuna!");
 
-    console.log("Syncing Tables...");
-    console.log("Registered Models:", Object.keys(sequelize.models));
-
-    const syncOptions = getSyncOptions();
-
-    if (syncOptions) {
-      try {
-        await sequelize.sync(syncOptions);
-        console.log(`Database synchronized! (DB_SYNC_MODE: ${process.env.DB_SYNC_MODE})`);
-      } catch (syncError) {
-        console.error("❌ Synchronization error occurred, but continuing startup:", syncError.message);
+    if (syncMode !== "none") {
+      console.log(`Syncing tables individually (DB_SYNC_MODE: ${syncMode})...`);
+      const modelList = Object.values(models).filter(
+        (m) => m && typeof m.sync === "function",
+      );
+      for (const Model of modelList) {
+        await safeSyncModel(Model);
       }
+      console.log("✅ All tables synced!");
     } else {
       console.log("Skipping Sequelize sync on startup (DB_SYNC_MODE=none)");
     }

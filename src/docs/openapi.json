@@ -504,6 +504,88 @@
         }
       }
     },
+    "/api/v1/media-assets": {
+      "get": {
+        "summary": "List media assets (banners/carousels)",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["carousel", "banner"]
+            }
+          },
+          {
+            "name": "placement_key",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new media asset",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image", "type", "placement_key"],
+                "properties": {
+                  "image": {
+                    "type": "string"
+                  },
+                  "mobile_image": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["carousel", "banner"]
+                  },
+                  "placement_key": {
+                    "type": "string"
+                  },
+                  "position": {
+                    "type": "integer"
+                  },
+                  "link": {
+                    "type": "string"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
     "/api/v1/products": {
       "get": {
         "summary": "List products",
