@@ -3,7 +3,6 @@ const { uploadToS3 } = require("../../utils/s3");
 
 /**
  * Handle base64 image strings and upload to S3. Return the key/URL.
- * If already a URL (external or already on S3), return as is.
  */
 async function processImage(imageValue, placementKey) {
   if (!imageValue) return null;
@@ -30,7 +29,22 @@ exports.listMediaAssets = async (req, res, next) => {
       order: [["position", "ASC"]],
     });
 
-    res.json(items);
+    const baseUrl =
+      process.env.PRODUCT_IMAGE_BASE_URL ||
+      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+
+    const formattedItems = items.map((item) => {
+      const json = item.toJSON ? item.toJSON() : item;
+      if (json.image && !json.image.startsWith("http")) {
+        json.image = `${baseUrl}${json.image}`;
+      }
+      if (json.mobile_image && !json.mobile_image.startsWith("http")) {
+        json.mobile_image = `${baseUrl}${json.mobile_image}`;
+      }
+      return json;
+    });
+
+    res.json(formattedItems);
   } catch (e) {
     next(e);
   }
@@ -72,7 +86,18 @@ exports.createMediaAsset = async (req, res, next) => {
       updated_at: new Date(),
     });
 
-    res.status(201).json(item);
+    const baseUrl =
+      process.env.PRODUCT_IMAGE_BASE_URL ||
+      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const json = item.toJSON ? item.toJSON() : item;
+    if (json.image && !json.image.startsWith("http")) {
+      json.image = `${baseUrl}${json.image}`;
+    }
+    if (json.mobile_image && !json.mobile_image.startsWith("http")) {
+      json.mobile_image = `${baseUrl}${json.mobile_image}`;
+    }
+
+    res.status(201).json(json);
   } catch (e) {
     next(e);
   }
@@ -83,7 +108,19 @@ exports.getMediaAssetById = async (req, res, next) => {
     const item = await MediaAsset.findByPk(req.params.id);
     if (!item)
       return res.status(404).json({ message: "Media asset not found" });
-    res.json(item);
+
+    const baseUrl =
+      process.env.PRODUCT_IMAGE_BASE_URL ||
+      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const json = item.toJSON ? item.toJSON() : item;
+    if (json.image && !json.image.startsWith("http")) {
+      json.image = `${baseUrl}${json.image}`;
+    }
+    if (json.mobile_image && !json.mobile_image.startsWith("http")) {
+      json.mobile_image = `${baseUrl}${json.mobile_image}`;
+    }
+
+    res.json(json);
   } catch (e) {
     next(e);
   }
@@ -116,7 +153,18 @@ exports.updateMediaAsset = async (req, res, next) => {
       updated_at: new Date(),
     });
 
-    res.json(item);
+    const baseUrl =
+      process.env.PRODUCT_IMAGE_BASE_URL ||
+      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const json = item.toJSON ? item.toJSON() : item;
+    if (json.image && !json.image.startsWith("http")) {
+      json.image = `${baseUrl}${json.image}`;
+    }
+    if (json.mobile_image && !json.mobile_image.startsWith("http")) {
+      json.mobile_image = `${baseUrl}${json.mobile_image}`;
+    }
+
+    res.json(json);
   } catch (e) {
     next(e);
   }
