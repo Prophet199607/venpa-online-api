@@ -1663,6 +1663,15 @@
               ]
             },
             "description": "Filter orders by status"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2]
+            },
+            "description": "Order Source: 1 = App, 2 = Web"
           }
         ],
         "responses": {
@@ -1678,6 +1687,7 @@
                       "id": { "type": "integer" },
                       "order_id": { "type": "integer" },
                       "user_id": { "type": "integer" },
+                      "customer_name": { "type": "string" },
                       "type": { "type": "integer" },
                       "type_name": { "type": "string" },
                       "payload": { "type": "object" },

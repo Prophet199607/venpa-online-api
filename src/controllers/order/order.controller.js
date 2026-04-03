@@ -2,12 +2,11 @@ const { Checkout, User } = require("../../models");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, type } = req.query;
     const where = {};
 
-    if (status) {
-      where.status = status;
-    }
+    if (status) where.status = status;
+    if (type) where.type = type;
 
     const orders = await Checkout.findAll({
       where,
@@ -20,7 +19,18 @@ exports.getAllOrders = async (req, res, next) => {
       order: [["id", "DESC"]],
     });
 
-    res.json(orders);
+    const formattedOrders = orders.map((order) => {
+      const json = order.toJSON ? order.toJSON() : order;
+      if (json.user) {
+        json.customer_name =
+          `${json.user.fname || ""} ${json.user.lname || ""}`.trim();
+      } else {
+        json.customer_name = "N/A";
+      }
+      return json;
+    });
+
+    res.json(formattedOrders);
   } catch (e) {
     next(e);
   }
