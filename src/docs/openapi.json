@@ -47,6 +47,9 @@
     },
     {
       "name": "Web Management"
+    },
+    {
+      "name": "Order Management"
     }
   ],
   "paths": {
@@ -1635,6 +1638,73 @@
           },
           "201": {
             "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/all": {
+      "get": {
+        "summary": "Get all checkout orders (Admin/Management)",
+        "description": "Returns all checkout records in the system, filterable by status. No authorization required.",
+        "tags": ["Order Management"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "confirmed",
+                "shipped",
+                "delivery",
+                "canceled"
+              ]
+            },
+            "description": "Filter orders by status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of all checkout orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "order_id": { "type": "integer" },
+                      "user_id": { "type": "integer" },
+                      "type": { "type": "integer" },
+                      "type_name": { "type": "string" },
+                      "payload": { "type": "object" },
+                      "status": { "type": "string" },
+                      "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "fname": { "type": "string" },
+                          "lname": { "type": "string" },
+                          "email": { "type": "string" },
+                          "phone": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
