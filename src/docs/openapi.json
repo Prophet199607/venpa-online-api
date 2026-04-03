@@ -1665,13 +1665,13 @@
             "description": "Filter orders by status"
           },
           {
-            "name": "type",
+            "name": "device",
             "in": "query",
             "schema": {
               "type": "integer",
               "enum": [1, 2]
             },
-            "description": "Order Source: 1 = App, 2 = Web"
+            "description": "Order Source Device: 1 = App, 2 = Web"
           }
         ],
         "responses": {
@@ -1688,6 +1688,8 @@
                       "order_id": { "type": "integer" },
                       "user_id": { "type": "integer" },
                       "customer_name": { "type": "string" },
+                      "device": { "type": "integer" },
+                      "source": { "type": "string" },
                       "type": { "type": "integer" },
                       "type_name": { "type": "string" },
                       "payload": { "type": "object" },
@@ -1715,6 +1717,77 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}": {
+      "get": {
+        "summary": "Get complete order details by ID",
+        "description": "Returns full order details including products, totals, user, and source data. Can retrieve both checkouts and pick & collect records.",
+        "tags": ["Order Management"],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique Order ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "record_type": {
+                      "type": "string",
+                      "example": "checkout"
+                    },
+                    "id": { "type": "integer" },
+                    "order_id": { "type": "integer" },
+                    "user_id": { "type": "integer" },
+                    "customer_name": { "type": "string" },
+                    "device": { "type": "integer", "nullable": true },
+                    "source": { "type": "string" },
+                    "type": { "type": "integer" },
+                    "type_name": { "type": "string" },
+                    "location": { "type": "string" },
+                    "location_name": { "type": "string" },
+                    "status": { "type": "string" },
+                    "payload_items": {
+                      "type": "array",
+                      "items": { "type": "object" }
+                    },
+                    "totals": {
+                      "type": "object"
+                    },
+                    "raw_payload": {
+                      "type": "object"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "user": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found"
           }
         }
       }
