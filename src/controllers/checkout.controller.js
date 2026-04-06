@@ -45,6 +45,7 @@ async function getActiveCartWithProducts(userId) {
               "prod_code",
               "prod_name",
               "selling_price",
+              "prod_image",
               "weight",
             ],
           },
@@ -167,9 +168,9 @@ async function createCardPaymentResponse(userId, body) {
           item.product_code ||
           item.prod_code ||
           "N/A",
-        prod_name:
-          item.product?.prod_name || item.product_name || "Unknown Product",
+        prod_name: item.product?.prod_name || item.product_name,
         selling_price: item.product?.selling_price || item.price || 0,
+        prod_image: item.product?.prod_image || null,
       },
       quantity: Number(item.quantity || 1),
     }))
@@ -257,6 +258,7 @@ exports.createCheckout = async (req, res, next) => {
             prod_name:
               item.product?.prod_name || item.product_name || "Unknown Product",
             selling_price: item.product?.selling_price || item.price || 0,
+            prod_image: item.product?.prod_image || null,
           },
           quantity: Number(item.quantity || 1),
         }))
@@ -471,7 +473,7 @@ exports.getCheckoutBill = async (req, res, next) => {
         );
         const products = await Product.findAll({
           where: { prod_code: payload.prod_codes },
-          attributes: ["prod_code", "prod_name", "selling_price"],
+          attributes: ["prod_code", "prod_name", "selling_price", "prod_image"],
         });
 
         // Use a map to preserve order and handle duplicates if any

@@ -30,8 +30,16 @@ function buildItemsRows(cartItems) {
         maximumFractionDigits: 2,
       });
 
-      const imageUrl =
-        product.prod_image && `${imageBaseUrl}${product.prod_image}`;
+      const cleanBaseUrl = imageBaseUrl.endsWith("/")
+        ? imageBaseUrl.slice(0, -1)
+        : imageBaseUrl;
+      const cleanProdImage = product.prod_image?.startsWith("/")
+        ? product.prod_image.slice(1)
+        : product.prod_image;
+
+      const imageUrl = product.prod_image
+        ? `${cleanBaseUrl}/${cleanProdImage}`
+        : null;
 
       return `
       <tr>
