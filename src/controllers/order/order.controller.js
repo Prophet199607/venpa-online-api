@@ -99,7 +99,18 @@ exports.getOrderById = async (req, res, next) => {
       include: [
         {
           model: User,
-          attributes: ["id", "fname", "lname", "email", "phone"],
+          attributes: [
+            "id",
+            "fname",
+            "lname",
+            "email",
+            "phone",
+            "country",
+            "address",
+            "city",
+            "province",
+            "postal_code",
+          ],
           include: [
             {
               model: DeviceToken,
