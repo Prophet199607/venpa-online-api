@@ -30,21 +30,28 @@ function buildItemsRows(cartItems) {
         maximumFractionDigits: 2,
       });
 
-      const cleanBaseUrl = imageBaseUrl.endsWith("/")
-        ? imageBaseUrl.slice(0, -1)
-        : imageBaseUrl;
-      const cleanProdImage = product.prod_image?.startsWith("/")
-        ? product.prod_image.slice(1)
-        : product.prod_image;
-
-      const imageUrl = product.prod_image
-        ? `${cleanBaseUrl}/${cleanProdImage}`
-        : null;
+      let imageUrl = null;
+      if (product.prod_image) {
+        if (
+          product.prod_image.startsWith("http://") ||
+          product.prod_image.startsWith("https://")
+        ) {
+          imageUrl = product.prod_image;
+        } else {
+          const cleanBaseUrl = imageBaseUrl.endsWith("/")
+            ? imageBaseUrl.slice(0, -1)
+            : imageBaseUrl;
+          const cleanProdImage = product.prod_image.startsWith("/")
+            ? product.prod_image.slice(1)
+            : product.prod_image;
+          imageUrl = `${cleanBaseUrl}/${cleanProdImage}`;
+        }
+      }
 
       return `
       <tr>
         <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; text-align: center;">
-          <img src="${imageUrl}" alt="${product.prod_name}" width="40" height="40" style="object-fit: cover; border-radius: 4px; display: block; margin: 0 auto;" />
+          <img src="${imageUrl}" alt="${product.prod_name}" width="40" height="auto" style="object-fit: cover; border-radius: 4px; display: block; margin: 0 auto;" />
         </td>
         <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px;">
           ${product.prod_name}
