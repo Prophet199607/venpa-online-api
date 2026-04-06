@@ -12,6 +12,8 @@ function getTransporter() {
 
 function buildItemsRows(cartItems) {
   if (!cartItems || cartItems.length === 0) return "";
+  const imageBaseUrl = process.env.PRODUCT_IMAGE_BASE_URL || "";
+
   return cartItems
     .map((item) => {
       const product = item.product || {};
@@ -19,8 +21,23 @@ function buildItemsRows(cartItems) {
       const qty = Number(item.quantity || 1);
       const subtotal = unitPrice * qty;
 
+      const formattedUnitPrice = unitPrice.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      const formattedSubtotal = subtotal.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+      const imageUrl =
+        product.prod_image && `${imageBaseUrl}${product.prod_image}`;
+
       return `
       <tr>
+        <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; text-align: center;">
+          <img src="${imageUrl}" alt="${product.prod_name}" width="40" height="40" style="object-fit: cover; border-radius: 4px; display: block; margin: 0 auto;" />
+        </td>
         <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px;">
           ${product.prod_name}
         </td>
@@ -28,10 +45,10 @@ function buildItemsRows(cartItems) {
           ${qty}
         </td>
         <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #374151; font-size: 13px; text-align: right;">
-          Rs. ${unitPrice.toFixed(2)}
+          Rs. ${formattedUnitPrice}
         </td>
         <td class="item-row-td" style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; color: #111827; font-size: 13px; font-weight: 600; text-align: right;">
-          Rs. ${subtotal.toFixed(2)}
+          Rs. ${formattedSubtotal}
         </td>
       </tr>
     `;
@@ -72,6 +89,7 @@ exports.generateOrderInvoiceHtml = (
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
         <thead>
           <tr class="items-table-head" style="background-color: #F9FAFB;">
+            <th class="items-head-th" style="padding: 10px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB; width: 60px;">Image</th>
             <th class="items-head-th" style="padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Product</th>
             <th class="items-head-th" style="padding: 10px 16px; text-align: center; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Qty</th>
             <th class="items-head-th" style="padding: 10px 16px; text-align: right; font-size: 11px; font-weight: 600; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #E5E7EB;">Unit</th>
@@ -83,8 +101,8 @@ exports.generateOrderInvoiceHtml = (
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="3" class="value-text" style="padding: 12px 16px; text-align: right; font-size: 13px; font-weight: 700; color: #374151;">Net Total:</td>
-            <td class="value-text" style="padding: 12px 16px; text-align: right; font-size: 15px; font-weight: 800; color: #111827;">Rs. ${netTotal.toFixed(2)}</td>
+            <td colspan="4" class="value-text" style="padding: 12px 16px; text-align: right; font-size: 13px; font-weight: 700; color: #374151;">Net Total:</td>
+            <td class="value-text" style="padding: 12px 16px; text-align: right; font-size: 15px; font-weight: 800; color: #111827;">Rs. ${netTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         </tfoot>
       </table>
