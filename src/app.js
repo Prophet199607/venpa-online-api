@@ -68,7 +68,10 @@ app.use((req, res, next) => {
       typeof normalized === "object" &&
       !Array.isArray(normalized)
     ) {
-      if (!Object.prototype.hasOwnProperty.call(normalized, "successful")) {
+      if (
+        !Object.prototype.hasOwnProperty.call(normalized, "successful") &&
+        !Object.prototype.hasOwnProperty.call(normalized, "success")
+      ) {
         return originalJson({ ...normalized, successful });
       }
       return originalJson(normalized);

@@ -1,7 +1,10 @@
-const { User, PasswordReset } = require("../../models");
+const { User, PasswordReset, PublicEmailOtp } = require("../../models");
 const { z } = require("zod");
 const { OAuth2Client } = require("google-auth-library");
 const nodemailer = require("nodemailer");
+const {
+  generateOtpEmailHtml,
+} = require("../../services/notifications/emailService");
 
 // Validation schemas
 // 1: First name is required
@@ -14,24 +17,9 @@ const nodemailer = require("nodemailer");
 // 8: Email is required (Login)
 // 9: Password is required (Login)
 // 10: Invalid credentials (Login)
-const registerSchema = z
-  .object({
-    fname: z.string({ required_error: "1" }).min(1, "1"),
-    lname: z.string({ required_error: "2" }).min(1, "2"),
-    email: z.string({ required_error: "3" }).email("3").trim().toLowerCase(),
-    phone: z.string({ required_error: "4" }).min(10, "4"),
-    country: z.string().trim().optional(),
-    address: z.string().trim().optional(),
-    city: z.string().trim().optional(),
-    province: z.string().trim().optional(),
-    postal_code: z.string().trim().optional(),
-    password: z.string({ required_error: "5" }).min(6, "5"),
-    confirm_password: z.string().optional(),
-  })
-  .refine((data) => data.password === data.confirm_password, {
-    message: "6",
-    path: ["confirm_password"],
-  });
+const registerSchema = z.object({
+  email: z.string({ required_error: "3" }).email("3").trim().toLowerCase(),
+});
 
 const loginSchema = z.object({
   email: z
@@ -40,68 +28,104 @@ const loginSchema = z.object({
     .email("3")
     .trim()
     .toLowerCase(),
-  password: z.string({ required_error: "9" }).min(1, "9"),
 });
 
-exports.register = async (req, res) => {
+// 1. Send OTP for Login / Registration
+exports.sendOtp = async (req, res) => {
   try {
-    // Validate request body
-    const validatedData = registerSchema.parse(req.body);
-
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      where: { email: validatedData.email },
-    });
-    if (existingUser) {
-      return res.status(400).json({ success: false, error_codes: [7] });
+    const { email } = req.body || {};
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
     }
 
-    const { confirm_password, ...userData } = validatedData;
-    const user = await User.create({ ...userData, auth_provider: "local" });
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASS;
+    if (!emailUser || !emailPass) {
+      return res
+        .status(500)
+        .json({ success: false, message: "Email configuration missing" });
+    }
 
-    // Remove password from response
-    const userResponse = user.toJSON();
-    delete userResponse.password;
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      user: userResponse,
-      token: user.generateToken(),
+    await PublicEmailOtp.create({
+      email: email.trim().toLowerCase(),
+      code,
+      expires_at: expiresAt,
+      created_at: new Date(),
+      updated_at: new Date(),
     });
+
+    const transporter = getTransporter();
+    const htmlContent = generateOtpEmailHtml(code);
+
+    await transporter.sendMail({
+      from: `Venpaa Bookshop <${emailUser}>`,
+      to: email,
+      subject: "Your Venpaa Login Code",
+      html: htmlContent,
+    });
+
+    res.json({ success: true, message: "OTP sent to your email" });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      // Map Zod issues to validation error codes
-      const codes = error.issues
-        .map((issue) => Number(issue.message) || 0)
-        .filter((c) => c !== 0);
-      const uniqueCodes = [...new Set(codes)];
-
-      return res.status(400).json({ success: false, error_codes: uniqueCodes });
-    }
-    if (error.name === "SequelizeUniqueConstraintError") {
-      return res.status(400).json({ success: false, error_codes: [7] });
-    }
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-exports.login = async (req, res) => {
+// 2. Verify OTP and handle Login/Registration
+exports.verifyOtp = async (req, res) => {
   try {
-    const validatedData = loginSchema.parse(req.body);
-    const { email, password } = validatedData;
+    const { email, code } = req.body || {};
+    if (!email || !code) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and code are required" });
+    }
 
-    const user = await User.findOne({ where: { email } });
+    const cleanEmail = String(email || "")
+      .trim()
+      .toLowerCase();
+    const cleanCode = String(code || "").trim();
+
+    const record = await PublicEmailOtp.findOne({
+      where: { email: cleanEmail, code: cleanCode, verified_at: null },
+      order: [["created_at", "DESC"]],
+    });
+
+    if (!record) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired code" });
+    }
+
+    if (record.expires_at < new Date()) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Code has expired" });
+    }
+
+    // Mark as verified
+    await record.update({ verified_at: new Date(), updated_at: new Date() });
+
+    // Handle User creation or fetch
+    let user = await User.findOne({ where: { email: cleanEmail } });
     if (!user) {
-      return res.status(401).json({ success: false, error_codes: [10] });
+      // Create new user automatically during first login/registration
+      const randomPassword = `otp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      user = await User.create({
+        email: cleanEmail,
+        fname: "",
+        lname: "",
+        phone: "0000000000",
+        password: randomPassword,
+        status: 1,
+        auth_provider: "local",
+      });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, error_codes: [10] });
-    }
-
-    // Remove password from response
     const userResponse = user.toJSON();
     delete userResponse.password;
 
@@ -112,13 +136,6 @@ exports.login = async (req, res) => {
       token: user.generateToken(),
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const codes = error.issues
-        .map((issue) => Number(issue.message) || 0)
-        .filter((c) => c !== 0);
-      const uniqueCodes = [...new Set(codes)];
-      return res.status(400).json({ success: false, error_codes: uniqueCodes });
-    }
     res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -128,16 +145,26 @@ exports.googleLogin = async (req, res) => {
     const { idToken, email, name } = req.body || {};
 
     if (!idToken) {
-      return res.status(400).json({ success: false, message: "idToken is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "idToken is required" });
     }
 
-    const rawIds = process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID;
+    const rawIds =
+      process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID;
     if (!rawIds) {
-      return res.status(400).json({ success: false, message: "Google client IDs not configured" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Google client IDs not configured" });
     }
-    const clientIds = rawIds.split(",").map((s) => s.trim()).filter(Boolean);
+    const clientIds = rawIds
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (!clientIds.length) {
-      return res.status(400).json({ success: false, message: "Google client IDs not configured" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Google client IDs not configured" });
     }
 
     const client = new OAuth2Client();
@@ -148,11 +175,15 @@ exports.googleLogin = async (req, res) => {
     const payload = ticket.getPayload();
 
     if (!payload?.email) {
-      return res.status(400).json({ success: false, message: "Invalid Google token" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid Google token" });
     }
 
     if (email && payload.email !== email) {
-      return res.status(400).json({ success: false, message: "Email mismatch" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email mismatch" });
     }
 
     const fullName = payload.name || name || payload.email;
@@ -208,21 +239,32 @@ exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body || {};
     if (!email) {
-      return res.status(400).json({ success: false, message: "email is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "email is required" });
     }
 
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASS;
     if (!emailUser || !emailPass) {
-      return res.status(400).json({ success: false, message: "Email credentials not configured" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email credentials not configured" });
     }
 
-    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    const user = await User.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
     if (user.auth_provider !== "local") {
-      return res.status(400).json({ success: false, message: "Password reset not available for Google accounts" });
+      return res.status(400).json({
+        success: false,
+        message: "Password reset not available for Google accounts",
+      });
     }
 
     const code = generateCode();
@@ -256,15 +298,25 @@ exports.resetPassword = async (req, res) => {
     const { email, code, new_password } = req.body || {};
 
     if (!email || !code || !new_password) {
-      return res.status(400).json({ success: false, message: "email, code, new_password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "email, code, new_password are required",
+      });
     }
 
-    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    const user = await User.findOne({
+      where: { email: email.trim().toLowerCase() },
+    });
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
     if (user.auth_provider !== "local") {
-      return res.status(400).json({ success: false, message: "Password reset not available for Google accounts" });
+      return res.status(400).json({
+        success: false,
+        message: "Password reset not available for Google accounts",
+      });
     }
 
     const record = await PasswordReset.findOne({

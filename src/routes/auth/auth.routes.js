@@ -4,8 +4,9 @@ const profileController = require("../../controllers/profile.controller");
 
 const auth = require("../../middleware/auth.middleware");
 
-router.post("/register", c.register);
-router.post("/login", c.login);
+router.post("/register", c.sendOtp);
+router.post("/login", c.sendOtp);
+router.post("/verify", c.verifyOtp);
 router.post("/google-login", c.googleLogin);
 router.post("/password/forgot", c.forgotPassword);
 router.post("/password/reset", c.resetPassword);

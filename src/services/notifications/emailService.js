@@ -340,3 +340,51 @@ exports.sendOrderConfirmationEmail = async (
     console.error("Email send failed:", error);
   }
 };
+
+exports.generateOtpEmailHtml = (code) => {
+  const brandColor = "#0d5b82";
+  const logoUrl =
+    process.env.EMAIL_LOGO_URL ||
+    "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png";
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Your Login Code</title>
+      <style>
+        body { margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        .email-card { background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); max-width: 500px; width: 100%; margin: 20px auto; }
+        .header { background: linear-gradient(135deg, #3160c4 0%, ${brandColor} 100%); padding: 10px; text-align: center; }
+        .content { padding: 30px 24px; text-align: center; }
+        .otp-code { font-size: 36px; font-weight: 800; color: ${brandColor}; letter-spacing: 8px; margin: 20px 0; padding: 8px; background-color: #F0F7FF; border-radius: 8px; display: inline-block; border: 1px dashed #3160c4; }
+        .footer { padding: 20px; text-align: center; color: #9CA3AF; font-size: 11px; }
+        @media (prefers-color-scheme: dark) {
+          body { background-color: #111827; }
+          .email-card { background-color: #1F2937; }
+          .content { color: #F9FAFB; }
+          .otp-code { background-color: #374151; color: #60A5FA; border-color: #60A5FA; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="email-card">
+        <div class="header">
+          <img src="${logoUrl}" alt="Venpaa" width="90" style="display: block; margin: 0 auto; max-width: 90px; height: auto;" />
+        </div>
+        <div class="content">
+          <h2 style="margin: 0; font-size: 19px; font-weight: 700;">Verify Your Email</h2>
+          <p style="color: #6B7280; font-size: 14px; margin-top: 6px; line-height: 1.4;">Use the following code to complete your login or registration. This code is valid for 10 minutes.</p>
+          <div class="otp-code">${code}</div>
+          <p style="color: #9CA3AF; font-size: 11px; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} Venpaa Bookshop. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};

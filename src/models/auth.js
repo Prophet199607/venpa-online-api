@@ -6,23 +6,31 @@ const jwt = require("jsonwebtoken");
 const User = sequelize.define(
   "users",
   {
-    id: { type: DataTypes.BIGINT.UNSIGNED, primaryKey: true, autoIncrement: true },
-    fname: { type: DataTypes.STRING(255), allowNull: false },
-    lname: { type: DataTypes.STRING(255), allowNull: false },
+    id: {
+      type: DataTypes.BIGINT.UNSIGNED,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    fname: { type: DataTypes.STRING(255), allowNull: true },
+    lname: { type: DataTypes.STRING(255), allowNull: true },
     email: {
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: true,
       validate: { isEmail: true },
     },
-    phone: { type: DataTypes.STRING(255), allowNull: false },
+    phone: { type: DataTypes.STRING(255), allowNull: true },
     country: { type: DataTypes.STRING(100), allowNull: true },
     address: { type: DataTypes.STRING(255), allowNull: true },
     city: { type: DataTypes.STRING(100), allowNull: true },
     province: { type: DataTypes.STRING(100), allowNull: true },
     postal_code: { type: DataTypes.STRING(20), allowNull: true },
-    password: { type: DataTypes.STRING(255), allowNull: false },
-    auth_provider: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "local" },
+    password: { type: DataTypes.STRING(255), allowNull: true },
+    auth_provider: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: "local",
+    },
     status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
   },
   {
@@ -40,7 +48,7 @@ const User = sequelize.define(
         }
       },
     },
-  }
+  },
 );
 
 User.prototype.comparePassword = async function (password) {
