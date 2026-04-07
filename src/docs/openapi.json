@@ -1666,6 +1666,15 @@
               "enum": [1, 2]
             },
             "description": "Order Source Device: 1 = App, 2 = Web"
+          },
+          {
+            "name": "order_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["delivery", "pick_and_collect"]
+            },
+            "description": "Filter by order fulfillment type"
           }
         ],
         "responses": {
