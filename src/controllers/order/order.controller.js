@@ -5,6 +5,9 @@ const {
   PickAndCollect,
   Product,
 } = require("../../models");
+const {
+  sendToUser,
+} = require("../../services/notifications/notificationService");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
@@ -348,6 +351,69 @@ exports.getOrderById = async (req, res, next) => {
             (parseFloat(productData.selling_price) || 0) *
             (parseFloat(pc.picked_qty) || 1),
         },
+      });
+    }
+
+    return res.status(404).json({ message: "Order not found" });
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.updateOrderStatus = async (req, res, next) => {
+  try {
+    const { order_id: rawOrderId } = req.params;
+    const { status } = req.body || {};
+
+    if (!status) {
+      return res.status(400).json({ message: "status is required" });
+    }
+
+    const orderIdValue = isNaN(Number(rawOrderId))
+      ? rawOrderId
+      : Number(rawOrderId);
+
+    // 1. Try Checkout table
+    let checkout = await Checkout.findOne({
+      where: { order_id: orderIdValue },
+    });
+    if (checkout) {
+      await checkout.update({ status, updated_at: new Date() });
+      await sendToUser(checkout.user_id, {
+        title: "Order status updated",
+        body: `Your order ${checkout.order_id} status is now ${status}.`,
+        data: {
+          type: "order_status",
+          order_id: String(checkout.order_id),
+          status,
+        },
+      });
+      return res.json({
+        message: "Order status updated",
+        order_id: checkout.order_id,
+        status,
+      });
+    }
+
+    // 2. Try PickAndCollect table
+    let pickAndCollect = await PickAndCollect.findOne({
+      where: { pick_and_collect_id: orderIdValue },
+    });
+    if (pickAndCollect) {
+      await pickAndCollect.update({ status, updated_at: new Date() });
+      await sendToUser(pickAndCollect.user_id, {
+        title: "Order status updated",
+        body: `Your order ${pickAndCollect.pick_and_collect_id} status is now ${status}.`,
+        data: {
+          type: "order_status",
+          order_id: String(pickAndCollect.pick_and_collect_id),
+          status,
+        },
+      });
+      return res.json({
+        message: "Pick & Collect status updated",
+        order_id: pickAndCollect.pick_and_collect_id,
+        status,
       });
     }
 
