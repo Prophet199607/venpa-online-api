@@ -1663,9 +1663,9 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "enum": [1, 2]
+              "enum": [1, 2, 3]
             },
-            "description": "Order Source Device: 1 = App, 2 = Web"
+            "description": "Order Source Device: 1 = Android, 2 = Ios, 3 = Web"
           },
           {
             "name": "order_type",

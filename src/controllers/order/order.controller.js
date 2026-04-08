@@ -8,6 +8,9 @@ const {
 const {
   sendToUser,
 } = require("../../services/notifications/notificationService");
+const {
+  NOTIFICATION_TYPES,
+} = require("../../services/notifications/notificationTypes");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
@@ -89,8 +92,9 @@ exports.getAllOrders = async (req, res, next) => {
         if (device) platformVal = device;
 
         result.device = Number(platformVal) || null;
-        if (result.device === 1) result.source = "App";
-        else if (result.device === 2) result.source = "Web";
+        if (result.device === 1) result.source = "Android";
+        else if (result.device === 2) result.source = "Ios";
+        else if (result.device === 3) result.source = "Web";
         else result.source = "Unknown";
 
         delete result.user.device_tokens;
@@ -129,8 +133,9 @@ exports.getAllOrders = async (req, res, next) => {
         if (device) platformVal = device;
 
         result.device = Number(platformVal) || null;
-        if (result.device === 1) result.source = "App";
-        else if (result.device === 2) result.source = "Web";
+        if (result.device === 1) result.source = "Android";
+        else if (result.device === 2) result.source = "Ios";
+        else if (result.device === 3) result.source = "Web";
         else result.source = "Unknown";
 
         delete result.user.device_tokens;
@@ -225,16 +230,18 @@ exports.getOrderById = async (req, res, next) => {
         json.user.device_tokens.length > 0
       ) {
         device = Number(json.user.device_tokens[0].platform);
-        if (device === 1) source = "App";
-        else if (device === 2) source = "Web";
+        if (device === 1) source = "Android";
+        else if (device === 2) source = "Ios";
+        else if (device === 3) source = "Web";
       } else if (
         json.user &&
         json.user.DeviceTokens &&
         json.user.DeviceTokens.length > 0
       ) {
         device = Number(json.user.DeviceTokens[0].platform);
-        if (device === 1) source = "App";
-        else if (device === 2) source = "Web";
+        if (device === 1) source = "Android";
+        else if (device === 2) source = "Ios";
+        else if (device === 3) source = "Web";
       }
 
       if (json.user) {
@@ -301,8 +308,9 @@ exports.getOrderById = async (req, res, next) => {
         pc.user.device_tokens.length > 0
       ) {
         device = Number(pc.user.device_tokens[0].platform);
-        if (device === 1) source = "App";
-        else if (device === 2) source = "Web";
+        if (device === 1) source = "Android";
+        else if (device === 2) source = "Ios";
+        else if (device === 3) source = "Web";
       }
 
       if (pc.user) {
@@ -383,7 +391,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         title: "Order status updated",
         body: `Your order ${checkout.order_id} status is now ${status}.`,
         data: {
-          type: "order_status",
+          notification_type: NOTIFICATION_TYPES.ORDER_STATUS_UPDATE,
           order_id: String(checkout.order_id),
           status,
         },
@@ -405,7 +413,7 @@ exports.updateOrderStatus = async (req, res, next) => {
         title: "Order status updated",
         body: `Your order ${pickAndCollect.pick_and_collect_id} status is now ${status}.`,
         data: {
-          type: "order_status",
+          notification_type: NOTIFICATION_TYPES.ORDER_STATUS_UPDATE,
           order_id: String(pickAndCollect.pick_and_collect_id),
           status,
         },
