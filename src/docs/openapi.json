@@ -1,0 +1,3388 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Venpa Online API",
+    "version": "1.0.0",
+    "description": "API for online buy side and delivery sync."
+  },
+  "tags": [
+    {
+      "name": "System"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Products"
+    },
+    {
+      "name": "Reviews"
+    },
+    {
+      "name": "Cart"
+    },
+    {
+      "name": "Wishlist"
+    },
+    {
+      "name": "Checkout"
+    },
+    {
+      "name": "Profile"
+    },
+    {
+      "name": "Email"
+    },
+    {
+      "name": "Notifications"
+    },
+    {
+      "name": "Sync"
+    },
+    {
+      "name": "Master"
+    },
+    {
+      "name": "Pick & Collect"
+    },
+    {
+      "name": "Web Management"
+    },
+    {
+      "name": "Order Management"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "description": "Check if the API is running and healthy",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "service": {
+                      "type": "string",
+                      "example": "venpa-online-api"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/departments": {
+      "get": {
+        "summary": "List departments",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/departments/{id}": {
+      "get": {
+        "summary": "Get department by id",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "summary": "List categories",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cat_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "prod_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Return only subcategories linked to this product code via product_sub_categories"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/categories/{id}": {
+      "get": {
+        "summary": "Get category by id",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/subcategories": {
+      "get": {
+        "summary": "List subcategories",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cat_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/subcategories/{id}": {
+      "get": {
+        "summary": "Get subcategories by category code, or get one subcategory by id/code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Preferred: category code to load linked subcategories. Fallback: numeric subcategory id or scat_code."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/publishers": {
+      "get": {
+        "summary": "List publishers",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pub_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/publishers/{id}": {
+      "get": {
+        "summary": "Get publisher by id or pub_code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/publishers/{id}/books": {
+      "get": {
+        "summary": "Get all books linked to a publisher id or pub_code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Publisher numeric id or pub_code"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/authors": {
+      "get": {
+        "summary": "List authors",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "auth_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/authors/{id}": {
+      "get": {
+        "summary": "Get author by id or auth_code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/authors/{id}/books": {
+      "get": {
+        "summary": "Get all books linked to an author id or auth_code",
+        "tags": ["Master"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Author numeric id or auth_code"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/custom-navitems": {
+      "get": {
+        "summary": "List custom navigation items",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "item_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["department", "category"]
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Defaults to 1"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new custom navigation item",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["item_type", "ref_code"],
+                "properties": {
+                  "item_type": {
+                    "type": "string",
+                    "enum": ["department", "category"]
+                  },
+                  "ref_code": {
+                    "type": "string"
+                  },
+                  "display_order": {
+                    "type": "integer",
+                    "default": 1
+                  },
+                  "status": {
+                    "type": "integer",
+                    "default": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/media-assets": {
+      "get": {
+        "summary": "List media assets (banners/carousels)",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["carousel", "banner"]
+            }
+          },
+          {
+            "name": "placement_key",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new media asset",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image", "type", "placement_key"],
+                "properties": {
+                  "image": {
+                    "type": "string"
+                  },
+                  "mobile_image": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["carousel", "banner"]
+                  },
+                  "placement_key": {
+                    "type": "string"
+                  },
+                  "position": {
+                    "type": "integer"
+                  },
+                  "link": {
+                    "type": "string"
+                  },
+                  "is_active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/products": {
+      "get": {
+        "summary": "List products",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sub_category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "frame",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Frame number starting from 1"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Alias for frame"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Products per frame (default: 100, max: 200)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/new/arrivals": {
+      "get": {
+        "summary": "Get new arrivals",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/search": {
+      "get": {
+        "summary": "Search products",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/products/best/selling": {
+      "get": {
+        "summary": "Get best selling (danata random ewa enne)",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/code/{prod_code}": {
+      "get": {
+        "summary": "Get product by code",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/products/code/{prod_code}/pick-and-collect": {
+      "get": {
+        "summary": "Get pick and collect locations for a product",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/chathumina_web_katayam": {
+      "get": {
+        "summary": "Get best selling and new arrival products",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Shared limit for both groups (default: 10, max: 50)"
+          },
+          {
+            "name": "best_selling_limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Limit only for best_selling list"
+          },
+          {
+            "name": "new_arrival_limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Limit only for new_arrival list"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/all": {
+      "post": {
+        "summary": "Sync all selected tables",
+        "tags": ["Sync"],
+        "parameters": [
+          {
+            "name": "full",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/sync/{entity}": {
+      "post": {
+        "summary": "Sync one table",
+        "tags": ["Sync"],
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "summary": "Request OTP for registration",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP Sent"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Request OTP for login",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP Sent"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/google-login": {
+      "post": {
+        "summary": "Google login",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["idToken"],
+                "properties": {
+                  "idToken": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/password/forgot": {
+      "post": {
+        "summary": "Send password reset code",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/verify": {
+      "post": {
+        "summary": "Verify OTP and Sign In/Register",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "code": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Login successful" },
+          "400": { "description": "Invalid code" }
+        }
+      }
+    },
+    "/api/v1/auth/password/reset": {
+      "post": {
+        "summary": "Reset password with code",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code", "new_password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "new_password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Get current user profile",
+        "tags": ["Auth"],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/profile/summary": {
+      "get": {
+        "summary": "Profile summary (user + orders/reviews/points)",
+        "tags": ["Profile"],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update profile summary details",
+        "tags": ["Profile"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fname": {
+                    "type": "string"
+                  },
+                  "lname": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "province": {
+                    "type": "string"
+                  },
+                  "provinces": {
+                    "type": "string"
+                  },
+                  "postal_code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/cart": {
+      "get": {
+        "summary": "Get user's active cart",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cart": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "subTotal": {
+                          "type": "number"
+                        },
+                        "totalWeight": {
+                          "type": "number"
+                        },
+                        "codCharge": {
+                          "type": "number"
+                        },
+                        "courierCharge": {
+                          "type": "number"
+                        },
+                        "netTotalWithCod": {
+                          "type": "number"
+                        },
+                        "netTotalWithoutCod": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CartItem"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add item to cart",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code", "quantity"],
+                "properties": {
+                  "prod_code": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear entire cart",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/cart/items": {
+      "post": {
+        "summary": "Bulk ekak widihata cart items adding",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prod_code": {
+                          "type": "string"
+                        },
+                        "quantity": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": ["prod_code", "quantity"]
+                    }
+                  }
+                },
+                "required": ["items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/cart/product/{prod_code}": {
+      "put": {
+        "summary": "Update cart item quantity by product code",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["quantity"],
+                "properties": {
+                  "quantity": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove item from cart by product code",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/wishlist": {
+      "get": {
+        "summary": "Get user's wishlist",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add item to wishlist",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code"],
+                "properties": {
+                  "prod_code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Clear wishlist",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/wishlist/products": {
+      "get": {
+        "summary": "Get wishlist products only",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/wishlist/product/{prod_code}/count": {
+      "get": {
+        "summary": "Count wishlists for a product",
+        "tags": ["Wishlist"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/wishlist/items": {
+      "post": {
+        "summary": "Add wishlist items in bulk",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prod_code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["prod_code"]
+                    }
+                  }
+                },
+                "required": ["items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/wishlist/product/{prod_code}": {
+      "delete": {
+        "summary": "Remove item from wishlist by product code",
+        "tags": ["Wishlist"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/cart/quantity": {
+      "put": {
+        "summary": "Update cart item quantity by product code",
+        "tags": ["Cart"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "prod_code": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer"
+                  }
+                },
+                "required": ["prod_code", "quantity"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/product/{prod_code}": {
+      "get": {
+        "summary": "List reviews for a product",
+        "tags": ["Reviews"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/product/{prod_code}/average": {
+      "get": {
+        "summary": "Average rating point ekak gannawa product ekata",
+        "tags": ["Reviews"],
+        "parameters": [
+          {
+            "name": "prod_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/reviews": {
+      "post": {
+        "summary": "Create or update a review",
+        "tags": ["Reviews"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code", "rating"],
+                "properties": {
+                  "prod_code": {
+                    "type": "string"
+                  },
+                  "rating": {
+                    "type": "integer"
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/api/v1/orders/all": {
+      "get": {
+        "summary": "Get all checkout orders (Admin/Management)",
+        "description": "Returns all checkout records in the system, filterable by status. No authorization required.",
+        "tags": ["Order Management"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "processing",
+                "confirmed",
+                "shipped",
+                "delivery",
+                "canceled"
+              ]
+            },
+            "description": "Filter orders by status"
+          },
+          {
+            "name": "device",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2, 3]
+            },
+            "description": "Order Source Device: 1 = Android, 2 = Ios, 3 = Web"
+          },
+          {
+            "name": "order_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["delivery", "pick_and_collect"]
+            },
+            "description": "Filter by order fulfillment type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of all checkout orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "order_id": { "type": "integer" },
+                      "user_id": { "type": "integer" },
+                      "customer_name": { "type": "string" },
+                      "device": { "type": "integer" },
+                      "source": { "type": "string" },
+                      "type": { "type": "integer" },
+                      "type_name": { "type": "string" },
+                      "payload": { "type": "object" },
+                      "status": { "type": "string" },
+                      "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "user": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "fname": { "type": "string" },
+                          "lname": { "type": "string" },
+                          "email": { "type": "string" },
+                          "phone": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/orders/{order_id}": {
+      "get": {
+        "summary": "Get complete order details by ID",
+        "description": "Returns full order details including products, totals, user, and source data. Can retrieve both checkouts and pick & collect records.",
+        "tags": ["Order Management"],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique Order ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete order details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "record_type": {
+                      "type": "string",
+                      "example": "checkout"
+                    },
+                    "id": { "type": "integer" },
+                    "order_id": { "type": "integer" },
+                    "user_id": { "type": "integer" },
+                    "customer_name": { "type": "string" },
+                    "device": { "type": "integer", "nullable": true },
+                    "source": { "type": "string" },
+                    "type": { "type": "integer" },
+                    "type_name": { "type": "string" },
+                    "location": { "type": "string" },
+                    "location_name": { "type": "string" },
+                    "status": { "type": "string" },
+                    "payload_items": {
+                      "type": "array",
+                      "items": { "type": "object" }
+                    },
+                    "totals": {
+                      "type": "object"
+                    },
+                    "raw_payload": {
+                      "type": "object"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "user": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update order status",
+        "tags": ["Order Management"],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique Order ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "processing",
+                      "confirmed",
+                      "shipped",
+                      "delivery",
+                      "canceled"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order status updated"
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      }
+    },
+    "/api/v1/checkout": {
+      "get": {
+        "summary": "List user's checkouts and pick & collect requests",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Each item can be either a checkout or a pick & collect record",
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "description": "Checkout Array Item",
+                        "properties": {
+                          "record_type": {
+                            "type": "string",
+                            "example": "checkout"
+                          },
+                          "order_id": { "type": "integer" },
+                          "type": { "type": "integer", "enum": [1, 2] },
+                          "type_name": {
+                            "type": "string",
+                            "example": "delivery"
+                          },
+                          "payload": {
+                            "type": "object",
+                            "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
+                            "properties": {
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "product": {
+                                      "type": "object",
+                                      "properties": {
+                                        "prod_code": { "type": "string" },
+                                        "prod_name": { "type": "string" },
+                                        "selling_price": { "type": "number" }
+                                      }
+                                    },
+                                    "quantity": { "type": "integer" }
+                                  }
+                                }
+                              },
+                              "prod_codes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "totals": {
+                                "type": "object",
+                                "properties": {
+                                  "subTotal": { "type": "number" },
+                                  "totalWeight": { "type": "number" },
+                                  "codCharge": { "type": "number" },
+                                  "courierCharge": { "type": "number" },
+                                  "netTotalWithCod": { "type": "number" },
+                                  "netTotalWithOutCod": { "type": "number" }
+                                }
+                              }
+                            }
+                          },
+                          "status": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "description": "Pick & Collect Array Item",
+                        "properties": {
+                          "record_type": {
+                            "type": "string",
+                            "example": "pick_and_collect"
+                          },
+                          "pick_and_collect_id": { "type": "integer" },
+                          "prod_code": { "type": "string" },
+                          "location": { "type": "string" },
+                          "location_name": { "type": "string" },
+                          "type": { "type": "integer", "enum": [1, 2] },
+                          "type_name": {
+                            "type": "string",
+                            "example": "pick & collect"
+                          },
+                          "picked_qty": { "type": "number" },
+                          "status": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create checkout or start card payment flow",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "type": "integer",
+                    "enum": [1, 2],
+                    "description": "1 = card payment and returns PayHere hash flow, 2 = cash on delivery and creates normal checkout"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "integer"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "example": "2500.00"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "LKR"
+                    },
+                    "merchant_id": {
+                      "type": "string"
+                    },
+                    "hash": {
+                      "type": "string"
+                    },
+                    "checkout": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": {
+                          "type": "integer"
+                        },
+                        "type": {
+                          "type": "integer",
+                          "enum": [1, 2],
+                          "description": "1 = card payment, 2 = cash on delivery"
+                        },
+                        "type_name": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
+                          "properties": {
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "product": {
+                                    "type": "object",
+                                    "properties": {
+                                      "prod_code": { "type": "string" },
+                                      "prod_name": { "type": "string" },
+                                      "selling_price": { "type": "number" }
+                                    }
+                                  },
+                                  "quantity": { "type": "integer" }
+                                }
+                              }
+                            },
+                            "prod_codes": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
+                            "totals": {
+                              "type": "object",
+                              "properties": {
+                                "subTotal": { "type": "number" },
+                                "totalWeight": { "type": "number" },
+                                "codCharge": { "type": "number" },
+                                "courierCharge": { "type": "number" },
+                                "netTotalWithCod": { "type": "number" },
+                                "netTotalWithOutCod": { "type": "number" }
+                              }
+                            }
+                          }
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checkout/{order_id}/bill": {
+      "get": {
+        "summary": "View Order Invoice Bill HTML",
+        "description": "Returns the order confirmation bill in HTML format suitable for viewing in a browser.",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique Order ID of the checkout"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HTML content of the generated bill invoice",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      }
+    },
+    "/api/v1/checkout/payhere-hash": {
+      "post": {
+        "summary": "Generate PayHere hash and create pending card order",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "integer",
+                    "enum": [1],
+                    "description": "Optional. Card payments always use type 1."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "integer"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "example": "2500.00"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "LKR"
+                    },
+                    "merchant_id": {
+                      "type": "string"
+                    },
+                    "hash": {
+                      "type": "string"
+                    },
+                    "checkout": {
+                      "type": "object",
+                      "properties": {
+                        "order_id": {
+                          "type": "integer"
+                        },
+                        "type": {
+                          "type": "integer",
+                          "enum": [1]
+                        },
+                        "type_name": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "payload": {
+                          "type": "object",
+                          "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
+                          "properties": {
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "product": {
+                                    "type": "object",
+                                    "properties": {
+                                      "prod_code": { "type": "string" },
+                                      "prod_name": { "type": "string" },
+                                      "selling_price": { "type": "number" }
+                                    }
+                                  },
+                                  "quantity": { "type": "integer" }
+                                }
+                              }
+                            },
+                            "prod_codes": {
+                              "type": "array",
+                              "items": { "type": "string" }
+                            },
+                            "totals": {
+                              "type": "object",
+                              "properties": {
+                                "subTotal": { "type": "number" },
+                                "totalWeight": { "type": "number" },
+                                "codCharge": { "type": "number" },
+                                "courierCharge": { "type": "number" },
+                                "netTotalWithCod": { "type": "number" },
+                                "netTotalWithOutCod": { "type": "number" }
+                              }
+                            }
+                          }
+                        },
+                        "created_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cart is empty or invalid"
+          },
+          "404": {
+            "description": "Active cart not found"
+          },
+          "500": {
+            "description": "PayHere config missing"
+          }
+        }
+      }
+    },
+    "/api/v1/checkout/{order_id}/status": {
+      "put": {
+        "summary": "Update checkout status",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/email/otp/send": {
+      "post": {
+        "summary": "Send public email OTP",
+        "tags": ["Email"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/email/otp/verify": {
+      "post": {
+        "summary": "Verify public email OTP",
+        "tags": ["Email"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "code"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/email/send": {
+      "post": {
+        "summary": "Send email verification code",
+        "tags": ["Email"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/email/verify": {
+      "post": {
+        "summary": "Verify email code",
+        "tags": ["Email"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/email/change/send": {
+      "post": {
+        "summary": "Send email change code",
+        "tags": ["Email"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["new_email"],
+                "properties": {
+                  "new_email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/email/change/verify": {
+      "post": {
+        "summary": "Verify email change code",
+        "tags": ["Email"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code"],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/token": {
+      "post": {
+        "summary": "Register device token",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "description": "Device platform code. Use android/ios/web or 1/2/3. Stored as string code: android=1, ios=2, web=3.",
+                    "enum": ["1", "2", "3", "android", "ios", "web"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove device token",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/test": {
+      "post": {
+        "summary": "Send test notification",
+        "tags": ["Notifications"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "body"],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "body": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/app-version/check": {
+      "post": {
+        "summary": "Check app is latest version",
+        "tags": ["App Version"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["platform", "current_version"],
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "description": "Use android/ios or 1/2"
+                  },
+                  "current_version": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "successful": {
+                      "type": "boolean"
+                    },
+                    "platform": {
+                      "type": "string"
+                    },
+                    "current_version": {
+                      "type": "string"
+                    },
+                    "newest_version": {
+                      "type": "string"
+                    },
+                    "is_latest": {
+                      "type": "boolean"
+                    },
+                    "must_update": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Latest version not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/shipping-address": {
+      "get": {
+        "summary": "Get my shipping address",
+        "tags": ["Shipping Address"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "summary": "Create or update my shipping address",
+        "tags": ["Shipping Address"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "receiver_fname",
+                  "receiver_lname",
+                  "phone",
+                  "delivery_address",
+                  "city",
+                  "province",
+                  "postal_code",
+                  "country"
+                ],
+                "properties": {
+                  "is_gift": {
+                    "type": "boolean"
+                  },
+                  "gift": {
+                    "type": "boolean"
+                  },
+                  "receiver_fname": {
+                    "type": "string"
+                  },
+                  "first_name": {
+                    "type": "string"
+                  },
+                  "receiver_lname": {
+                    "type": "string"
+                  },
+                  "last_name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "delivery_address": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "province": {
+                    "type": "string"
+                  },
+                  "provinces": {
+                    "type": "string"
+                  },
+                  "postal_code": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/pick-and-collect": {
+      "get": {
+        "summary": "List my pick and collect requests",
+        "tags": ["Pick & Collect"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Optional status filter such as pending or completed"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "pick_and_collect_id": { "type": "integer" },
+                          "prod_code": { "type": "string" },
+                          "location": { "type": "string" },
+                          "location_name": { "type": "string" },
+                          "type": { "type": "integer" },
+                          "type_name": { "type": "string" },
+                          "picked_qty": { "type": "number" },
+                          "status": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a pick and collect request or start PayHere flow",
+        "tags": ["Pick & Collect"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code", "location", "type", "picked_qty"],
+                "properties": {
+                  "prod_code": {
+                    "type": "string",
+                    "example": "P00000001"
+                  },
+                  "product_code": {
+                    "type": "string",
+                    "example": "P00000001"
+                  },
+                  "location": {
+                    "type": "string",
+                    "example": "001"
+                  },
+                  "loca_code": {
+                    "type": "string",
+                    "example": "001"
+                  },
+                  "location_code": {
+                    "type": "string",
+                    "example": "001"
+                  },
+                  "type": {
+                    "type": "integer",
+                    "enum": [1, 2],
+                    "description": "1 = PayHere, 2 = cash on delivery"
+                  },
+                  "picked_qty": {
+                    "type": "number",
+                    "example": 1
+                  },
+                  "qty": {
+                    "type": "number",
+                    "example": 1
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "pick_and_collect": {
+                      "type": "object",
+                      "properties": {
+                        "pick_and_collect_id": { "type": "integer" },
+                        "location": { "type": "string" },
+                        "location_name": { "type": "string" },
+                        "type": { "type": "integer" },
+                        "type_name": { "type": "string" },
+                        "status": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/pick-and-collect/payhere-hash": {
+      "post": {
+        "summary": "Generate PayHere hash and create pending pick and collect record",
+        "tags": ["Pick & Collect"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code", "location", "picked_qty"],
+                "properties": {
+                  "prod_code": {
+                    "type": "string",
+                    "example": "P00000001"
+                  },
+                  "product_code": {
+                    "type": "string",
+                    "example": "P00000001"
+                  },
+                  "location": {
+                    "type": "string",
+                    "example": "001"
+                  },
+                  "loca_code": {
+                    "type": "string",
+                    "example": "001"
+                  },
+                  "location_code": {
+                    "type": "string",
+                    "example": "001"
+                  },
+                  "picked_qty": {
+                    "type": "number",
+                    "example": 1
+                  },
+                  "qty": {
+                    "type": "number",
+                    "example": 1
+                  },
+                  "quantity": {
+                    "type": "number",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "pick_and_collect": {
+                      "type": "object",
+                      "properties": {
+                        "pick_and_collect_id": { "type": "integer" },
+                        "location": { "type": "string" },
+                        "location_name": { "type": "string" },
+                        "type": { "type": "integer" },
+                        "type_name": { "type": "string" },
+                        "status": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Department": {
+        "type": "object",
+        "properties": {
+          "dep_code": {
+            "type": "string"
+          },
+          "dep_name": {
+            "type": "string"
+          },
+          "dep_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer"
+          }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "cat_code": {
+            "type": "string"
+          },
+          "cat_name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "cat_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer"
+          }
+        }
+      },
+      "SubCategory": {
+        "type": "object",
+        "properties": {
+          "scat_code": {
+            "type": "string"
+          },
+          "scat_name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "cat_code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          }
+        },
+        "Wishlist": {
+          "type": "object",
+          "properties": {
+            "prod_code": {
+              "type": "string"
+            },
+            "product": {
+              "$ref": "#/components/schemas/Product"
+            }
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "prod_code": {
+            "type": "string"
+          },
+          "prod_name": {
+            "type": "string"
+          },
+          "short_description": {
+            "type": "string",
+            "nullable": true
+          },
+          "department": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "sub_category": {
+            "type": "string",
+            "nullable": true
+          },
+          "pack_size": {
+            "type": "string",
+            "nullable": true
+          },
+          "purchase_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "selling_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "discount": {
+            "type": "number",
+            "format": "float"
+          },
+          "dis_per": {
+            "type": "number",
+            "format": "float"
+          },
+          "dis_start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "dis_end_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "marked_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "wholesale_price": {
+            "type": "number",
+            "format": "float"
+          },
+          "unconfirm_price": {
+            "type": "integer",
+            "nullable": true
+          },
+          "title_in_other_language": {
+            "type": "string",
+            "nullable": true
+          },
+          "tamil_description": {
+            "type": "string",
+            "nullable": true
+          },
+          "language": {
+            "type": "string",
+            "nullable": true
+          },
+          "book_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "publisher": {
+            "type": "string",
+            "nullable": true
+          },
+          "publisher_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "language_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "department_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "category_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "sub_category_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "sub_categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scat_code": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "scat_name": {
+                  "type": "string",
+                  "nullable": true
+                }
+              }
+            },
+            "nullable": true
+          },
+          "author_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "author_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "author_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "author_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "isbn": {
+            "type": "string",
+            "nullable": true
+          },
+          "publish_year": {
+            "type": "integer",
+            "nullable": true
+          },
+          "pages": {
+            "type": "integer",
+            "nullable": true
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "width": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "height": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "depth": {
+            "type": "number",
+            "format": "float",
+            "nullable": true
+          },
+          "weight": {
+            "type": "integer",
+            "nullable": true
+          },
+          "alert_qty": {
+            "type": "integer",
+            "nullable": true
+          },
+          "barcode": {
+            "type": "string",
+            "nullable": true
+          },
+          "prod_image": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "nullable": true
+          },
+          "unit_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "integer",
+            "nullable": true
+          },
+          "updated_by": {
+            "type": "integer",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "current_available_stock": {
+            "type": "number",
+            "format": "float"
+          },
+          "isStock": {
+            "type": "integer",
+            "enum": [0, 1]
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/components/schemas/ProductImage"
+                }
+              ]
+            },
+            "nullable": true
+          }
+        }
+      },
+      "ProductImage": {
+        "type": "object",
+        "properties": {
+          "prod_code": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          }
+        }
+      },
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CartItem"
+            }
+          }
+        }
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "type": "integer"
+          },
+          "product": {
+            "$ref": "#/components/schemas/Product"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+const NOTIFICATION_TYPES = {
+  ORDER_STATUS_UPDATE: "1",
+  ORDER_PLACED: "2",
+  PROMOTION: "3",
+  CART_REMINDER: "4",
+  ACCOUNT: "5",
+};
+
+module.exports = { NOTIFICATION_TYPES };

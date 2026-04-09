@@ -1,0 +1,20 @@
+const router = require("express").Router();
+const c = require("../../controllers/auth/auth.controller");
+const profileController = require("../../controllers/profile.controller");
+
+const auth = require("../../middleware/auth.middleware");
+
+router.post("/register", c.sendOtp);
+router.post("/login", c.sendOtp);
+router.post("/verify", c.verifyOtp);
+router.post("/google-login", c.googleLogin);
+router.post("/password/forgot", c.forgotPassword);
+router.post("/password/reset", c.resetPassword);
+router.get("/me", auth, (req, res) => {
+  const user = req.user.toJSON();
+  delete user.password;
+  res.json(user);
+});
+router.put("/me", auth, profileController.updateProfile);
+
+module.exports = router;
