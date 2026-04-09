@@ -15,7 +15,7 @@ async function sendToUser(userId, { title, body, data }) {
 
   let messaging;
   try {
-    messaging = getMessaging();
+    messaging = await getMessaging();
   } catch (e) {
     console.error("[FCM] Firebase not configured:", e.message);
     return;
@@ -33,6 +33,9 @@ async function sendToUser(userId, { title, body, data }) {
         priority: "high",
       },
       apns: {
+        headers: {
+          "apns-priority": "10",
+        },
         payload: {
           aps: {
             sound: "default",
@@ -46,14 +49,35 @@ async function sendToUser(userId, { title, body, data }) {
       `[FCM] Sent to user ${userId}: ${response.successCount} success, ${response.failureCount} failed`,
     );
 
-    // Log individual failures for debugging
+    // Log individual failures and cleanup dead tokens
+    const tokensToDelete = [];
     response.responses.forEach((r, i) => {
       if (!r.success) {
+        const token = tokenList[i];
+        const errorMessage = r.error?.message || "Unknown error";
         console.error(
-          `[FCM] Token ${tokenList[i].slice(0, 20)}... failed: ${r.error?.message}`,
+          `[FCM] Token ${token.slice(0, 20)}... failed: ${errorMessage}`,
         );
+
+        // If token is invalid/expired, mark for deletion
+        if (
+          errorMessage.includes("Requested entity was not found") ||
+          r.error?.code === "messaging/registration-token-not-registered" ||
+          r.error?.code === "messaging/invalid-registration-token"
+        ) {
+          tokensToDelete.push(token);
+        }
       }
     });
+
+    if (tokensToDelete.length > 0) {
+      console.log(
+        `[FCM] Cleaning up ${tokensToDelete.length} invalid tokens...`,
+      );
+      await DeviceToken.destroy({
+        where: { token: tokensToDelete },
+      });
+    }
   } catch (e) {
     console.error("[FCM] sendEachForMulticast error:", e.message);
   }
