@@ -6,7 +6,8 @@ const WARN_DAYS = [15, 5, 3];
 
 function computeExpiresAt(item) {
   if (item.expires_at) return new Date(item.expires_at);
-  if (item.created_at) return new Date(new Date(item.created_at).getTime() + 30 * DAY_MS);
+  if (item.created_at)
+    return new Date(new Date(item.created_at).getTime() + 30 * DAY_MS);
   return null;
 }
 
@@ -68,7 +69,7 @@ async function runCartExpiryNotifications() {
 
   let messaging;
   try {
-    messaging = getMessaging();
+    messaging = await getMessaging();
   } catch (e) {
     console.error("Firebase not configured:", e.message);
     return;
