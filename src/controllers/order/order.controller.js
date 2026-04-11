@@ -77,6 +77,7 @@ exports.getAllOrders = async (req, res, next) => {
       const json = order.toJSON ? order.toJSON() : order;
       const result = {
         record_type: "delivery",
+        notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
         ...json,
       };
 
@@ -117,6 +118,7 @@ exports.getAllOrders = async (req, res, next) => {
 
       const result = {
         record_type: "pick_and_collect",
+        notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
         order_id: json.pick_and_collect_id,
         ...json,
       };

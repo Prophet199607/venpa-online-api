@@ -10,7 +10,13 @@ const {
   CourierWeightCharge,
 } = require("../models");
 const { Op } = require("sequelize");
-const { sendToUser } = require("../services/notifications/notificationService");
+const {
+  sendToUser,
+  sendToTopic,
+} = require("../services/notifications/notificationService");
+const {
+  NOTIFICATION_TYPES,
+} = require("../services/notifications/notificationTypes");
 const {
   sendOrderConfirmationEmail,
   generateOrderInvoiceHtml,
@@ -199,6 +205,19 @@ async function createCardPaymentResponse(userId, body) {
       typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
       items,
     ).catch(console.error);
+
+    // Notify Backoffice
+    sendToTopic("backoffice", {
+      title: "New Delivery Order",
+      body: `Order #${orderId} for ${totals.netTotalWithOutCod} LKR.`,
+      data: {
+        notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+        order_id: String(orderId),
+        user_id: String(userId),
+        customer_name: `${user.fname} ${user.lname}`.trim(),
+        total: String(totals.netTotalWithOutCod),
+      },
+    }).catch(console.error);
   }
 
   return {
@@ -290,6 +309,19 @@ exports.createCheckout = async (req, res, next) => {
         typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
         items,
       ).catch(console.error);
+
+      // Notify Backoffice
+      sendToTopic("backoffice", {
+        title: "New Delivery Order (COD)",
+        body: `Order #${orderId} for ${totals.netTotalWithCod} LKR.`,
+        data: {
+          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+          order_id: String(orderId),
+          user_id: String(req.user.id),
+          customer_name: `${user.fname} ${user.lname}`.trim(),
+          total: String(totals.netTotalWithCod),
+        },
+      }).catch(console.error);
     }
 
     return res.status(201).json({

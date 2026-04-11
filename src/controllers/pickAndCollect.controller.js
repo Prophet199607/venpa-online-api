@@ -5,9 +5,16 @@ const {
   Product,
   Location,
   StockMaster,
+  User,
   sequelize,
 } = require("../models");
 const { enrichProducts } = require("../services/products/enrichProducts");
+const {
+  sendToTopic,
+} = require("../services/notifications/notificationService");
+const {
+  NOTIFICATION_TYPES,
+} = require("../services/notifications/notificationTypes");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
@@ -319,6 +326,25 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     });
 
     const [serialized] = await serializeRows([row]);
+
+    // Notify Backoffice
+    User.findByPk(userId).then((user) => {
+      if (user) {
+        sendToTopic("backoffice", {
+          title: "New Pick & Collect Order",
+          body: `${product?.prod_name} at ${location.loca_name}`,
+          data: {
+            notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+            pick_and_collect_id: String(pickAndCollectId),
+            user_id: String(userId),
+            customer_name: `${user.fname} ${user.lname}`.trim(),
+            product_name: product?.prod_name,
+            location: location.loca_name,
+          },
+        }).catch(console.error);
+      }
+    });
+
     return {
       status: 201,
       body: {
@@ -344,6 +370,25 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
   });
 
   const [serialized] = await serializeRows([row]);
+
+  // Notify Backoffice
+  User.findByPk(userId).then((user) => {
+    if (user) {
+      sendToTopic("backoffice", {
+        title: "New Pick & Collect Order",
+        body: `${product?.prod_name} at ${location.loca_name}`,
+        data: {
+          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+          pick_and_collect_id: String(pickAndCollectId),
+          user_id: String(userId),
+          customer_name: `${user.fname} ${user.lname}`.trim(),
+          product_name: product?.prod_name,
+          location: location.loca_name,
+        },
+      }).catch(console.error);
+    }
+  });
+
   return {
     status: 201,
     body: {
