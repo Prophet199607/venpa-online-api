@@ -83,4 +83,44 @@ async function sendToUser(userId, { title, body, data }) {
   }
 }
 
-module.exports = { sendToUser };
+async function sendToTopic(topic, { title, body, data }) {
+  let messaging;
+  try {
+    messaging = await getMessaging();
+  } catch (e) {
+    console.error("[FCM] Firebase not configured:", e.message);
+    return;
+  }
+
+  try {
+    const message = {
+      topic,
+      notification: { title, body },
+      data: Object.fromEntries(
+        Object.entries(data || {}).map(([k, v]) => [k, String(v)]),
+      ),
+      android: {
+        priority: "high",
+      },
+      apns: {
+        headers: {
+          "apns-priority": "10",
+        },
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1,
+          },
+        },
+      },
+    };
+
+    const response = await messaging.send(message);
+    console.log(`[FCM] Sent to topic ${topic}:`, response);
+    return response;
+  } catch (e) {
+    console.error(`[FCM] Topic ${topic} error:`, e.message);
+  }
+}
+
+module.exports = { sendToUser, sendToTopic };
