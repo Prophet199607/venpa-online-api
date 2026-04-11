@@ -24,6 +24,7 @@ const EmailVerification = require("./EmailVerification");
 const PasswordReset = require("./PasswordReset");
 const EmailChange = require("./EmailChange");
 const PublicEmailOtp = require("./PublicEmailOtp");
+const PublicPhoneOtp = require("./PublicPhoneOtp");
 const DeviceToken = require("./DeviceToken");
 const AppVersion = require("./AppVersion");
 const ShippingAddress = require("./ShippingAddress");
@@ -216,6 +217,7 @@ module.exports = {
   PasswordReset,
   EmailChange,
   PublicEmailOtp,
+  PublicPhoneOtp,
   DeviceToken,
   AppVersion,
   ShippingAddress,

@@ -860,11 +860,13 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email"],
                 "properties": {
                   "email": {
                     "type": "string",
                     "format": "email"
+                  },
+                  "phone": {
+                    "type": "string"
                   }
                 }
               }
@@ -891,11 +893,13 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email"],
                 "properties": {
                   "email": {
                     "type": "string",
                     "format": "email"
+                  },
+                  "phone": {
+                    "type": "string"
                   }
                 }
               }
@@ -995,9 +999,9 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "code"],
                 "properties": {
                   "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string" },
                   "code": { "type": "string" }
                 }
               }

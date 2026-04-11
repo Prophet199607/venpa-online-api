@@ -1,5 +1,10 @@
 const nodemailer = require("nodemailer");
-const { EmailVerification, EmailChange, PublicEmailOtp, User } = require("../models");
+const {
+  EmailVerification,
+  EmailChange,
+  PublicEmailOtp,
+  User,
+} = require("../models");
 
 function generateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -16,7 +21,9 @@ function getTransporter() {
 }
 
 function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
+  return String(email || "")
+    .trim()
+    .toLowerCase();
 }
 
 function isValidEmail(email) {
@@ -28,11 +35,13 @@ exports.sendCode = async (req, res, next) => {
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASS;
     if (!emailUser || !emailPass) {
-      return res.status(400).json({ message: "Email credentials not configured" });
+      return res
+        .status(400)
+        .json({ message: "Email credentials not configured" });
     }
 
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await EmailVerification.create({
       user_id: req.user.id,
@@ -48,11 +57,13 @@ exports.sendCode = async (req, res, next) => {
       from: `Venpaa Bookshop <${emailUser}>`,
       to: req.user.email,
       subject: "Your Venpaa verification code",
-      text: `Your verification code is ${code}. It expires in 10 minutes.`,
+      text: `Your verification code is ${code}. It expires in 5 minutes.`,
     });
 
     res.json({ message: "Verification code sent" });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.verifyCode = async (req, res, next) => {
@@ -75,7 +86,9 @@ exports.verifyCode = async (req, res, next) => {
     await record.update({ verified_at: new Date(), updated_at: new Date() });
 
     res.json({ message: "Email verified" });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.sendEmailChangeCode = async (req, res, next) => {
@@ -85,7 +98,9 @@ exports.sendEmailChangeCode = async (req, res, next) => {
       return res.status(400).json({ message: "new_email is required" });
     }
 
-    const exists = await User.findOne({ where: { email: new_email.trim().toLowerCase() } });
+    const exists = await User.findOne({
+      where: { email: new_email.trim().toLowerCase() },
+    });
     if (exists) {
       return res.status(400).json({ message: "Email already in use" });
     }
@@ -93,11 +108,13 @@ exports.sendEmailChangeCode = async (req, res, next) => {
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASS;
     if (!emailUser || !emailPass) {
-      return res.status(400).json({ message: "Email credentials not configured" });
+      return res
+        .status(400)
+        .json({ message: "Email credentials not configured" });
     }
 
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await EmailChange.create({
       user_id: req.user.id,
@@ -114,11 +131,13 @@ exports.sendEmailChangeCode = async (req, res, next) => {
       from: `Venpaa Bookshop <${emailUser}>`,
       to: req.user.email,
       subject: "Your Venpaa email change code",
-      text: `Your email change code is ${code}. It expires in 10 minutes.`,
+      text: `Your email change code is ${code}. It expires in 5 minutes.`,
     });
 
     res.json({ message: "Email change code sent" });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.sendPublicOtp = async (req, res, next) => {
@@ -131,11 +150,13 @@ exports.sendPublicOtp = async (req, res, next) => {
     const emailUser = process.env.EMAIL_USER;
     const emailPass = process.env.EMAIL_PASS;
     if (!emailUser || !emailPass) {
-      return res.status(400).json({ message: "Email credentials not configured" });
+      return res
+        .status(400)
+        .json({ message: "Email credentials not configured" });
     }
 
     const code = generateCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     await PublicEmailOtp.destroy({
       where: { email, verified_at: null },
@@ -155,11 +176,13 @@ exports.sendPublicOtp = async (req, res, next) => {
       from: `Venpaa Bookshop <${emailUser}>`,
       to: email,
       subject: "Your Venpaa OTP",
-      text: `Your OTP is ${code}. It expires in 10 minutes.`,
+      text: `Your OTP is ${code}. It expires in 5 minutes.`,
     });
 
     res.json({ message: "OTP sent" });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.verifyPublicOtp = async (req, res, next) => {
@@ -189,7 +212,9 @@ exports.verifyPublicOtp = async (req, res, next) => {
     await record.update({ verified_at: new Date(), updated_at: new Date() });
 
     res.json({ message: "OTP verified" });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.verifyEmailChange = async (req, res, next) => {
@@ -214,5 +239,7 @@ exports.verifyEmailChange = async (req, res, next) => {
     await record.update({ verified_at: new Date(), updated_at: new Date() });
 
     res.json({ message: "Email updated" });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
