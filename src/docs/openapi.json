@@ -552,40 +552,186 @@
                 "type": "object",
                 "required": ["image", "type", "placement_key"],
                 "properties": {
-                  "image": {
-                    "type": "string"
-                  },
-                  "mobile_image": {
-                    "type": "string"
-                  },
+                  "image": { "type": "string" },
+                  "mobile_image": { "type": "string" },
                   "type": {
                     "type": "string",
                     "enum": ["carousel", "banner"]
                   },
-                  "placement_key": {
-                    "type": "string"
-                  },
-                  "position": {
-                    "type": "integer"
-                  },
-                  "link": {
-                    "type": "string"
-                  },
-                  "is_active": {
-                    "type": "boolean"
-                  }
+                  "placement_key": { "type": "string" },
+                  "position": { "type": "integer" },
+                  "link": { "type": "string" },
+                  "is_active": { "type": "boolean" }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": {
-            "description": "Created"
-          },
-          "400": {
-            "description": "Bad Request"
+          "201": { "description": "Created" },
+          "400": { "description": "Bad Request" }
+        }
+      }
+    },
+    "/api/v1/media-assets/{id}": {
+      "put": {
+        "summary": "Update media asset",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
           }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": { "type": "string" },
+                  "mobile_image": { "type": "string" },
+                  "type": { "type": "string", "enum": ["carousel", "banner"] },
+                  "placement_key": { "type": "string" },
+                  "position": { "type": "integer" },
+                  "link": { "type": "string" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      },
+      "delete": {
+        "summary": "Delete media asset",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      }
+    },
+    "/api/v1/banners": {
+      "get": {
+        "summary": "List banners",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "placement_key",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "orientation",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["horizontal", "panoramic"]
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      },
+      "post": {
+        "summary": "Create a new banner",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["image"],
+                "properties": {
+                  "image": { "type": "string" },
+                  "mobile_image": { "type": "string" },
+                  "placement_key": { "type": "string" },
+                  "orientation": {
+                    "type": "string",
+                    "enum": ["horizontal", "panoramic"]
+                  },
+                  "link": { "type": "string" },
+                  "position": { "type": "integer" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Created" }
+        }
+      }
+    },
+    "/api/v1/banners/{id}": {
+      "put": {
+        "summary": "Update banner",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": { "type": "string" },
+                  "mobile_image": { "type": "string" },
+                  "placement_key": { "type": "string" },
+                  "orientation": {
+                    "type": "string",
+                    "enum": ["horizontal", "panoramic"]
+                  },
+                  "link": { "type": "string" },
+                  "position": { "type": "integer" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "OK" }
+        }
+      },
+      "delete": {
+        "summary": "Delete banner",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OK" }
         }
       }
     },

@@ -4,10 +4,10 @@ const { uploadToS3 } = require("../../utils/s3");
 /**
  * Handle base64 image strings and upload to S3. Return the key/URL.
  */
-async function processImage(imageValue, keyForSlug) {
+async function processImage(imageValue, orientation, placement_key) {
   if (!imageValue) return null;
   if (typeof imageValue === "string" && imageValue.startsWith("data:")) {
-    const slug = (keyForSlug || "asset")
+    const slug = (placement_key || orientation || "banner")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "_");
     return await uploadToS3(imageValue, "media-assets", slug);
@@ -15,12 +15,12 @@ async function processImage(imageValue, keyForSlug) {
   return imageValue;
 }
 
-exports.listMediaAssets = async (req, res, next) => {
+exports.listBanners = async (req, res, next) => {
   try {
-    const { type, placement_key, is_active } = req.query;
-    const where = {};
+    const { orientation, placement_key, is_active } = req.query;
+    const where = { type: "banner" };
 
-    if (type) where.type = type;
+    if (orientation) where.orientation = orientation;
     if (placement_key) where.placement_key = placement_key;
     if (is_active !== undefined) {
       where.is_active = is_active === "true" || is_active === "1";
@@ -50,39 +50,42 @@ exports.listMediaAssets = async (req, res, next) => {
   }
 };
 
-exports.createMediaAsset = async (req, res, next) => {
+exports.createBanner = async (req, res, next) => {
   try {
+    // Process images (Upload to S3 if base64)
     const {
       image,
       mobile_image,
-      type,
       orientation,
       placement_key,
-      position,
       link,
+      position,
       is_active,
     } = req.body;
 
-    if ((!image && !mobile_image) || !type || !placement_key) {
+    if (!image && !mobile_image) {
       return res.status(400).json({
-        message: "image or mobile_image, type and placement_key are required",
+        message: "image or mobile_image is required",
       });
     }
 
-    // Process images (Upload to S3 if base64)
-    const processedImage = await processImage(image, placement_key);
+    const processedImage = await processImage(
+      image,
+      orientation,
+      placement_key,
+    );
     const processedMobileImage = mobile_image
-      ? await processImage(mobile_image, placement_key)
+      ? await processImage(mobile_image, orientation, placement_key)
       : null;
 
     const item = await MediaAsset.create({
       image: processedImage,
       mobile_image: processedMobileImage,
-      type,
+      type: "banner",
       orientation,
       placement_key,
-      position: position || 0,
       link,
+      position: position || 0,
       is_active: is_active ?? true,
       created_at: new Date(),
       updated_at: new Date(),
@@ -103,28 +106,32 @@ exports.createMediaAsset = async (req, res, next) => {
   }
 };
 
-exports.updateMediaAsset = async (req, res, next) => {
+exports.updateBanner = async (req, res, next) => {
   try {
-    const item = await MediaAsset.findByPk(req.params.id);
-    if (!item)
-      return res.status(404).json({ message: "Media asset not found" });
+    const item = await MediaAsset.findOne({
+      where: { id: req.params.id, type: "banner" },
+    });
+    if (!item) return res.status(404).json({ message: "Banner not found" });
 
     const updateData = { ...req.body };
 
     // Process image updates if provided (only if they are base64)
     if (updateData.image && updateData.image.startsWith("data:")) {
-      const key = updateData.placement_key || item.placement_key;
-      updateData.image = await processImage(updateData.image, key);
+      updateData.image = await processImage(
+        updateData.image,
+        updateData.orientation || item.orientation,
+        updateData.placement_key || item.placement_key,
+      );
     }
 
     if (
       updateData.mobile_image &&
       updateData.mobile_image.startsWith("data:")
     ) {
-      const key = updateData.placement_key || item.placement_key;
       updateData.mobile_image = await processImage(
         updateData.mobile_image,
-        key,
+        updateData.orientation || item.orientation,
+        updateData.placement_key || item.placement_key,
       );
     }
 
@@ -148,14 +155,15 @@ exports.updateMediaAsset = async (req, res, next) => {
   }
 };
 
-exports.deleteMediaAsset = async (req, res, next) => {
+exports.deleteBanner = async (req, res, next) => {
   try {
-    const item = await MediaAsset.findByPk(req.params.id);
-    if (!item)
-      return res.status(404).json({ message: "Media asset not found" });
+    const item = await MediaAsset.findOne({
+      where: { id: req.params.id, type: "banner" },
+    });
+    if (!item) return res.status(404).json({ message: "Banner not found" });
 
     await item.destroy();
-    res.json({ message: "Media asset deleted" });
+    res.json({ message: "Banner deleted" });
   } catch (e) {
     next(e);
   }
