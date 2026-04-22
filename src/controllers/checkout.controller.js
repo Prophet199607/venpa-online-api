@@ -582,8 +582,7 @@ exports.getCheckoutBill = async (req, res, next) => {
       user ? user.toJSON() : req.user,
       checkoutObj,
       cartItems,
-      process.env.EMAIL_LOGO_URL ||
-        "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png",
+      process.env.EMAIL_LOGO_URL,
     );
 
     return res.status(200).set("Content-Type", "text/html").send(htmlContent);

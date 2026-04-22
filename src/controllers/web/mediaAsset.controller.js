@@ -29,9 +29,7 @@ exports.listMediaAssets = async (req, res, next) => {
       order: [["position", "ASC"]],
     });
 
-    const baseUrl =
-      process.env.PRODUCT_IMAGE_BASE_URL ||
-      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
 
     const formattedItems = items.map((item) => {
       const json = item.toJSON ? item.toJSON() : item;
@@ -86,9 +84,7 @@ exports.createMediaAsset = async (req, res, next) => {
       updated_at: new Date(),
     });
 
-    const baseUrl =
-      process.env.PRODUCT_IMAGE_BASE_URL ||
-      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
     const json = item.toJSON ? item.toJSON() : item;
     if (json.image && !json.image.startsWith("http")) {
       json.image = `${baseUrl}${json.image}`;
@@ -109,9 +105,7 @@ exports.getMediaAssetById = async (req, res, next) => {
     if (!item)
       return res.status(404).json({ message: "Media asset not found" });
 
-    const baseUrl =
-      process.env.PRODUCT_IMAGE_BASE_URL ||
-      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
     const json = item.toJSON ? item.toJSON() : item;
     if (json.image && !json.image.startsWith("http")) {
       json.image = `${baseUrl}${json.image}`;
@@ -153,9 +147,7 @@ exports.updateMediaAsset = async (req, res, next) => {
       updated_at: new Date(),
     });
 
-    const baseUrl =
-      process.env.PRODUCT_IMAGE_BASE_URL ||
-      "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/";
+    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
     const json = item.toJSON ? item.toJSON() : item;
     if (json.image && !json.image.startsWith("http")) {
       json.image = `${baseUrl}${json.image}`;

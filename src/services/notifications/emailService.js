@@ -316,9 +316,7 @@ exports.sendOrderConfirmationEmail = async (
   const transporter = getTransporter();
 
   // Use EMAIL_LOGO_URL from env if available
-  const logoUrl =
-    process.env.EMAIL_LOGO_URL ||
-    "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png";
+  const logoUrl = process.env.EMAIL_LOGO_URL;
 
   const htmlContent = exports.generateOrderInvoiceHtml(
     user,
@@ -343,9 +341,7 @@ exports.sendOrderConfirmationEmail = async (
 
 exports.generateOtpEmailHtml = (code) => {
   const brandColor = "#0d5b82";
-  const logoUrl =
-    process.env.EMAIL_LOGO_URL ||
-    "https://venpaa-v2.s3.ap-southeast-1.amazonaws.com/asstes/Logo+-+White.png";
+  const logoUrl = process.env.EMAIL_LOGO_URL;
 
   return `
     <!DOCTYPE html>
