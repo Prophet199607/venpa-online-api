@@ -167,7 +167,6 @@ exports.verifyOtp = async (req, res) => {
       // Create new user automatically during first login/registration
       const randomPassword = `otp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       user = await User.create({
-        ...queryField,
         fname: "",
         lname: "",
         email: email ? email.trim().toLowerCase() : null,
@@ -180,6 +179,13 @@ exports.verifyOtp = async (req, res) => {
 
     const userResponse = user.toJSON();
     delete userResponse.password;
+
+    // Fix for AsyncStorage: Ensure key fields are never null
+    if (!userResponse.email && userResponse.phone) {
+      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
+    }
+    userResponse.fname = userResponse.fname || "";
+    userResponse.lname = userResponse.lname || "";
 
     res.json({
       success: true,
@@ -261,6 +267,13 @@ exports.googleLogin = async (req, res) => {
 
     const userResponse = user.toJSON();
     delete userResponse.password;
+
+    // Fix for AsyncStorage: Ensure key fields are never null
+    if (!userResponse.email && userResponse.phone) {
+      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
+    }
+    userResponse.fname = userResponse.fname || "";
+    userResponse.lname = userResponse.lname || "";
 
     res.json({
       success: true,

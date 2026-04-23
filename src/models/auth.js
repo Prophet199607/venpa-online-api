@@ -56,9 +56,13 @@ User.prototype.comparePassword = async function (password) {
 };
 
 User.prototype.generateToken = function () {
-  return jwt.sign({ id: this.id, email: this.email }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  });
+  return jwt.sign(
+    { id: String(this.id), email: this.email },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    },
+  );
 };
 
 module.exports = User;
