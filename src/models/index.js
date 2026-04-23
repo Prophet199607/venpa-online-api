@@ -32,6 +32,7 @@ const PickAndCollect = require("./PickAndCollect");
 const CodValueCharge = require("./CodValueCharge");
 const CourierWeightCharge = require("./CourierWeightCharge");
 const MediaAsset = require("./MediaAsset");
+const NotificationLog = require("./NotificationLog");
 
 // Associations
 Department.hasMany(Category, {
@@ -190,6 +191,10 @@ DeviceToken.belongsTo(User, { foreignKey: "user_id" });
 User.hasOne(ShippingAddress, { foreignKey: "user_id" });
 ShippingAddress.belongsTo(User, { foreignKey: "user_id" });
 
+// Notification logs
+User.hasMany(NotificationLog, { foreignKey: "user_id" });
+NotificationLog.belongsTo(User, { foreignKey: "user_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -225,4 +230,5 @@ module.exports = {
   CodValueCharge,
   CourierWeightCharge,
   MediaAsset,
+  NotificationLog,
 };

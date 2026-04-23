@@ -1,7 +1,36 @@
-const { DeviceToken } = require("../../models");
+const { DeviceToken, NotificationLog } = require("../../models");
 const { getMessaging } = require("./firebase");
 
+/**
+ * Persist a notification record to the notification_logs table.
+ * Called for every sendToUser invocation regardless of FCM outcome.
+ */
+async function logNotification(userId, { title, body, data }) {
+  try {
+    const now = new Date();
+    await NotificationLog.create({
+      user_id: userId,
+      title,
+      body: body || null,
+      type: data?.type || null,
+      data: data || null,
+      is_read: false,
+      created_at: now,
+      updated_at: now,
+    });
+  } catch (err) {
+    // Never let a logging failure break the actual notification flow
+    console.error(
+      "[NotificationLog] Failed to persist notification:",
+      err.message,
+    );
+  }
+}
+
 async function sendToUser(userId, { title, body, data }) {
+  // Persist before sending so the record exists even if FCM fails
+  await logNotification(userId, { title, body, data });
+
   const tokens = await DeviceToken.findAll({
     where: { user_id: userId },
     attributes: ["token"],
