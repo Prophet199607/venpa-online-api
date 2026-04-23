@@ -21,6 +21,16 @@ function startNotificationJobs() {
     }
   });
 
+  // Run once on startup in development mode to help with testing
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      "[CartExpiry] Development mode detected: running initial check...",
+    );
+    runCartExpiryNotifications().catch((e) =>
+      console.error("[CartExpiry] Initial run failed:", e.message),
+    );
+  }
+
   console.log(`[CartExpiry] Scheduled with cron: "${schedule}"`);
 }
 

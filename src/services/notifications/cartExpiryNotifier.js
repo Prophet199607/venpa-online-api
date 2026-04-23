@@ -48,8 +48,13 @@ async function runCartExpiryNotifications() {
   const userWarnings = new Map();
 
   for (const item of items) {
-    const msLeft = new Date(item.expires_at).getTime() - now.getTime();
+    const expiresAt = new Date(item.expires_at);
+    const msLeft = expiresAt.getTime() - now.getTime();
     const remainingDays = Math.ceil(msLeft / DAY_MS);
+
+    console.log(
+      `[CartExpiry] Item ID: ${item.id}, User ID: ${item.cart.user_id}, Expires At: ${item.expires_at}, Remaining Days: ${remainingDays}`,
+    );
 
     if (remainingDays <= 0) {
       expiredIds.push(item.id);
