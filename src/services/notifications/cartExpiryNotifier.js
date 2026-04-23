@@ -1,97 +1,120 @@
-const { CartItem, Cart, DeviceToken } = require("../../models");
-const { getMessaging } = require("./firebase");
+const { Op } = require("sequelize");
+const { CartItem, Cart } = require("../../models");
+const { sendToUser } = require("./notificationService");
+const { NOTIFICATION_TYPES } = require("./notificationTypes");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const WARN_DAYS = [15, 5, 3];
 
-function computeExpiresAt(item) {
-  if (item.expires_at) return new Date(item.expires_at);
-  if (item.created_at)
-    return new Date(new Date(item.created_at).getTime() + 30 * DAY_MS);
-  return null;
-}
+// Remaining-days values that trigger a push notification.
+// Day 23 of 30 → 7 days left  → "1 week left" warning
+// Day 30 of 30 → 1 day left   → "24 hours left" warning
+const WARN_AT_REMAINING_DAYS = [7, 1];
 
+/**
+ * Main job – runs once a day (controlled by CART_NOTIFY_CRON env var).
+ *
+ * Since the cart controller always writes expires_at = created_at + 30 days
+ * when a new item is inserted, we rely on expires_at as the single source
+ * of truth.  Items without expires_at are skipped (legacy / data issue).
+ *
+ * Lifecycle:
+ *   expires_at - 7 days  → send "1 week left" push
+ *   expires_at - 1 day   → send "24 hours left" push
+ *   expires_at passed    → delete the cart item
+ */
 async function runCartExpiryNotifications() {
   const now = new Date();
 
+  // Only look at items in active carts that have an expires_at set
   const items = await CartItem.findAll({
     include: [
       {
         model: Cart,
+        as: "cart",
         where: { status: "active" },
-        attributes: ["user_id", "status"],
+        attributes: ["user_id"],
       },
     ],
-    attributes: ["id", "expires_at", "created_at"],
+    where: {
+      expires_at: { [Op.ne]: null },
+    },
+    attributes: ["id", "expires_at"],
   });
 
   const expiredIds = [];
-  const perUserByDay = new Map();
+
+  // userId → { 7: count, 1: count }
+  // Accumulate per-user counts so we send one batched push per trigger.
+  const userWarnings = new Map();
 
   for (const item of items) {
-    const expiresAt = computeExpiresAt(item);
-    if (!expiresAt) continue;
-
-    const remainingDays = Math.ceil((expiresAt - now) / DAY_MS);
+    const msLeft = new Date(item.expires_at).getTime() - now.getTime();
+    const remainingDays = Math.ceil(msLeft / DAY_MS);
 
     if (remainingDays <= 0) {
       expiredIds.push(item.id);
       continue;
     }
 
-    if (WARN_DAYS.includes(remainingDays)) {
-      const userId = item.Cart.user_id;
-      if (!perUserByDay.has(userId)) {
-        perUserByDay.set(userId, {});
-      }
-      const map = perUserByDay.get(userId);
-      map[remainingDays] = (map[remainingDays] || 0) + 1;
+    if (WARN_AT_REMAINING_DAYS.includes(remainingDays)) {
+      const userId = item.cart.user_id;
+      if (!userWarnings.has(userId)) userWarnings.set(userId, {});
+      const bucket = userWarnings.get(userId);
+      bucket[remainingDays] = (bucket[remainingDays] || 0) + 1;
     }
   }
 
+  // ── 1. Delete expired items ────────────────────────────────────────────────
   if (expiredIds.length) {
     await CartItem.destroy({ where: { id: expiredIds } });
+    console.log(
+      `[CartExpiry] Removed ${expiredIds.length} expired cart item(s).`,
+    );
   }
 
-  if (!perUserByDay.size) return;
-
-  const userIds = Array.from(perUserByDay.keys());
-  const tokens = await DeviceToken.findAll({
-    where: { user_id: userIds },
-    attributes: ["user_id", "token"],
-  });
-
-  const tokensByUser = tokens.reduce((acc, t) => {
-    if (!acc[t.user_id]) acc[t.user_id] = [];
-    acc[t.user_id].push(t.token);
-    return acc;
-  }, {});
-
-  let messaging;
-  try {
-    messaging = await getMessaging();
-  } catch (e) {
-    console.error("Firebase not configured:", e.message);
+  if (!userWarnings.size) {
+    console.log("[CartExpiry] No warnings to send today.");
     return;
   }
 
-  for (const userId of userIds) {
-    const tokenList = tokensByUser[userId] || [];
-    if (!tokenList.length) continue;
-
-    const dayCounts = perUserByDay.get(userId);
-    for (const day of WARN_DAYS) {
-      const count = dayCounts[day];
-      if (!count) continue;
-
-      const title = "Cart item expiring";
-      const body = `You have ${count} item(s) expiring in ${day} day(s).`;
-
-      await messaging.sendEachForMulticast({
-        tokens: tokenList,
-        notification: { title, body },
-        data: { type: "cart_expiry", days: String(day), count: String(count) },
+  // ── 2. Send push notifications per user ───────────────────────────────────
+  for (const [userId, bucket] of userWarnings.entries()) {
+    // 7-day warning  (item created 23 days ago, 7 days remain)
+    if (bucket[7]) {
+      const count = bucket[7];
+      await sendToUser(userId, {
+        title: "⏰ Cart Reminder – 1 Week Left",
+        body:
+          `You have ${count} item${count > 1 ? "s" : ""} in your cart expiring in 7 days. ` +
+          "Complete your purchase before they are removed!",
+        data: {
+          type: NOTIFICATION_TYPES.CART_REMINDER,
+          trigger: "7_days",
+          item_count: String(count),
+        },
       });
+      console.log(
+        `[CartExpiry] 7-day warning → user ${userId} (${count} item(s)).`,
+      );
+    }
+
+    // 24-hour warning  (item created 30 days ago, expires tomorrow)
+    if (bucket[1]) {
+      const count = bucket[1];
+      await sendToUser(userId, {
+        title: "🚨 Last Chance – Cart Expires in 24 Hours",
+        body:
+          `You have ${count} item${count > 1 ? "s" : ""} in your cart expiring in less than 24 hours. ` +
+          "Check out now before they are removed!",
+        data: {
+          type: NOTIFICATION_TYPES.CART_REMINDER,
+          trigger: "24_hours",
+          item_count: String(count),
+        },
+      });
+      console.log(
+        `[CartExpiry] 24-hour warning → user ${userId} (${count} item(s)).`,
+      );
     }
   }
 }
