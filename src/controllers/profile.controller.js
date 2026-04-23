@@ -5,7 +5,7 @@ async function safeCount(table, column, userId) {
   try {
     const rows = await sequelize.query(
       `SELECT COUNT(*) as count FROM \`${table}\` WHERE \`${column}\` = :userId`,
-      { replacements: { userId }, type: QueryTypes.SELECT }
+      { replacements: { userId }, type: QueryTypes.SELECT },
     );
     return Number(rows?.[0]?.count || 0);
   } catch (err) {
@@ -30,31 +30,39 @@ exports.getProfileSummary = async (req, res, next) => {
       EmailVerification.findOne({
         where: { user_id: req.user.id, verified_at: { [Op.ne]: null } },
         order: [["verified_at", "DESC"]],
-      }).catch(() => null)
+      }).catch(() => null),
     ]);
+
+    const userResponse = user;
+    // Fix for AsyncStorage: Ensure key fields are never null
+    if (!userResponse.email && userResponse.phone) {
+      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
+    }
 
     res.json({
       user: {
-        id: user.id,
-        fname: user.fname,
-        lname: user.lname,
-        email: user.email,
-        phone: user.phone,
-        country: user.country || null,
-        address: user.address || null,
-        city: user.city || null,
-        province: user.province || null,
-        postal_code: user.postal_code || null,
-        status: user.status,
-        email_verified: Boolean(verification)
+        id: userResponse.id,
+        fname: userResponse.fname || "",
+        lname: userResponse.lname || "",
+        email: userResponse.email,
+        phone: userResponse.phone,
+        country: userResponse.country || null,
+        address: userResponse.address || null,
+        city: userResponse.city || null,
+        province: userResponse.province || null,
+        postal_code: userResponse.postal_code || null,
+        status: userResponse.status,
+        email_verified: Boolean(verification),
       },
       stats: {
         orders: orderCount,
         reviews: reviewCount,
-        points: 0
-      }
+        points: 0,
+      },
     });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
 
 exports.updateProfile = async (req, res, next) => {
@@ -83,32 +91,44 @@ exports.updateProfile = async (req, res, next) => {
     if (has("fname")) updates.fname = payload.fname;
     if (has("lname")) updates.lname = payload.lname;
     if (has("phone")) updates.phone = payload.phone;
-    if (has("country") && supports("country")) updates.country = payload.country;
-    if (has("address") && supports("address")) updates.address = payload.address;
+    if (has("country") && supports("country"))
+      updates.country = payload.country;
+    if (has("address") && supports("address"))
+      updates.address = payload.address;
     if (has("city") && supports("city")) updates.city = payload.city;
-    if ((has("province") || has("provinces")) && supports("province")) updates.province = provinces;
-    if (has("postal_code") && supports("postal_code")) updates.postal_code = payload.postal_code;
+    if ((has("province") || has("provinces")) && supports("province"))
+      updates.province = provinces;
+    if (has("postal_code") && supports("postal_code"))
+      updates.postal_code = payload.postal_code;
 
     await req.user.update(updates);
 
     const user = req.user.toJSON();
     delete user.password;
 
+    const userResponse = user;
+    // Fix for AsyncStorage: Ensure key fields are never null
+    if (!userResponse.email && userResponse.phone) {
+      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
+    }
+
     res.json({
       message: "Profile updated",
       user: {
-        id: user.id,
-        fname: user.fname,
-        lname: user.lname,
-        email: user.email,
-        phone: user.phone,
-        country: user.country || null,
-        address: user.address || null,
-        city: user.city || null,
-        province: user.province || null,
-        postal_code: user.postal_code || null,
-        status: user.status,
+        id: userResponse.id,
+        fname: userResponse.fname || "",
+        lname: userResponse.lname || "",
+        email: userResponse.email,
+        phone: userResponse.phone,
+        country: userResponse.country || null,
+        address: userResponse.address || null,
+        city: userResponse.city || null,
+        province: userResponse.province || null,
+        postal_code: userResponse.postal_code || null,
+        status: userResponse.status,
       },
     });
-  } catch (e) { next(e); }
+  } catch (e) {
+    next(e);
+  }
 };
