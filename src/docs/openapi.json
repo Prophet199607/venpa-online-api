@@ -507,19 +507,11 @@
         }
       }
     },
-    "/api/v1/media-assets": {
+    "/api/v1/carousels": {
       "get": {
-        "summary": "List media assets (banners/carousels)",
+        "summary": "List carousels",
         "tags": ["Web Management"],
         "parameters": [
-          {
-            "name": "type",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "enum": ["carousel", "banner"]
-            }
-          },
           {
             "name": "placement_key",
             "in": "query",
@@ -542,7 +534,7 @@
         }
       },
       "post": {
-        "summary": "Create a new media asset",
+        "summary": "Create a new carousel",
         "tags": ["Web Management"],
         "requestBody": {
           "required": true,
@@ -550,14 +542,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["image", "type", "placement_key"],
+                "required": ["image", "placement_key"],
                 "properties": {
                   "image": { "type": "string" },
                   "mobile_image": { "type": "string" },
-                  "type": {
-                    "type": "string",
-                    "enum": ["carousel", "banner"]
-                  },
                   "placement_key": { "type": "string" },
                   "position": { "type": "integer" },
                   "link": { "type": "string" },
@@ -573,9 +561,9 @@
         }
       }
     },
-    "/api/v1/media-assets/{id}": {
+    "/api/v1/carousels/{id}": {
       "put": {
-        "summary": "Update media asset",
+        "summary": "Update carousel",
         "tags": ["Web Management"],
         "parameters": [
           {
@@ -593,7 +581,6 @@
                 "properties": {
                   "image": { "type": "string" },
                   "mobile_image": { "type": "string" },
-                  "type": { "type": "string", "enum": ["carousel", "banner"] },
                   "placement_key": { "type": "string" },
                   "position": { "type": "integer" },
                   "link": { "type": "string" },
@@ -608,7 +595,7 @@
         }
       },
       "delete": {
-        "summary": "Delete media asset",
+        "summary": "Delete carousel",
         "tags": ["Web Management"],
         "parameters": [
           {

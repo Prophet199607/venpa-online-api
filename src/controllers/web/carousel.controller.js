@@ -15,12 +15,11 @@ async function processImage(imageValue, keyForSlug) {
   return imageValue;
 }
 
-exports.listMediaAssets = async (req, res, next) => {
+exports.listCarousels = async (req, res, next) => {
   try {
-    const { type, placement_key, is_active } = req.query;
-    const where = {};
+    const { placement_key, is_active } = req.query;
+    const where = { type: "carousel" };
 
-    if (type) where.type = type;
     if (placement_key) where.placement_key = placement_key;
     if (is_active !== undefined) {
       where.is_active = is_active === "true" || is_active === "1";
@@ -50,12 +49,11 @@ exports.listMediaAssets = async (req, res, next) => {
   }
 };
 
-exports.createMediaAsset = async (req, res, next) => {
+exports.createCarousel = async (req, res, next) => {
   try {
     const {
       image,
       mobile_image,
-      type,
       orientation,
       placement_key,
       position,
@@ -63,9 +61,9 @@ exports.createMediaAsset = async (req, res, next) => {
       is_active,
     } = req.body;
 
-    if ((!image && !mobile_image) || !type || !placement_key) {
+    if ((!image && !mobile_image) || !placement_key) {
       return res.status(400).json({
-        message: "image or mobile_image, type and placement_key are required",
+        message: "image or mobile_image and placement_key are required",
       });
     }
 
@@ -78,7 +76,7 @@ exports.createMediaAsset = async (req, res, next) => {
     const item = await MediaAsset.create({
       image: processedImage,
       mobile_image: processedMobileImage,
-      type,
+      type: "carousel",
       orientation,
       placement_key,
       position: position || 0,
@@ -103,11 +101,12 @@ exports.createMediaAsset = async (req, res, next) => {
   }
 };
 
-exports.updateMediaAsset = async (req, res, next) => {
+exports.updateCarousel = async (req, res, next) => {
   try {
-    const item = await MediaAsset.findByPk(req.params.id);
-    if (!item)
-      return res.status(404).json({ message: "Media asset not found" });
+    const item = await MediaAsset.findOne({
+      where: { id: req.params.id, type: "carousel" },
+    });
+    if (!item) return res.status(404).json({ message: "Carousel not found" });
 
     const updateData = { ...req.body };
 
@@ -148,14 +147,15 @@ exports.updateMediaAsset = async (req, res, next) => {
   }
 };
 
-exports.deleteMediaAsset = async (req, res, next) => {
+exports.deleteCarousel = async (req, res, next) => {
   try {
-    const item = await MediaAsset.findByPk(req.params.id);
-    if (!item)
-      return res.status(404).json({ message: "Media asset not found" });
+    const item = await MediaAsset.findOne({
+      where: { id: req.params.id, type: "carousel" },
+    });
+    if (!item) return res.status(404).json({ message: "Carousel not found" });
 
     await item.destroy();
-    res.json({ message: "Media asset deleted" });
+    res.json({ message: "Carousel deleted" });
   } catch (e) {
     next(e);
   }
