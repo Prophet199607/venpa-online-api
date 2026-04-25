@@ -2,18 +2,19 @@ const jwt = require("jsonwebtoken");
 const { User } = require("../models");
 
 const auth = async (req, res, next) => {
+  let token = null;
   try {
-    const authHeader = req.header("Authorization") || req.header("authorization");
+    const authHeader =
+      req.header("Authorization") || req.header("authorization");
     const xAccessToken = req.header("x-access-token");
 
-    let token = null;
     if (authHeader) {
       token = authHeader.replace(/^Bearer\s+/i, "").trim();
     } else if (xAccessToken) {
       token = String(xAccessToken).trim();
     }
 
-    if (!token) {
+    if (!token || token === "undefined" || token === "null") {
       throw new Error("No authentication token provided");
     }
 
@@ -28,7 +29,14 @@ const auth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.warn("Auth failed:", error.message);
+    console.warn(
+      `Auth failed [${req.method} ${req.path}]:`,
+      error.message,
+      "| Token snippet:",
+      token
+        ? `${token.substring(0, 15)}...${token.substring(token.length - 5)}`
+        : "None",
+    );
     res.status(401).json({ error: "Please authenticate." });
   }
 };
