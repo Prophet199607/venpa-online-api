@@ -182,6 +182,8 @@ exports.verifyOtp = async (req, res) => {
 
     userResponse.fname = userResponse.fname || "";
     userResponse.lname = userResponse.lname || "";
+    userResponse.email = userResponse.email || "";
+    userResponse.phone = userResponse.phone || "";
 
     res.json({
       success: true,
@@ -266,6 +268,8 @@ exports.googleLogin = async (req, res) => {
 
     userResponse.fname = userResponse.fname || "";
     userResponse.lname = userResponse.lname || "";
+    userResponse.email = userResponse.email || "";
+    userResponse.phone = userResponse.phone || "";
 
     res.json({
       success: true,
