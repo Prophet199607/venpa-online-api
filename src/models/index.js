@@ -33,6 +33,7 @@ const CodValueCharge = require("./CodValueCharge");
 const CourierWeightCharge = require("./CourierWeightCharge");
 const MediaAsset = require("./MediaAsset");
 const NotificationLog = require("./NotificationLog");
+const Coupon = require("./Coupon");
 
 // Associations
 Department.hasMany(Category, {
@@ -231,4 +232,5 @@ module.exports = {
   CourierWeightCharge,
   MediaAsset,
   NotificationLog,
+  Coupon,
 };

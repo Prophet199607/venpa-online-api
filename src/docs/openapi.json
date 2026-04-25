@@ -50,6 +50,9 @@
     },
     {
       "name": "Order Management"
+    },
+    {
+      "name": "Coupons"
     }
   ],
   "paths": {
@@ -720,6 +723,134 @@
         "responses": {
           "200": { "description": "OK" }
         }
+      }
+    },
+    "/api/v1/coupons": {
+      "get": {
+        "summary": "List coupons",
+        "tags": ["Coupons"],
+
+        "parameters": [
+          { "name": "code", "in": "query", "schema": { "type": "string" } },
+          { "name": "is_active", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "post": {
+        "summary": "Create coupon",
+        "tags": ["Coupons"],
+
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["code", "discount_type", "discount_value"],
+                "properties": {
+                  "code": { "type": "string" },
+                  "description": { "type": "string" },
+                  "discount_type": {
+                    "type": "string",
+                    "enum": ["fixed", "percentage"]
+                  },
+                  "discount_value": { "type": "number" },
+                  "min_order_value": { "type": "number" },
+                  "max_discount": { "type": "number" },
+                  "start_date": { "type": "string", "format": "date-time" },
+                  "end_date": { "type": "string", "format": "date-time" },
+                  "usage_limit": { "type": "integer" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    },
+    "/api/v1/coupons/{id}": {
+      "get": {
+        "summary": "Get coupon details",
+        "tags": ["Coupons"],
+
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      },
+      "put": {
+        "summary": "Update coupon",
+        "tags": ["Coupons"],
+
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": { "type": "string" },
+                  "description": { "type": "string" },
+                  "discount_type": {
+                    "type": "string",
+                    "enum": ["fixed", "percentage"]
+                  },
+                  "discount_value": { "type": "number" },
+                  "min_order_value": { "type": "number" },
+                  "max_discount": { "type": "number" },
+                  "start_date": { "type": "string", "format": "date-time" },
+                  "end_date": { "type": "string", "format": "date-time" },
+                  "usage_limit": { "type": "integer" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      },
+      "delete": {
+        "summary": "Delete coupon",
+        "tags": ["Coupons"],
+
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/api/v1/coupons/{id}/toggle": {
+      "patch": {
+        "summary": "Toggle coupon active status",
+        "tags": ["Coupons"],
+
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": { "200": { "description": "OK" } }
       }
     },
     "/api/v1/products": {
