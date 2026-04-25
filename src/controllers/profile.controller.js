@@ -34,10 +34,6 @@ exports.getProfileSummary = async (req, res, next) => {
     ]);
 
     const userResponse = user;
-    // Fix for AsyncStorage: Ensure key fields are never null
-    if (!userResponse.email && userResponse.phone) {
-      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
-    }
 
     res.json({
       user: {
@@ -107,10 +103,6 @@ exports.updateProfile = async (req, res, next) => {
     delete user.password;
 
     const userResponse = user;
-    // Fix for AsyncStorage: Ensure key fields are never null
-    if (!userResponse.email && userResponse.phone) {
-      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
-    }
 
     res.json({
       message: "Profile updated",

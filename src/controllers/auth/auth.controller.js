@@ -180,10 +180,6 @@ exports.verifyOtp = async (req, res) => {
     const userResponse = user.toJSON();
     delete userResponse.password;
 
-    // Fix for AsyncStorage: Ensure key fields are never null
-    if (!userResponse.email && userResponse.phone) {
-      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
-    }
     userResponse.fname = userResponse.fname || "";
     userResponse.lname = userResponse.lname || "";
 
@@ -268,10 +264,6 @@ exports.googleLogin = async (req, res) => {
     const userResponse = user.toJSON();
     delete userResponse.password;
 
-    // Fix for AsyncStorage: Ensure key fields are never null
-    if (!userResponse.email && userResponse.phone) {
-      userResponse.email = `+${userResponse.phone.replace(/\D/g, "")}@venpaa.com`;
-    }
     userResponse.fname = userResponse.fname || "";
     userResponse.lname = userResponse.lname || "";
 
