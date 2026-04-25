@@ -9,6 +9,12 @@ const sequelize = new Sequelize(
     port: Number(process.env.DB_PORT || process.env.MYSQL_PORT || 3306),
     dialect: "mysql",
     logging: false,
+    timezone: process.env.DB_TIMEZONE || "+05:30",
+    dialectOptions: {
+      useUTC: false,
+      dateStrings: true,
+      typeCast: true,
+    },
     define: {
       freezeTableName: true,
       underscored: true,

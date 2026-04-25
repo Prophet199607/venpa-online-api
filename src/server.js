@@ -15,6 +15,13 @@ if (
   require("dotenv").config({ path: productionEnvFile, override: true });
 }
 
+// Global timezone handling
+if (process.env.TZ) {
+  process.env.TZ = process.env.TZ;
+} else {
+  process.env.TZ = "Asia/Colombo";
+}
+
 const app = require("./app");
 const { sequelize, ...models } = require("./models");
 const { startSyncJobs } = require("./services/sync/syncJobs");
