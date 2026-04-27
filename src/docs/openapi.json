@@ -2252,6 +2252,10 @@
                     "type": "integer",
                     "enum": [1, 2],
                     "description": "1 = card payment and returns PayHere hash flow, 2 = cash on delivery and creates normal checkout"
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code (e.g., WELCOME5). To apply discount on checkout."
                   }
                 }
               }
@@ -2335,6 +2339,16 @@
                                 "totalWeight": { "type": "number" },
                                 "codCharge": { "type": "number" },
                                 "courierCharge": { "type": "number" },
+                                "discountAmount": { "type": "number" },
+                                "appliedCoupon": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": { "type": "string" },
+                                    "discount_type": { "type": "string" },
+                                    "discount_value": { "type": "number" },
+                                    "amount": { "type": "number" }
+                                  }
+                                },
                                 "netTotalWithCod": { "type": "number" },
                                 "netTotalWithOutCod": { "type": "number" }
                               }
@@ -2413,6 +2427,10 @@
                     "type": "integer",
                     "enum": [1],
                     "description": "Optional. Card payments always use type 1."
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code."
                   }
                 }
               }
@@ -2495,6 +2513,16 @@
                                 "totalWeight": { "type": "number" },
                                 "codCharge": { "type": "number" },
                                 "courierCharge": { "type": "number" },
+                                "discountAmount": { "type": "number" },
+                                "appliedCoupon": {
+                                  "type": "object",
+                                  "properties": {
+                                    "code": { "type": "string" },
+                                    "discount_type": { "type": "string" },
+                                    "discount_value": { "type": "number" },
+                                    "amount": { "type": "number" }
+                                  }
+                                },
                                 "netTotalWithCod": { "type": "number" },
                                 "netTotalWithOutCod": { "type": "number" }
                               }
@@ -3255,6 +3283,10 @@
                     "type": "integer",
                     "enum": [1, 2],
                     "description": "1 = PayHere, 2 = cash on delivery"
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code"
                   },
                   "picked_qty": {
                     "type": "number",

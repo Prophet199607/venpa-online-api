@@ -8,6 +8,7 @@ const {
   User,
   CodValueCharge,
   CourierWeightCharge,
+  Coupon,
 } = require("../models");
 const { Op } = require("sequelize");
 const {
@@ -61,7 +62,79 @@ async function getActiveCartWithProducts(userId) {
   });
 }
 
-async function calculateTotals(cart) {
+async function validateCoupon(code, userId, subTotal) {
+  if (!code) return { valid: false };
+
+  const coupon = await Coupon.findOne({
+    where: { code: code.trim().toUpperCase(), is_active: true },
+  });
+  if (!coupon)
+    return { valid: false, message: "Invalid or inactive coupon code" };
+
+  // Date validation
+  const now = new Date();
+  if (coupon.start_date && now < new Date(coupon.start_date)) {
+    return { valid: false, message: "Coupon is not yet active" };
+  }
+  if (coupon.end_date && now > new Date(coupon.end_date)) {
+    return { valid: false, message: "Coupon has expired" };
+  }
+
+  // Usage limit (Global)
+  if (
+    coupon.usage_limit !== null &&
+    coupon.usage_count >= parseInt(coupon.usage_limit)
+  ) {
+    return { valid: false, message: "Coupon usage limit reached" };
+  }
+
+  // Min order value
+  if (subTotal < parseFloat(coupon.min_order_value || 0)) {
+    return {
+      valid: false,
+      message: `Minimum order value of ${coupon.min_order_value} LKR required`,
+    };
+  }
+
+  // New User Logic
+  // Only allow if this is the user's FIRST non-cancelled checkout
+  if (coupon.code === "WELCOME5") {
+    const previousOrders = await Checkout.count({
+      where: {
+        user_id: userId,
+        status: { [Op.ne]: "cancelled" },
+      },
+    });
+    if (previousOrders > 0) {
+      return {
+        valid: false,
+        message: "This coupon is only available for your first order.",
+      };
+    }
+  }
+
+  // Calculate discount
+  let discountAmount = 0;
+  if (coupon.discount_type === "percentage") {
+    discountAmount = subTotal * (parseFloat(coupon.discount_value) / 100);
+    if (
+      coupon.max_discount &&
+      discountAmount > parseFloat(coupon.max_discount)
+    ) {
+      discountAmount = parseFloat(coupon.max_discount);
+    }
+  } else {
+    discountAmount = parseFloat(coupon.discount_value);
+  }
+
+  return {
+    valid: true,
+    coupon,
+    discountAmount: Math.min(discountAmount, subTotal),
+  };
+}
+
+async function calculateTotals(cart, couponCode = null, userId = null) {
   let subTotal = 0;
   let totalWeight = 0;
 
@@ -92,14 +165,35 @@ async function calculateTotals(cart) {
   });
   const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
-  const netTotalWithCod = subTotal + courierCharge + codCharge;
-  const netTotalWithOutCod = subTotal + courierCharge;
+  // Apply Coupon Discount
+  let discountAmount = 0;
+  let appliedCoupon = null;
+  if (couponCode && userId) {
+    const validation = await validateCoupon(couponCode, userId, subTotal);
+    if (!validation.valid) {
+      const error = new Error(validation.message || "Invalid coupon code");
+      error.status = 400;
+      throw error;
+    }
+    discountAmount = validation.discountAmount;
+    appliedCoupon = {
+      code: validation.coupon.code,
+      discount_type: validation.coupon.discount_type,
+      discount_value: validation.coupon.discount_value,
+      amount: discountAmount,
+    };
+  }
+
+  const netTotalWithCod = subTotal + courierCharge + codCharge - discountAmount;
+  const netTotalWithOutCod = subTotal + courierCharge - discountAmount;
 
   return {
     subTotal,
     totalWeight,
     codCharge,
     courierCharge,
+    discountAmount,
+    appliedCoupon,
     netTotalWithCod,
     netTotalWithOutCod,
   };
@@ -144,7 +238,7 @@ async function createCardPaymentResponse(userId, body) {
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  const totals = await calculateTotals(cart);
+  const totals = await calculateTotals(cart, body?.coupon_code, userId);
   if (totals.subTotal <= 0) {
     return {
       status: 400,
@@ -197,6 +291,12 @@ async function createCardPaymentResponse(userId, body) {
     created_at: new Date(),
     updated_at: new Date(),
   });
+
+  if (totals.appliedCoupon) {
+    await Coupon.increment("usage_count", {
+      where: { code: totals.appliedCoupon.code },
+    });
+  }
 
   const user = await User.findOne({ where: { id: userId } });
   if (user) {
@@ -284,7 +384,11 @@ exports.createCheckout = async (req, res, next) => {
         .filter((it) => it.product.prod_code !== "N/A");
     }
 
-    const totals = await calculateTotals(cart);
+    const totals = await calculateTotals(
+      cart,
+      req.body.coupon_code,
+      req.user.id,
+    );
 
     const checkout = await Checkout.create({
       order_id: orderId,
@@ -301,6 +405,12 @@ exports.createCheckout = async (req, res, next) => {
       created_at: new Date(),
       updated_at: new Date(),
     });
+
+    if (totals.appliedCoupon) {
+      await Coupon.increment("usage_count", {
+        where: { code: totals.appliedCoupon.code },
+      });
+    }
 
     const user = await User.findOne({ where: { id: req.user.id } });
     if (user) {
