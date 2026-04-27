@@ -2552,6 +2552,75 @@
         }
       }
     },
+    "/api/v1/checkout/apply-coupon": {
+      "post": {
+        "summary": "Apply coupon to current active cart",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["coupon_code"],
+                "properties": {
+                  "coupon_code": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coupon applied successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "subTotal": { "type": "number" },
+                        "totalWeight": { "type": "number" },
+                        "codCharge": { "type": "number" },
+                        "courierCharge": { "type": "number" },
+                        "discountAmount": { "type": "number" },
+                        "appliedCoupon": {
+                          "type": "object",
+                          "properties": {
+                            "code": { "type": "string" },
+                            "discount_type": { "type": "string" },
+                            "discount_value": { "type": "number" },
+                            "amount": { "type": "number" }
+                          }
+                        },
+                        "netTotalWithCod": { "type": "number" },
+                        "netTotalWithOutCod": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid coupon or empty cart"
+          },
+          "404": {
+            "description": "Cart not found"
+          }
+        }
+      }
+    },
     "/api/v1/checkout/{order_id}/status": {
       "put": {
         "summary": "Update checkout status",
@@ -3338,6 +3407,79 @@
           },
           "404": {
             "description": "Not found"
+          }
+        }
+      }
+    },
+    "/api/v1/pick-and-collect/apply-coupon": {
+      "post": {
+        "summary": "Apply coupon to pick and collect order",
+        "tags": ["Pick & Collect"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["coupon_code", "prod_code", "picked_qty"],
+                "properties": {
+                  "coupon_code": {
+                    "type": "string"
+                  },
+                  "prod_code": {
+                    "type": "string",
+                    "example": "P00000001"
+                  },
+                  "picked_qty": {
+                    "type": "number",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coupon applied successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "totals": {
+                      "type": "object",
+                      "properties": {
+                        "subTotal": { "type": "number" },
+                        "discountAmount": { "type": "number" },
+                        "appliedCoupon": {
+                          "type": "object",
+                          "properties": {
+                            "code": { "type": "string" },
+                            "discount_type": { "type": "string" },
+                            "discount_value": { "type": "number" },
+                            "amount": { "type": "number" }
+                          }
+                        },
+                        "netTotal": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid coupon or missing fields"
+          },
+          "404": {
+            "description": "Product not found"
           }
         }
       }
