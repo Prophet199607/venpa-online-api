@@ -39,7 +39,6 @@ const ENTITY_CONFIG = {
   product_authors: { model: ProductAuthor, key: "id" },
   product_sub_categories: { model: ProductSubCategory, key: "id" },
   product_images: { model: ProductImage, key: ["prod_code", "image"] },
-  stock_masters: { model: StockMaster, key: "id" },
 };
 
 function getFetcher() {
@@ -266,7 +265,6 @@ async function syncAll(options = {}) {
   results.push(await syncEntity("product_authors", options));
   results.push(await syncEntity("product_sub_categories", options));
   results.push(await syncEntity("product_images", options));
-  results.push(await syncEntity("stock_masters", options));
   results.push(await syncEntity("cod_value_charges", options));
   results.push(await syncEntity("courier_weight_charges", options));
   return results;
