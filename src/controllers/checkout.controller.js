@@ -117,23 +117,6 @@ async function validateCoupon(code, userId, subTotal, orderType = null) {
     };
   }
 
-  // New User Logic
-  // Only allow if this is the user's FIRST non-cancelled checkout
-  if (coupon.code === "WELCOME5") {
-    const previousOrders = await Checkout.count({
-      where: {
-        user_id: userId,
-        status: { [Op.ne]: "cancelled" },
-      },
-    });
-    if (previousOrders > 0) {
-      return {
-        valid: false,
-        message: "This coupon is only available for your first order.",
-      };
-    }
-  }
-
   // Calculate discount
   let discountAmount = 0;
   if (coupon.discount_type === "percentage") {

@@ -122,21 +122,6 @@ exports.applyCouponToCart = async (req, res, next) => {
       });
     }
 
-    // New User Logic
-    if (coupon.code === "WELCOME5") {
-      const previousOrders = await Checkout.count({
-        where: {
-          user_id: userId,
-          status: { [Op.ne]: "cancelled" },
-        },
-      });
-      if (previousOrders > 0) {
-        return res.status(400).json({
-          message: "This coupon is only available for your first order.",
-        });
-      }
-    }
-
     // Calculate discount
     let discountAmount = 0;
     if (coupon.discount_type === "percentage") {
@@ -266,21 +251,6 @@ exports.applyCouponToPickAndCollect = async (req, res, next) => {
       return res.status(400).json({
         message: `Minimum order value of ${coupon.min_order_value} LKR required`,
       });
-    }
-
-    // New User Logic
-    if (coupon.code === "WELCOME5") {
-      const previousOrders = await Checkout.count({
-        where: {
-          user_id: userId,
-          status: { [Op.ne]: "cancelled" },
-        },
-      });
-      if (previousOrders > 0) {
-        return res.status(400).json({
-          message: "This coupon is only available for your first order.",
-        });
-      }
     }
 
     // Calculate discount
