@@ -1,4 +1,13 @@
-const { Cart, CartItem, Product, Coupon, CodValueCharge, CourierWeightCharge, Checkout } = require("../models");
+const {
+  Cart,
+  CartItem,
+  Product,
+  Coupon,
+  CodValueCharge,
+  CourierWeightCharge,
+  Checkout,
+  CouponUsage,
+} = require("../models");
 const { Op } = require("sequelize");
 
 async function getActiveCartWithProducts(userId) {
@@ -35,7 +44,7 @@ exports.applyCouponToCart = async (req, res, next) => {
 
     const userId = req.user.id;
     const cart = await getActiveCartWithProducts(userId);
-    
+
     if (!cart) {
       return res.status(404).json({ message: "Active cart not found" });
     }
@@ -61,7 +70,32 @@ exports.applyCouponToCart = async (req, res, next) => {
     });
 
     if (!coupon) {
-      return res.status(400).json({ message: "Invalid or inactive coupon code" });
+      return res
+        .status(400)
+        .json({ message: "Invalid or inactive coupon code" });
+    }
+
+    // Check if user already used this coupon
+    const usage = await CouponUsage.findOne({
+      where: { user_id: userId, coupon_id: coupon.id },
+    });
+    if (usage) {
+      return res
+        .status(400)
+        .json({ message: "You have already used this coupon code" });
+    }
+
+    // Order type validation
+    const { order_type } = req.body; // e.g. 'cod', 'payhere'
+    if (order_type === "cod" && !coupon.is_cod) {
+      return res
+        .status(400)
+        .json({ message: "Coupon is not valid for Cash on Delivery" });
+    }
+    if (order_type === "payhere" && !coupon.is_card_payment) {
+      return res
+        .status(400)
+        .json({ message: "Coupon is not valid for Card Payments" });
     }
 
     // Date validation
@@ -136,7 +170,8 @@ exports.applyCouponToCart = async (req, res, next) => {
     });
     const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
-    const netTotalWithCod = subTotal + courierCharge + codCharge - discountAmount;
+    const netTotalWithCod =
+      subTotal + courierCharge + codCharge - discountAmount;
     const netTotalWithOutCod = subTotal + courierCharge - discountAmount;
 
     res.json({
@@ -155,9 +190,8 @@ exports.applyCouponToCart = async (req, res, next) => {
         },
         netTotalWithCod,
         netTotalWithOutCod,
-      }
+      },
     });
-
   } catch (e) {
     next(e);
   }
@@ -170,7 +204,9 @@ exports.applyCouponToPickAndCollect = async (req, res, next) => {
       return res.status(400).json({ message: "coupon_code is required" });
     }
     if (!prod_code || !picked_qty) {
-      return res.status(400).json({ message: "prod_code and picked_qty are required" });
+      return res
+        .status(400)
+        .json({ message: "prod_code and picked_qty are required" });
     }
 
     const userId = req.user.id;
@@ -187,7 +223,25 @@ exports.applyCouponToPickAndCollect = async (req, res, next) => {
     });
 
     if (!coupon) {
-      return res.status(400).json({ message: "Invalid or inactive coupon code" });
+      return res
+        .status(400)
+        .json({ message: "Invalid or inactive coupon code" });
+    }
+
+    // Check usage
+    const usage = await CouponUsage.findOne({
+      where: { user_id: userId, coupon_id: coupon.id },
+    });
+    if (usage) {
+      return res
+        .status(400)
+        .json({ message: "You have already used this coupon code" });
+    }
+
+    if (!coupon.is_pick_and_collect) {
+      return res
+        .status(400)
+        .json({ message: "Coupon is not valid for Pick & Collect" });
     }
 
     // Date validation
@@ -257,10 +311,9 @@ exports.applyCouponToPickAndCollect = async (req, res, next) => {
           discount_value: coupon.discount_value,
           amount: discountAmount,
         },
-        netTotal
-      }
+        netTotal,
+      },
     });
-
   } catch (e) {
     next(e);
   }

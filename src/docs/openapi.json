@@ -732,7 +732,12 @@
 
         "parameters": [
           { "name": "code", "in": "query", "schema": { "type": "string" } },
-          { "name": "is_active", "in": "query", "schema": { "type": "string" } }
+          {
+            "name": "is_active",
+            "in": "query",
+            "schema": { "type": "string" }
+          },
+          { "name": "user_id", "in": "query", "schema": { "type": "integer" } }
         ],
         "responses": { "200": { "description": "OK" } }
       },
@@ -760,6 +765,9 @@
                   "start_date": { "type": "string", "format": "date-time" },
                   "end_date": { "type": "string", "format": "date-time" },
                   "usage_limit": { "type": "integer" },
+                  "is_cod": { "type": "boolean" },
+                  "is_card_payment": { "type": "boolean" },
+                  "is_pick_and_collect": { "type": "boolean" },
                   "is_active": { "type": "boolean" }
                 }
               }
@@ -814,6 +822,9 @@
                   "start_date": { "type": "string", "format": "date-time" },
                   "end_date": { "type": "string", "format": "date-time" },
                   "usage_limit": { "type": "integer" },
+                  "is_cod": { "type": "boolean" },
+                  "is_card_payment": { "type": "boolean" },
+                  "is_pick_and_collect": { "type": "boolean" },
                   "is_active": { "type": "boolean" }
                 }
               }
@@ -2094,6 +2105,10 @@
                       "delivery",
                       "canceled"
                     ]
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "Optional location code to override the fulfillment branch for stock deduction"
                   }
                 }
               }
@@ -2571,6 +2586,10 @@
                 "properties": {
                   "coupon_code": {
                     "type": "string"
+                  },
+                  "order_type": {
+                    "type": "string",
+                    "description": "The type of order (cod, payhere) to validate against. Optional."
                   }
                 }
               }
@@ -3391,7 +3410,10 @@
                         "location_name": { "type": "string" },
                         "type": { "type": "integer" },
                         "type_name": { "type": "string" },
-                        "status": { "type": "string" }
+                        "status": { "type": "string" },
+                        "coupon_code": { "type": "string" },
+                        "discount_amount": { "type": "number" },
+                        "net_amount": { "type": "number" }
                       }
                     }
                   }

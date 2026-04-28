@@ -54,6 +54,21 @@ const Coupon = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    is_cod: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    is_card_payment: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
+    is_pick_and_collect: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

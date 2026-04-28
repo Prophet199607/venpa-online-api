@@ -11,6 +11,7 @@ const {
 const {
   NOTIFICATION_TYPES,
 } = require("../../services/notifications/notificationTypes");
+const { deductStock } = require("../../services/products/stockService");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
@@ -373,7 +374,7 @@ exports.getOrderById = async (req, res, next) => {
 exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { order_id: rawOrderId } = req.params;
-    const { status } = req.body || {};
+    const { status, location: overrideLocation } = req.body || {};
 
     if (!status) {
       return res.status(400).json({ message: "status is required" });
@@ -388,7 +389,62 @@ exports.updateOrderStatus = async (req, res, next) => {
       where: { order_id: orderIdValue },
     });
     if (checkout) {
-      await checkout.update({ status, updated_at: new Date() });
+      const oldStatus = checkout.status;
+      const updateData = { status, updated_at: new Date() };
+
+      if (overrideLocation) {
+        let payload = checkout.payload || {};
+        if (typeof payload === "string") {
+          try {
+            payload = JSON.parse(payload);
+          } catch (e) {}
+        }
+        // Create a new object to ensure Sequelize detects the change in a JSON field
+        updateData.payload = {
+          ...payload,
+          location: overrideLocation,
+        };
+      }
+
+      await checkout.update(updateData);
+
+      // Deduct stock only when transitioning to confirmed/paid from a pending/non-confirmed state
+      const confirmedStatuses = "confirmed";
+      console.log(
+        `[OrderUpdate] Checkout ${orderIdValue} status: ${oldStatus} -> ${status}`,
+      );
+      if (
+        confirmedStatuses.includes(status.toLowerCase()) &&
+        !confirmedStatuses.includes(oldStatus.toLowerCase())
+      ) {
+        const payload = checkout.payload || {};
+        const items = payload.items || [];
+        const location = overrideLocation || payload.location || "001";
+        const device = payload.device;
+        const iid = device === 3 ? "WEB" : "APP";
+
+        console.log(
+          `[OrderUpdate] Triggering stock deduction for ${items.length} items at location ${location}`,
+        );
+
+        for (const item of items) {
+          const prodCode = item.product?.prod_code || item.prod_code;
+          const price = item.product?.selling_price || 0;
+          if (prodCode && prodCode !== "N/A") {
+            console.log(
+              `[OrderUpdate] Deducting ${item.quantity} units of ${prodCode} at ${price}`,
+            );
+            await deductStock(prodCode, location, item.quantity, iid).catch(
+              (err) =>
+                console.error(
+                  `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
+                  err,
+                ),
+            );
+          }
+        }
+      }
+
       await sendToUser(checkout.user_id, {
         title: "Order status updated",
         body: `Your order ${checkout.order_id} status is now ${status}.`,
@@ -410,7 +466,42 @@ exports.updateOrderStatus = async (req, res, next) => {
       where: { pick_and_collect_id: orderIdValue },
     });
     if (pickAndCollect) {
-      await pickAndCollect.update({ status, updated_at: new Date() });
+      const oldStatus = pickAndCollect.status;
+      const updateData = { status, updated_at: new Date() };
+
+      if (overrideLocation) {
+        updateData.location = overrideLocation;
+      }
+
+      await pickAndCollect.update(updateData);
+
+      // Deduct stock only when transitioning to confirmed/paid
+      const confirmedStatuses = "confirmed";
+      console.log(
+        `[OrderUpdate] PickAndCollect ${orderIdValue} status: ${oldStatus} -> ${status}`,
+      );
+      if (
+        confirmedStatuses.includes(status.toLowerCase()) &&
+        !confirmedStatuses.includes(oldStatus.toLowerCase())
+      ) {
+        const iid = Number(pickAndCollect.type) === 3 ? "WEB" : "APP";
+        const location = overrideLocation || pickAndCollect.location;
+        console.log(
+          `[OrderUpdate] Deducting ${pickAndCollect.picked_qty} units of ${pickAndCollect.prod_code} at location ${location}`,
+        );
+        await deductStock(
+          pickAndCollect.prod_code,
+          location,
+          pickAndCollect.picked_qty,
+          iid,
+        ).catch((err) =>
+          console.error(
+            `[OrderUpdate] Stock deduction failed for ${pickAndCollect.prod_code}:`,
+            err,
+          ),
+        );
+      }
+
       await sendToUser(pickAndCollect.user_id, {
         title: "Order status updated",
         body: `Your order ${pickAndCollect.pick_and_collect_id} status is now ${status}.`,

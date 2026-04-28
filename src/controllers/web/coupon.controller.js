@@ -1,4 +1,5 @@
-const { Coupon } = require("../../models");
+const { Coupon, CouponUsage } = require("../../models");
+const { Op } = require("sequelize");
 
 exports.listCoupons = async (req, res, next) => {
   try {
@@ -10,6 +11,20 @@ exports.listCoupons = async (req, res, next) => {
     }
     if (is_active !== undefined) {
       where.is_active = is_active === "true" || is_active === "1";
+    }
+
+    // Filter out used coupons if user context is available
+    const userId = req.query.user_id || req.user?.id;
+    if (userId) {
+      const usedCoupons = await CouponUsage.findAll({
+        where: { user_id: userId },
+        attributes: ["coupon_id"],
+        raw: true,
+      });
+      const usedIds = usedCoupons.map((u) => u.coupon_id);
+      if (usedIds.length > 0) {
+        where.id = { [Op.notIn]: usedIds };
+      }
     }
 
     const items = await Coupon.findAll({
@@ -45,6 +60,9 @@ exports.createCoupon = async (req, res, next) => {
       start_date,
       end_date,
       usage_limit,
+      is_cod,
+      is_card_payment,
+      is_pick_and_collect,
       is_active,
     } = req.body;
 
@@ -68,6 +86,9 @@ exports.createCoupon = async (req, res, next) => {
       start_date,
       end_date,
       usage_limit,
+      is_cod: is_cod ?? true,
+      is_card_payment: is_card_payment ?? true,
+      is_pick_and_collect: is_pick_and_collect ?? true,
       is_active: is_active ?? true,
       created_at: new Date(),
       updated_at: new Date(),

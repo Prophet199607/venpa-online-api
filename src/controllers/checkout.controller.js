@@ -9,6 +9,7 @@ const {
   CodValueCharge,
   CourierWeightCharge,
   Coupon,
+  CouponUsage,
 } = require("../models");
 const { Op } = require("sequelize");
 const {
@@ -18,6 +19,7 @@ const {
 const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
+const { checkStockAvailability } = require("../services/products/stockService");
 const {
   sendOrderConfirmationEmail,
   generateOrderInvoiceHtml,
@@ -62,7 +64,7 @@ async function getActiveCartWithProducts(userId) {
   });
 }
 
-async function validateCoupon(code, userId, subTotal) {
+async function validateCoupon(code, userId, subTotal, orderType = null) {
   if (!code) return { valid: false };
 
   const coupon = await Coupon.findOne({
@@ -70,6 +72,25 @@ async function validateCoupon(code, userId, subTotal) {
   });
   if (!coupon)
     return { valid: false, message: "Invalid or inactive coupon code" };
+
+  // Check if user already used this coupon
+  const usage = await CouponUsage.findOne({
+    where: { user_id: userId, coupon_id: coupon.id },
+  });
+  if (usage) {
+    return { valid: false, message: "You have already used this coupon code" };
+  }
+
+  // Order type validation
+  if (orderType === 1 && !coupon.is_card_payment) {
+    return { valid: false, message: "Coupon is not valid for Card Payments" };
+  }
+  if (orderType === 2 && !coupon.is_cod) {
+    return {
+      valid: false,
+      message: "Coupon is not valid for Cash on Delivery",
+    };
+  }
 
   // Date validation
   const now = new Date();
@@ -133,8 +154,14 @@ async function validateCoupon(code, userId, subTotal) {
     discountAmount: Math.min(discountAmount, subTotal),
   };
 }
+exports.validateCoupon = validateCoupon;
 
-async function calculateTotals(cart, couponCode = null, userId = null) {
+async function calculateTotals(
+  cart,
+  couponCode = null,
+  userId = null,
+  orderType = null,
+) {
   let subTotal = 0;
   let totalWeight = 0;
 
@@ -169,7 +196,12 @@ async function calculateTotals(cart, couponCode = null, userId = null) {
   let discountAmount = 0;
   let appliedCoupon = null;
   if (couponCode && userId) {
-    const validation = await validateCoupon(couponCode, userId, subTotal);
+    const validation = await validateCoupon(
+      couponCode,
+      userId,
+      subTotal,
+      orderType,
+    );
     if (!validation.valid) {
       const error = new Error(validation.message || "Invalid coupon code");
       error.status = 400;
@@ -177,6 +209,7 @@ async function calculateTotals(cart, couponCode = null, userId = null) {
     }
     discountAmount = validation.discountAmount;
     appliedCoupon = {
+      id: validation.coupon.id,
       code: validation.coupon.code,
       discount_type: validation.coupon.discount_type,
       discount_value: validation.coupon.discount_value,
@@ -198,6 +231,37 @@ async function calculateTotals(cart, couponCode = null, userId = null) {
     netTotalWithOutCod,
   };
 }
+
+async function consumeCoupon(userId, couponId, orderId) {
+  if (!couponId) return;
+
+  const { Coupon, CouponUsage } = require("../models");
+  const sequelize = require("../config/db");
+
+  const transaction = await sequelize.transaction();
+  try {
+    const coupon = await Coupon.findByPk(couponId, { transaction });
+    if (coupon) {
+      // 1. Record usage per user
+      await CouponUsage.create(
+        {
+          user_id: userId,
+          coupon_id: couponId,
+          order_id: String(orderId),
+        },
+        { transaction },
+      );
+
+      // 2. Increment global usage count
+      await coupon.increment("usage_count", { by: 1, transaction });
+    }
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error consuming coupon:", error);
+  }
+}
+exports.consumeCoupon = consumeCoupon;
 
 function buildPayHereHash(orderId, amount) {
   const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
@@ -238,16 +302,22 @@ async function createCardPaymentResponse(userId, body) {
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  const totals = await calculateTotals(cart, body?.coupon_code, userId);
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1);
   if (totals.subTotal <= 0) {
     return {
       status: 400,
-      body: { message: "Cart is empty or has invalid pricing" },
+      body: { message: "Cart total must be greater than zero" },
     };
   }
 
-  const amountValue = totals.netTotalWithOutCod;
   const orderId = generateOrderId();
+
+  // Consume coupon
+  if (totals.appliedCoupon) {
+    await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+  }
+
+  const amountValue = totals.netTotalWithOutCod;
   const { type: _type, ...payload } = body || {};
   const amount = amountValue.toFixed(2);
   const hashPayload = buildPayHereHash(orderId, amount);
@@ -256,7 +326,7 @@ async function createCardPaymentResponse(userId, body) {
     return { status: 500, body: { message: hashPayload.error } };
   }
 
-  // Extract items data for payload and email reconstruction
+  // Stock Availability Check (before payment)
   const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
   const rawCartItems =
     cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
@@ -276,6 +346,17 @@ async function createCardPaymentResponse(userId, body) {
     }))
     .filter((it) => it.product.prod_code !== "N/A");
 
+  const stockCheck = await checkStockAvailability(items);
+  if (!stockCheck.available) {
+    return {
+      status: 400,
+      body: {
+        message: "Some items in your cart are out of stock",
+        missingItems: stockCheck.missingItems,
+      },
+    };
+  }
+
   const checkout = await Checkout.create({
     order_id: orderId,
     user_id: userId,
@@ -286,17 +367,12 @@ async function createCardPaymentResponse(userId, body) {
       items,
       prod_codes: items.map((i) => i.product.prod_code),
       totals,
+      location: "001", // Store deduction location
     },
     status: "pending",
     created_at: new Date(),
     updated_at: new Date(),
   });
-
-  if (totals.appliedCoupon) {
-    await Coupon.increment("usage_count", {
-      where: { code: totals.appliedCoupon.code },
-    });
-  }
 
   const user = await User.findOne({ where: { id: userId } });
   if (user) {
@@ -382,12 +458,21 @@ exports.createCheckout = async (req, res, next) => {
           quantity: Number(item.quantity || 1),
         }))
         .filter((it) => it.product.prod_code !== "N/A");
+
+      const stockCheck = await checkStockAvailability(items);
+      if (!stockCheck.available) {
+        return res.status(400).json({
+          message: "Some items in your cart are out of stock",
+          missingItems: stockCheck.missingItems,
+        });
+      }
     }
 
     const totals = await calculateTotals(
       cart,
       req.body.coupon_code,
       req.user.id,
+      type,
     );
 
     const checkout = await Checkout.create({
@@ -400,16 +485,16 @@ exports.createCheckout = async (req, res, next) => {
         items,
         prod_codes: items.map((i) => i.product.prod_code),
         totals,
+        location: "001",
       },
       status: "pending",
       created_at: new Date(),
       updated_at: new Date(),
     });
 
+    // Consume coupon
     if (totals.appliedCoupon) {
-      await Coupon.increment("usage_count", {
-        where: { code: totals.appliedCoupon.code },
-      });
+      await consumeCoupon(req.user.id, totals.appliedCoupon.id, orderId);
     }
 
     const user = await User.findOne({ where: { id: req.user.id } });

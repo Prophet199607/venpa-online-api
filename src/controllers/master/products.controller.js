@@ -243,10 +243,10 @@ exports.pickAndCollectLocations = async (req, res, next) => {
       },
       attributes: [
         "location",
-        [sequelize.fn("SUM", sequelize.col("qty")), "available_qty"],
+        [StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")), "available_qty"],
       ],
       group: ["location"],
-      having: sequelize.where(sequelize.fn("SUM", sequelize.col("qty")), {
+      having: StockMaster.sequelize.where(StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")), {
         [Op.gt]: 0,
       }),
       order: [["location", "ASC"]],

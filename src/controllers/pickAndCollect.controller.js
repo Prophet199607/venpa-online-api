@@ -15,6 +15,7 @@ const {
 const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
+const { validateCoupon, consumeCoupon } = require("./checkout.controller");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
@@ -87,7 +88,12 @@ async function getAvailableQty(prodCode, location) {
       prod_code: prodCode,
       location,
     },
-    attributes: [[sequelize.fn("SUM", sequelize.col("qty")), "available_qty"]],
+    attributes: [
+      [
+        StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")),
+        "available_qty",
+      ],
+    ],
     raw: true,
   });
 
@@ -134,7 +140,10 @@ async function serializeRows(rows) {
           attributes: [
             "prod_code",
             "location",
-            [sequelize.fn("SUM", sequelize.col("qty")), "available_qty"],
+            [
+              StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")),
+              "available_qty",
+            ],
           ],
           group: ["prod_code", "location"],
           raw: true,
@@ -177,6 +186,9 @@ async function serializeRows(rows) {
       type_name: item.type_name,
       picked_qty: Number(item.picked_qty || 0),
       status: item.status,
+      coupon_code: item.coupon_code,
+      discount_amount: Number(item.discount_amount || 0),
+      net_amount: Number(item.net_amount || 0),
       created_at: item.created_at || null,
       updated_at: item.updated_at || null,
       product: normalizedProdCode
@@ -284,7 +296,9 @@ async function validatePickAndCollectPayload(body) {
 
 async function createPickAndCollectResponse(userId, body, forcedType = null) {
   const normalizedBody =
-    forcedType === null ? body : { ...(body || {}), type: forcedType };
+    forcedType === null
+      ? body
+      : { ...(body || {}), type: forcedType, coupon_code: body?.coupon_code };
   const validated = await validatePickAndCollectPayload(normalizedBody || {});
   if (validated.error) {
     return validated.error;
@@ -296,8 +310,32 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
   const pickAndCollectId = generatePickAndCollectId();
   const now = new Date();
 
+  // Coupon handling
+  let discountAmount = 0;
+  let couponCode = normalizedBody.coupon_code;
+  let subTotal = Number(product?.selling_price || 0) * pickedQty;
+  let appliedCouponId = null;
+
+  if (couponCode) {
+    const validation = await validateCoupon(couponCode, userId, subTotal);
+    if (!validation.valid) {
+      return { status: 400, body: { message: validation.message } };
+    }
+    // Check if valid for P&C
+    if (!validation.coupon.is_pick_and_collect) {
+      return {
+        status: 400,
+        body: { message: "Coupon is not valid for Pick & Collect" },
+      };
+    }
+    discountAmount = validation.discountAmount;
+    appliedCouponId = validation.coupon.id;
+  }
+
+  const netAmount = subTotal - discountAmount;
+
   if (type === 1) {
-    const amountValue = Number(product?.selling_price || 0) * pickedQty;
+    const amountValue = netAmount;
     if (!Number.isFinite(amountValue) || amountValue <= 0) {
       return {
         status: 400,
@@ -321,9 +359,16 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       type_name: "pick & collect",
       picked_qty: pickedQty,
       status: "pending",
+      coupon_code: couponCode,
+      discount_amount: discountAmount,
+      net_amount: netAmount,
       created_at: now,
       updated_at: now,
     });
+
+    if (appliedCouponId) {
+      await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+    }
 
     const [serialized] = await serializeRows([row]);
 
@@ -365,9 +410,16 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     type_name: "pick & collect",
     picked_qty: pickedQty,
     status: "pending",
+    coupon_code: couponCode,
+    discount_amount: discountAmount,
+    net_amount: netAmount,
     created_at: now,
     updated_at: now,
   });
+
+  if (appliedCouponId) {
+    await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+  }
 
   const [serialized] = await serializeRows([row]);
 

@@ -34,6 +34,7 @@ const CourierWeightCharge = require("./CourierWeightCharge");
 const MediaAsset = require("./MediaAsset");
 const NotificationLog = require("./NotificationLog");
 const Coupon = require("./Coupon");
+const CouponUsage = require("./CouponUsage");
 
 // Associations
 Department.hasMany(Category, {
@@ -183,6 +184,12 @@ ShippingAddress.belongsTo(User, { foreignKey: "user_id" });
 User.hasMany(NotificationLog, { foreignKey: "user_id" });
 NotificationLog.belongsTo(User, { foreignKey: "user_id" });
 
+// Coupon Usages
+User.hasMany(CouponUsage, { foreignKey: "user_id" });
+CouponUsage.belongsTo(User, { foreignKey: "user_id" });
+Coupon.hasMany(CouponUsage, { foreignKey: "coupon_id" });
+CouponUsage.belongsTo(Coupon, { foreignKey: "coupon_id" });
+
 module.exports = {
   sequelize,
   Department,
@@ -220,4 +227,5 @@ module.exports = {
   MediaAsset,
   NotificationLog,
   Coupon,
+  CouponUsage,
 };
