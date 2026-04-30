@@ -7,6 +7,7 @@ const {
   Location,
   StockMaster,
   SubCategory,
+  ProductDiscount,
   sequelize,
 } = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
@@ -18,7 +19,9 @@ function normalizeLocationCode(value) {
 }
 
 async function buildLocationMap(locationCodes) {
-  const normalizedCodes = [...new Set(locationCodes.map(normalizeLocationCode).filter(Boolean))];
+  const normalizedCodes = [
+    ...new Set(locationCodes.map(normalizeLocationCode).filter(Boolean)),
+  ];
   if (!normalizedCodes.length) return new Map();
 
   const rows = await Location.findAll({
@@ -42,6 +45,11 @@ function productIncludes() {
       model: ProductImage,
       as: "images",
       attributes: { exclude: ["id", "product_id"] },
+    },
+    {
+      model: ProductDiscount,
+      as: "productDiscounts",
+      attributes: { exclude: ["id", "prod_code"] },
     },
   ];
 }
@@ -124,7 +132,8 @@ exports.list = async (req, res, next) => {
       }),
     ]);
 
-    const totalFrames = totalProducts > 0 ? Math.ceil(totalProducts / limit) : 0;
+    const totalFrames =
+      totalProducts > 0 ? Math.ceil(totalProducts / limit) : 0;
 
     res.json({
       frame,
@@ -243,19 +252,25 @@ exports.pickAndCollectLocations = async (req, res, next) => {
       },
       attributes: [
         "location",
-        [StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")), "available_qty"],
+        [
+          StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")),
+          "available_qty",
+        ],
       ],
       group: ["location"],
-      having: StockMaster.sequelize.where(StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")), {
-        [Op.gt]: 0,
-      }),
+      having: StockMaster.sequelize.where(
+        StockMaster.sequelize.fn("SUM", StockMaster.sequelize.col("qty")),
+        {
+          [Op.gt]: 0,
+        },
+      ),
       order: [["location", "ASC"]],
       raw: true,
     });
 
     const enriched = await enrichProducts([product]);
     const locationMap = await buildLocationMap(
-      locations.map((item) => item.location)
+      locations.map((item) => item.location),
     );
 
     res.json({
@@ -263,7 +278,8 @@ exports.pickAndCollectLocations = async (req, res, next) => {
       locations: locations.map((item) => ({
         location: item.location,
         location_name:
-          locationMap.get(normalizeLocationCode(item.location))?.loca_name || null,
+          locationMap.get(normalizeLocationCode(item.location))?.loca_name ||
+          null,
         available_qty: Number(item.available_qty || 0),
         location_details:
           locationMap.get(normalizeLocationCode(item.location)) || null,

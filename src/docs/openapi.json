@@ -3917,6 +3917,21 @@
             "type": "string",
             "nullable": true
           },
+          "active_discount": {
+            "$ref": "#/components/schemas/ProductDiscount",
+            "nullable": true
+          },
+          "discount_amount": {
+            "type": "number",
+            "format": "float"
+          },
+          "discount_percentage": {
+            "type": "number",
+            "format": "float"
+          },
+          "discounted_price": {
+            "type": "string"
+          },
           "marked_price": {
             "type": "number",
             "format": "float"

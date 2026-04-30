@@ -24,7 +24,9 @@ function toPlainProducts(items) {
 
 async function buildPublisherMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.publisher)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.publisher)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -45,7 +47,9 @@ async function buildPublisherMap(products) {
 
 async function buildDepartmentMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.department)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.department)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -66,7 +70,9 @@ async function buildDepartmentMap(products) {
 
 async function buildCategoryMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.category)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.category)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -87,7 +93,9 @@ async function buildCategoryMap(products) {
 
 async function buildSubCategoryMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.sub_category)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.sub_category)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -108,7 +116,9 @@ async function buildSubCategoryMap(products) {
 
 async function buildSubCategoriesByProductMap(products) {
   const prodCodes = [
-    ...new Set(products.map((item) => normalizeCode(item.prod_code)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.prod_code)).filter(Boolean),
+    ),
   ];
 
   if (!prodCodes.length) return new Map();
@@ -122,7 +132,9 @@ async function buildSubCategoriesByProductMap(products) {
   if (!links.length) return new Map();
 
   const subCategoryIds = [
-    ...new Set(links.map((item) => Number(item.sub_category_id)).filter(Boolean)),
+    ...new Set(
+      links.map((item) => Number(item.sub_category_id)).filter(Boolean),
+    ),
   ];
 
   if (!subCategoryIds.length) return new Map();
@@ -149,7 +161,13 @@ async function buildSubCategoriesByProductMap(products) {
     if (!productCode || !subCategory?.scat_code) continue;
 
     const existing = map.get(productCode) || [];
-    if (!existing.some((item) => normalizeCode(item.scat_code) === normalizeCode(subCategory.scat_code))) {
+    if (
+      !existing.some(
+        (item) =>
+          normalizeCode(item.scat_code) ===
+          normalizeCode(subCategory.scat_code),
+      )
+    ) {
       existing.push(subCategory);
       map.set(productCode, existing);
     }
@@ -160,7 +178,9 @@ async function buildSubCategoriesByProductMap(products) {
 
 async function buildAuthorsByProductMap(products) {
   const prodCodes = [
-    ...new Set(products.map((item) => normalizeCode(item.prod_code)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.prod_code)).filter(Boolean),
+    ),
   ];
 
   if (!prodCodes.length) return new Map();
@@ -224,18 +244,25 @@ async function buildAuthorsByProductMap(products) {
     const productCode = normalizeCode(link.prod_code);
     if (!productCode) continue;
 
-    const codeFromId = link.author_id ? authorCodeById.get(Number(link.author_id)) : null;
-    const nameFromId = link.author_id ? authorNameById.get(Number(link.author_id)) : null;
+    const codeFromId = link.author_id
+      ? authorCodeById.get(Number(link.author_id))
+      : null;
+    const nameFromId = link.author_id
+      ? authorNameById.get(Number(link.author_id))
+      : null;
     const nameFromCode = normalizeCode(link.auth_code)
       ? authorNameByCode.get(normalizeCode(link.auth_code))
       : null;
-    const authorCode = normalizeCode(link.auth_code) || normalizeCode(codeFromId);
+    const authorCode =
+      normalizeCode(link.auth_code) || normalizeCode(codeFromId);
     const authorName = nameFromId || nameFromCode || null;
 
     if (!authorCode && !authorName) continue;
 
     const existing = authorsByProduct.get(productCode) || [];
-    if (!existing.some((item) => normalizeCode(item.auth_code) === authorCode)) {
+    if (
+      !existing.some((item) => normalizeCode(item.auth_code) === authorCode)
+    ) {
       existing.push({
         auth_code: authorCode || null,
         auth_name: authorName || null,
@@ -249,7 +276,9 @@ async function buildAuthorsByProductMap(products) {
 
 async function buildBookTypeMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.book_type)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.book_type)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -270,7 +299,9 @@ async function buildBookTypeMap(products) {
 
 async function buildLanguageMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.language)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.language)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -291,7 +322,9 @@ async function buildLanguageMap(products) {
 
 async function buildStockMap(products) {
   const codes = [
-    ...new Set(products.map((item) => normalizeCode(item.prod_code)).filter(Boolean)),
+    ...new Set(
+      products.map((item) => normalizeCode(item.prod_code)).filter(Boolean),
+    ),
   ];
 
   if (!codes.length) return new Map();
@@ -330,8 +363,7 @@ async function enrichProducts(items) {
     languageMap,
     authorsByProduct,
     stockMap,
-  ] =
-    await Promise.all([
+  ] = await Promise.all([
     buildDepartmentMap(products),
     buildCategoryMap(products),
     buildSubCategoryMap(products),
@@ -341,70 +373,123 @@ async function enrichProducts(items) {
     buildLanguageMap(products),
     buildAuthorsByProductMap(products),
     buildStockMap(products),
-    ]);
+  ]);
 
-  return products.map((product) => {
-    const normalizedDepartmentCode = normalizeCode(product.department);
-    const normalizedCategoryCode = normalizeCode(product.category);
-    const normalizedSubCategoryCode = normalizeCode(product.sub_category);
-    const normalizedPublisherCode = normalizeCode(product.publisher);
-    const normalizedBookTypeCode = normalizeCode(product.book_type);
-    const normalizedLanguageCode = normalizeCode(product.language);
-    const normalizedProdCode = normalizeCode(product.prod_code);
-    const authors = normalizedProdCode
-      ? authorsByProduct.get(normalizedProdCode) || []
-      : [];
-    const authorNames = authors.map((item) => item.auth_name).filter(Boolean);
-    const authorCodes = authors.map((item) => item.auth_code).filter(Boolean);
-    const linkedSubCategories = normalizedProdCode
-      ? subCategoriesByProduct.get(normalizedProdCode) || []
-      : [];
-    const currentAvailableStock = normalizedProdCode
-      ? Number(stockMap.get(normalizedProdCode) || 0)
-      : 0;
-    const resolvedSubCategoryCode =
-      normalizedSubCategoryCode || normalizeCode(linkedSubCategories[0]?.scat_code);
-    const fallbackSubCategories = resolvedSubCategoryCode
-      ? [{
-          scat_code: resolvedSubCategoryCode,
-          scat_name: subCategoryMap.get(resolvedSubCategoryCode) || null,
-        }]
-      : [];
-    const productSubCategories = linkedSubCategories.length
-      ? linkedSubCategories
-      : fallbackSubCategories;
-    const resolvedSubCategoryName =
-      productSubCategories[0]?.scat_name ||
-      (resolvedSubCategoryCode ? subCategoryMap.get(resolvedSubCategoryCode) || null : null);
+  return products
+    .map((product) => {
+      const normalizedDepartmentCode = normalizeCode(product.department);
+      const normalizedCategoryCode = normalizeCode(product.category);
+      const normalizedSubCategoryCode = normalizeCode(product.sub_category);
+      const normalizedPublisherCode = normalizeCode(product.publisher);
+      const normalizedBookTypeCode = normalizeCode(product.book_type);
+      const normalizedLanguageCode = normalizeCode(product.language);
+      const normalizedProdCode = normalizeCode(product.prod_code);
+      const authors = normalizedProdCode
+        ? authorsByProduct.get(normalizedProdCode) || []
+        : [];
+      const authorNames = authors.map((item) => item.auth_name).filter(Boolean);
+      const authorCodes = authors.map((item) => item.auth_code).filter(Boolean);
+      const linkedSubCategories = normalizedProdCode
+        ? subCategoriesByProduct.get(normalizedProdCode) || []
+        : [];
+      const currentAvailableStock = normalizedProdCode
+        ? Number(stockMap.get(normalizedProdCode) || 0)
+        : 0;
+      const resolvedSubCategoryCode =
+        normalizedSubCategoryCode ||
+        normalizeCode(linkedSubCategories[0]?.scat_code);
+      const fallbackSubCategories = resolvedSubCategoryCode
+        ? [
+            {
+              scat_code: resolvedSubCategoryCode,
+              scat_name: subCategoryMap.get(resolvedSubCategoryCode) || null,
+            },
+          ]
+        : [];
+      const productSubCategories = linkedSubCategories.length
+        ? linkedSubCategories
+        : fallbackSubCategories;
+      const resolvedSubCategoryName =
+        productSubCategories[0]?.scat_name ||
+        (resolvedSubCategoryCode
+          ? subCategoryMap.get(resolvedSubCategoryCode) || null
+          : null);
 
-    return {
-      ...product,
-      department_name: normalizedDepartmentCode
-        ? departmentMap.get(normalizedDepartmentCode) || null
-        : null,
-      category_name: normalizedCategoryCode
-        ? categoryMap.get(normalizedCategoryCode) || null
-        : null,
-      sub_category: resolvedSubCategoryCode || null,
-      sub_category_name: resolvedSubCategoryName,
-      sub_categories: productSubCategories,
-      publisher_name: normalizedPublisherCode
-        ? publisherMap.get(normalizedPublisherCode) || null
-        : null,
-      book_type_name: normalizedBookTypeCode
-        ? bookTypeMap.get(normalizedBookTypeCode) || null
-        : null,
-      language_name: normalizedLanguageCode
-        ? languageMap.get(normalizedLanguageCode) || null
-        : null,
-      current_available_stock: currentAvailableStock,
-      isStock: currentAvailableStock > 0 ? 1 : 0,
-      author_code: authorCodes[0] || null,
-      author_codes: authorCodes,
-      author_name: authorNames[0] || null,
-      author_names: authorNames,
-    };
-  });
+      return {
+        ...product,
+        department_name: normalizedDepartmentCode
+          ? departmentMap.get(normalizedDepartmentCode) || null
+          : null,
+        category_name: normalizedCategoryCode
+          ? categoryMap.get(normalizedCategoryCode) || null
+          : null,
+        sub_category: resolvedSubCategoryCode || null,
+        sub_category_name: resolvedSubCategoryName,
+        sub_categories: productSubCategories,
+        publisher_name: normalizedPublisherCode
+          ? publisherMap.get(normalizedPublisherCode) || null
+          : null,
+        book_type_name: normalizedBookTypeCode
+          ? bookTypeMap.get(normalizedBookTypeCode) || null
+          : null,
+        language_name: normalizedLanguageCode
+          ? languageMap.get(normalizedLanguageCode) || null
+          : null,
+        current_available_stock: currentAvailableStock,
+        isStock: currentAvailableStock > 0 ? 1 : 0,
+        author_code: authorCodes[0] || null,
+        author_codes: authorCodes,
+        author_name: authorNames[0] || null,
+        author_names: authorNames,
+      };
+    })
+    .map((product) => {
+      // Calculate active discount from productDiscounts or fallback to legacy fields
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+
+      let activeDiscount = null;
+      if (product.productDiscounts && product.productDiscounts.length > 0) {
+        // Find first active discount within date range (if dates provided)
+        activeDiscount = product.productDiscounts.find((d) => {
+          if (d.status !== 1) return false;
+          if (d.start_date && d.start_date > todayStr) return false;
+          if (d.end_date && d.end_date < todayStr) return false;
+          return true;
+        });
+      }
+
+      const sellingPrice = parseFloat(product.selling_price || 0);
+      let discountAmount = 0;
+      let discountPercentage = 0;
+
+      if (activeDiscount) {
+        discountAmount = parseFloat(activeDiscount.discount_amount || 0);
+        discountPercentage = parseFloat(
+          activeDiscount.discount_percentage || 0,
+        );
+      } else {
+        // Fallback to legacy fields
+        discountAmount = parseFloat(product.discount || 0);
+        discountPercentage = parseFloat(product.dis_per || 0);
+      }
+
+      let discountedPrice = sellingPrice;
+      if (discountPercentage > 0) {
+        discountedPrice =
+          sellingPrice - (sellingPrice * discountPercentage) / 100;
+      } else if (discountAmount > 0) {
+        discountedPrice = sellingPrice - discountAmount;
+      }
+
+      return {
+        ...product,
+        active_discount: activeDiscount || null,
+        discount_amount: discountAmount,
+        discount_percentage: discountPercentage,
+        discounted_price: Math.max(0, discountedPrice).toFixed(2),
+      };
+    });
 }
 
 module.exports = { enrichProducts };
