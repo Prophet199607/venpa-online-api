@@ -2379,7 +2379,7 @@
                                   "codCharge": { "type": "number" },
                                   "courierCharge": { "type": "number" },
                                   "netTotalWithCod": { "type": "number" },
-                                  "netTotalWithOutCod": { "type": "number" }
+                                  "netTotalWithoutCod": { "type": "number" }
                                 }
                               }
                             }
@@ -2550,7 +2550,7 @@
                                   }
                                 },
                                 "netTotalWithCod": { "type": "number" },
-                                "netTotalWithOutCod": { "type": "number" }
+                                "netTotalWithoutCod": { "type": "number" }
                               }
                             }
                           }
@@ -2726,7 +2726,7 @@
                                   }
                                 },
                                 "netTotalWithCod": { "type": "number" },
-                                "netTotalWithOutCod": { "type": "number" }
+                                "netTotalWithoutCod": { "type": "number" }
                               }
                             }
                           }
@@ -2808,7 +2808,7 @@
                           }
                         },
                         "netTotalWithCod": { "type": "number" },
-                        "netTotalWithOutCod": { "type": "number" }
+                        "netTotalWithoutCod": { "type": "number" }
                       }
                     }
                   }
@@ -4162,6 +4162,14 @@
         "properties": {
           "quantity": {
             "type": "integer"
+          },
+          "current_available_stock": {
+            "type": "number",
+            "format": "float"
+          },
+          "isStock": {
+            "type": "integer",
+            "enum": [0, 1]
           },
           "product": {
             "$ref": "#/components/schemas/Product"

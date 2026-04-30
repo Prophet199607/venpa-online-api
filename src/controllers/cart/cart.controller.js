@@ -7,6 +7,8 @@ const {
   CourierWeightCharge,
 } = require("../../models");
 const { Op } = require("sequelize");
+const { enrichProducts } = require("../../services/products/enrichProducts");
+const { ProductDiscount } = require("../../models");
 
 async function getProductByCode(prodCode) {
   return Product.findOne({ where: { prod_code: prodCode } });
@@ -34,37 +36,55 @@ exports.getCart = async (req, res) => {
       include: [
         {
           model: Product,
-          attributes: { exclude: ["id"] },
           include: [
             {
               model: ProductImage,
               as: "images",
               attributes: { exclude: ["id", "product_id"] },
             },
+            {
+              model: ProductDiscount,
+              as: "productDiscounts",
+            },
           ],
         },
       ],
+    });
+
+    const rawProducts = cartItems
+      .map((item) => item.product)
+      .filter((p) => p !== null);
+    const enrichedProducts = await enrichProducts(rawProducts);
+
+    // Create a map for quick access with normalized keys
+    const productMap = new Map();
+    enrichedProducts.forEach((p) => {
+      if (p.prod_code) {
+        productMap.set(String(p.prod_code).trim().toUpperCase(), p);
+      }
     });
 
     let subTotal = 0;
     let totalWeight = 0;
 
     const formattedItems = cartItems.map((item) => {
-      const product = item.product
-        ? item.product.toJSON
-          ? item.product.toJSON()
-          : item.product
+      const productCode = item.product?.prod_code;
+      const enrichedProduct = productCode
+        ? productMap.get(String(productCode).trim().toUpperCase())
         : null;
+
       const quantity = parseInt(item.quantity || 0, 10);
-      const price = parseFloat(product?.selling_price || 0);
-      const weight = parseFloat(product?.weight || 0);
+      const price = parseFloat(enrichedProduct?.selling_price || 0);
+      const weight = parseFloat(enrichedProduct?.weight || 0);
 
       subTotal += price * quantity;
       totalWeight += weight * quantity;
 
       return {
         quantity: item.quantity,
-        product: product,
+        current_available_stock: enrichedProduct?.current_available_stock || 0,
+        isStock: enrichedProduct?.isStock || 0,
+        product: enrichedProduct,
       };
     });
 
@@ -87,7 +107,7 @@ exports.getCart = async (req, res) => {
     const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
     const netTotalWithCod = subTotal + codCharge + courierCharge;
-    const netTotalWithOutCod = subTotal + courierCharge;
+    const netTotalWithoutCod = subTotal + courierCharge;
 
     res.json({
       cart: {
@@ -97,7 +117,7 @@ exports.getCart = async (req, res) => {
         codCharge,
         courierCharge,
         netTotalWithCod,
-        netTotalWithOutCod,
+        netTotalWithoutCod,
       },
       items: formattedItems,
     });

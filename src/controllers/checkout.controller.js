@@ -208,7 +208,7 @@ async function calculateTotals(
     appliedCoupon && appliedCoupon.is_card_payment ? appliedCoupon.amount : 0;
 
   const netTotalWithCod = subTotal + courierCharge + codCharge - codDiscount;
-  const netTotalWithOutCod = subTotal + courierCharge - cardDiscount;
+  const netTotalWithoutCod = subTotal + courierCharge - cardDiscount;
 
   return {
     subTotal,
@@ -218,7 +218,7 @@ async function calculateTotals(
     discountAmount,
     appliedCoupon,
     netTotalWithCod,
-    netTotalWithOutCod,
+    netTotalWithoutCod,
   };
 }
 
@@ -307,7 +307,7 @@ async function createCardPaymentResponse(userId, body) {
     await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
   }
 
-  const amountValue = totals.netTotalWithOutCod;
+  const amountValue = totals.netTotalWithoutCod;
   const { type: _type, ...payload } = body || {};
   const amount = amountValue.toFixed(2);
   const hashPayload = buildPayHereHash(orderId, amount);
@@ -375,13 +375,13 @@ async function createCardPaymentResponse(userId, body) {
     // Notify Backoffice
     sendToTopic("backoffice", {
       title: "New Delivery Order",
-      body: `Order #${orderId} for ${totals.netTotalWithOutCod} LKR.`,
+      body: `Order #${orderId} for ${totals.netTotalWithoutCod} LKR.`,
       data: {
         notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
         order_id: String(orderId),
         user_id: String(userId),
         customer_name: `${user.fname} ${user.lname}`.trim(),
-        total: String(totals.netTotalWithOutCod),
+        total: String(totals.netTotalWithoutCod),
       },
     }).catch(console.error);
   }
