@@ -197,11 +197,18 @@ async function calculateTotals(
       discount_type: validation.coupon.discount_type,
       discount_value: validation.coupon.discount_value,
       amount: discountAmount,
+      is_cod: !!validation.coupon.is_cod,
+      is_card_payment: !!validation.coupon.is_card_payment,
     };
   }
 
-  const netTotalWithCod = subTotal + courierCharge + codCharge - discountAmount;
-  const netTotalWithOutCod = subTotal + courierCharge - discountAmount;
+  const codDiscount =
+    appliedCoupon && appliedCoupon.is_cod ? appliedCoupon.amount : 0;
+  const cardDiscount =
+    appliedCoupon && appliedCoupon.is_card_payment ? appliedCoupon.amount : 0;
+
+  const netTotalWithCod = subTotal + courierCharge + codCharge - codDiscount;
+  const netTotalWithOutCod = subTotal + courierCharge - cardDiscount;
 
   return {
     subTotal,

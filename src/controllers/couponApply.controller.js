@@ -85,17 +85,11 @@ exports.applyCouponToCart = async (req, res, next) => {
         .json({ message: "You have already used this coupon code" });
     }
 
-    // Order type validation
-    const { order_type } = req.body; // e.g. 'cod', 'payhere'
-    if (order_type === "cod" && !coupon.is_cod) {
-      return res
-        .status(400)
-        .json({ message: "Coupon is not valid for Cash on Delivery" });
-    }
-    if (order_type === "payhere" && !coupon.is_card_payment) {
-      return res
-        .status(400)
-        .json({ message: "Coupon is not valid for Card Payments" });
+    // Must be valid for at least one delivery type
+    if (!coupon.is_cod && !coupon.is_card_payment) {
+      return res.status(400).json({
+        message: "This coupon is not valid for any delivery payment method",
+      });
     }
 
     // Date validation
@@ -137,6 +131,8 @@ exports.applyCouponToCart = async (req, res, next) => {
     }
 
     discountAmount = Math.min(discountAmount, subTotal);
+    const codDiscount = coupon.is_cod ? discountAmount : 0;
+    const cardDiscount = coupon.is_card_payment ? discountAmount : 0;
 
     // Calculate Charges
     const codChargeEntry = await CodValueCharge.findOne({
@@ -155,9 +151,8 @@ exports.applyCouponToCart = async (req, res, next) => {
     });
     const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
-    const netTotalWithCod =
-      subTotal + courierCharge + codCharge - discountAmount;
-    const netTotalWithOutCod = subTotal + courierCharge - discountAmount;
+    const netTotalWithCod = subTotal + courierCharge + codCharge - codDiscount;
+    const netTotalWithOutCod = subTotal + courierCharge - cardDiscount;
 
     res.json({
       message: "Coupon applied successfully",
@@ -172,6 +167,8 @@ exports.applyCouponToCart = async (req, res, next) => {
           discount_type: coupon.discount_type,
           discount_value: coupon.discount_value,
           amount: discountAmount,
+          is_cod: !!coupon.is_cod,
+          is_card_payment: !!coupon.is_card_payment,
         },
         netTotalWithCod,
         netTotalWithOutCod,

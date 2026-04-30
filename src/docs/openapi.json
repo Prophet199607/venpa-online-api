@@ -2720,7 +2720,9 @@
                                     "code": { "type": "string" },
                                     "discount_type": { "type": "string" },
                                     "discount_value": { "type": "number" },
-                                    "amount": { "type": "number" }
+                                    "amount": { "type": "number" },
+                                    "is_cod": { "type": "boolean" },
+                                    "is_card_payment": { "type": "boolean" }
                                   }
                                 },
                                 "netTotalWithCod": { "type": "number" },
@@ -2771,10 +2773,6 @@
                 "properties": {
                   "coupon_code": {
                     "type": "string"
-                  },
-                  "order_type": {
-                    "type": "string",
-                    "description": "The type of order (cod, payhere) to validate against. Optional."
                   }
                 }
               }
@@ -2804,7 +2802,9 @@
                             "code": { "type": "string" },
                             "discount_type": { "type": "string" },
                             "discount_value": { "type": "number" },
-                            "amount": { "type": "number" }
+                            "amount": { "type": "number" },
+                            "is_cod": { "type": "boolean" },
+                            "is_card_payment": { "type": "boolean" }
                           }
                         },
                         "netTotalWithCod": { "type": "number" },
