@@ -157,17 +157,6 @@ exports.saveDiscount = async (req, res, next) => {
       });
     }
 
-    // Optionally update the main Product table as well for backward compatibility/legacy needs
-    await Product.update(
-      {
-        discount: discount_amount,
-        dis_per: discount_percentage,
-        dis_start_date: start_date,
-        dis_end_date: end_date,
-      },
-      { where: { prod_code } },
-    );
-
     res.json({
       success: true,
       message: "Discount saved successfully",
@@ -197,32 +186,10 @@ exports.deleteDiscounts = async (req, res, next) => {
       });
     }
 
-    // Capture prod_codes before deletion to sync with Product table
-    const discounts = await ProductDiscount.findAll({
-      where: { id: { [Op.in]: ids } },
-      attributes: ["prod_code"],
-      raw: true,
-    });
-
-    const prodCodes = discounts.map((d) => d.prod_code);
-
     // Delete from ProductDiscount table
     const deletedCount = await ProductDiscount.destroy({
       where: { id: { [Op.in]: ids } },
     });
-
-    // Sync with Product table by clearing legacy discount fields
-    if (prodCodes.length > 0) {
-      await Product.update(
-        {
-          discount: 0,
-          dis_per: 0,
-          dis_start_date: null,
-          dis_end_date: null,
-        },
-        { where: { prod_code: { [Op.in]: prodCodes } } },
-      );
-    }
 
     res.json({
       success: true,
