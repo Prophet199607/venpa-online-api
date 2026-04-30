@@ -35,6 +35,7 @@ const MediaAsset = require("./MediaAsset");
 const NotificationLog = require("./NotificationLog");
 const Coupon = require("./Coupon");
 const CouponUsage = require("./CouponUsage");
+const ProductDiscount = require("./ProductDiscount");
 
 // Associations
 Department.hasMany(Category, {
@@ -105,6 +106,18 @@ Product.belongsTo(Publisher, {
   foreignKey: "publisher",
   targetKey: "pub_code",
   as: "publisherDetails",
+  constraints: false,
+});
+Product.hasMany(ProductDiscount, {
+  foreignKey: "prod_code",
+  sourceKey: "prod_code",
+  as: "productDiscounts",
+  constraints: false,
+});
+ProductDiscount.belongsTo(Product, {
+  foreignKey: "prod_code",
+  targetKey: "prod_code",
+  as: "product",
   constraints: false,
 });
 // Cart Relations
@@ -228,4 +241,5 @@ module.exports = {
   NotificationLog,
   Coupon,
   CouponUsage,
+  ProductDiscount,
 };

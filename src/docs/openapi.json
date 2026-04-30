@@ -725,6 +725,191 @@
         }
       }
     },
+    "/api/v1/discounts/list": {
+      "get": {
+        "summary": "List product discounts",
+        "description": "Returns paginated product discounts with product info. Filterable by department, category, sub_category and free-text search (q).",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "department",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by department code ('all' = no filter)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by category code ('all' = no filter)"
+          },
+          {
+            "name": "sub_category",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Filter by sub-category scat_code ('all' = no filter)"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": { "type": "string" },
+            "description": "Search by prod_code or prod_name"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 15 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "integer" },
+                          "prod_code": { "type": "string" },
+                          "discount_amount": { "type": "number" },
+                          "discount_percentage": { "type": "number" },
+                          "start_date": { "type": "string", "nullable": true },
+                          "end_date": { "type": "string", "nullable": true },
+                          "status": { "type": "integer" },
+                          "discounted_price": { "type": "string" },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "product": {
+                            "type": "object",
+                            "properties": {
+                              "prod_code": { "type": "string" },
+                              "prod_name": { "type": "string" },
+                              "selling_price": { "type": "number" },
+                              "discount": { "type": "number" },
+                              "dis_per": { "type": "number" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "current_page": { "type": "integer" },
+                        "last_page": { "type": "integer" },
+                        "total": { "type": "integer" },
+                        "per_page": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discounts/save": {
+      "post": {
+        "summary": "Save or update product discount",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code"],
+                "properties": {
+                  "prod_code": { "type": "string" },
+                  "discount_amount": { "type": "number" },
+                  "discount_percentage": { "type": "number" },
+                  "start_date": { "type": "string" },
+                  "end_date": { "type": "string" },
+                  "status": { "type": "integer" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "data": { "$ref": "#/components/schemas/ProductDiscount" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discounts/delete": {
+      "delete": {
+        "summary": "Delete product discounts (single or bulk)",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["ids"],
+                "properties": {
+                  "ids": {
+                    "oneOf": [
+                      { "type": "integer" },
+                      { "type": "array", "items": { "type": "integer" } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "deleted_count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/coupons": {
       "get": {
         "summary": "List coupons",
@@ -3922,6 +4107,13 @@
               ]
             },
             "nullable": true
+          },
+          "productDiscounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductDiscount"
+            },
+            "nullable": true
           }
         }
       },
@@ -3958,6 +4150,30 @@
           },
           "product": {
             "$ref": "#/components/schemas/Product"
+          }
+        }
+      },
+      "ProductDiscount": {
+        "type": "object",
+        "properties": {
+          "discount_amount": {
+            "type": "number",
+            "format": "float"
+          },
+          "discount_percentage": {
+            "type": "number",
+            "format": "float"
+          },
+          "start_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "end_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer"
           }
         }
       }
