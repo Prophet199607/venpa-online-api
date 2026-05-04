@@ -176,6 +176,80 @@ exports.newArrivals = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const items = await Product.findAll({
+      include: [
+        {
+          model: StockMaster,
+          required: true,
+          attributes: [],
+          where: sequelize.literal(`SUM(qty) > 0`),
+        },
+        ...productIncludes(),
+      ],
+      group: ["Product.id"],
+      order: [["id", "DESC"]],
+      limit,
+    });
+
+    res.json(await enrichProducts(items));
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.specialOffers = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit || 10), 50);
+    const nowStr = new Date().toISOString().slice(0, 10);
+
+    const baseIncludes = productIncludes().filter(
+      (inc) => inc.as !== "productDiscounts"
+    );
+
+    const items = await Product.findAll({
+      order: [["id", "DESC"]],
+      limit,
+      include: [
+        ...baseIncludes,
+        {
+          model: ProductDiscount,
+          as: "productDiscounts",
+          required: true,
+          where: {
+            status: 1,
+            [Op.and]: [
+              {
+                [Op.or]: [
+                  { start_date: null },
+                  { start_date: "" },
+                  { start_date: { [Op.lte]: nowStr } },
+                ],
+              },
+              {
+                [Op.or]: [
+                  { end_date: null },
+                  { end_date: "" },
+                  { end_date: { [Op.gte]: nowStr } },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    res.json(await enrichProducts(items));
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.topKidsBooks = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit || 10), 50);
+    const items = await Product.findAll({
+      where: {
+        category: "1004",
+      },
       order: [["id", "DESC"]],
       limit,
       include: productIncludes(),

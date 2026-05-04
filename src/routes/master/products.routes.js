@@ -2,6 +2,8 @@ const router = require("express").Router();
 const c = require("../../controllers/master/products.controller");
 
 router.get("/new/arrivals", c.newArrivals);
+router.get("/special/offers", c.specialOffers);
+router.get("/top/kids", c.topKidsBooks);
 router.get("/best/selling", c.bestSelling);
 router.get("/search", c.search);
 router.get("/code/:prod_code/pick-and-collect", c.pickAndCollectLocations);

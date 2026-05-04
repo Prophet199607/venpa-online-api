@@ -1134,6 +1134,46 @@
         }
       }
     },
+    "/api/v1/products/special/offers": {
+      "get": {
+        "summary": "Get special offers",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/top/kids": {
+      "get": {
+        "summary": "Get top kids books",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/products/search": {
       "get": {
         "summary": "Search products",
