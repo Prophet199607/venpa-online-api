@@ -1,5 +1,5 @@
 const { QueryTypes, Op } = require("sequelize");
-const { sequelize, EmailVerification } = require("../models");
+const { sequelize, EmailVerification, User } = require("../models");
 
 async function safeCount(table, column, userId) {
   try {
@@ -78,12 +78,27 @@ exports.updateProfile = async (req, res, next) => {
       !has("city") &&
       !has("province") &&
       !has("provinces") &&
-      !has("postal_code")
+      !has("postal_code") &&
+      !has("email")
     ) {
       return res.status(400).json({ message: "No fields to update" });
     }
 
     const updates = {};
+    if (has("email")) {
+      const newEmail = String(payload.email || "")
+        .trim()
+        .toLowerCase();
+      if (newEmail && newEmail !== req.user.email) {
+        const existing = await User.findOne({
+          where: { email: newEmail, id: { [Op.ne]: req.user.id } },
+        });
+        if (existing) {
+          return res.status(400).json({ message: "Email already in use" });
+        }
+        updates.email = newEmail;
+      }
+    }
     if (has("fname")) updates.fname = payload.fname;
     if (has("lname")) updates.lname = payload.lname;
     if (has("phone")) updates.phone = payload.phone;
