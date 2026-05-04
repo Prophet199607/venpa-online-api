@@ -175,19 +175,18 @@ exports.search = async (req, res, next) => {
 exports.newArrivals = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const sourceDbName = process.env.MYSQL_SOURCE_DB;
     const items = await Product.findAll({
-      include: [
-        {
-          model: StockMaster,
-          required: true,
-          attributes: [],
-          where: sequelize.literal(`SUM(qty) > 0`),
+      where: {
+        prod_code: {
+          [Op.in]: sequelize.literal(
+            `(SELECT prod_code FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
+          ),
         },
-        ...productIncludes(),
-      ],
-      group: ["Product.id"],
+      },
       order: [["id", "DESC"]],
       limit,
+      include: productIncludes(),
     });
 
     res.json(await enrichProducts(items));
@@ -202,7 +201,7 @@ exports.specialOffers = async (req, res, next) => {
     const nowStr = new Date().toISOString().slice(0, 10);
 
     const baseIncludes = productIncludes().filter(
-      (inc) => inc.as !== "productDiscounts"
+      (inc) => inc.as !== "productDiscounts",
     );
 
     const items = await Product.findAll({
