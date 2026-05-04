@@ -248,9 +248,15 @@ exports.specialOffers = async (req, res, next) => {
 exports.topKidsBooks = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const sourceDbName = process.env.MYSQL_SOURCE_DB;
     const items = await Product.findAll({
       where: {
         category: "1004",
+        prod_code: {
+          [Op.in]: sequelize.literal(
+            `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
+          ),
+        },
       },
       order: [["id", "DESC"]],
       limit,
@@ -266,7 +272,15 @@ exports.topKidsBooks = async (req, res, next) => {
 exports.bestSelling = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const sourceDbName = process.env.MYSQL_SOURCE_DB;
     const items = await Product.findAll({
+      where: {
+        prod_code: {
+          [Op.in]: sequelize.literal(
+            `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
+          ),
+        },
+      },
       order: sequelize.random(),
       limit,
       include: productIncludes(),
