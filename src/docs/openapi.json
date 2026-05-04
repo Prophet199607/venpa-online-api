@@ -1134,6 +1134,46 @@
         }
       }
     },
+    "/api/v1/products/special/offers": {
+      "get": {
+        "summary": "Get special offers",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/top/kids": {
+      "get": {
+        "summary": "Get top kids books",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/products/search": {
       "get": {
         "summary": "Search products",
@@ -2379,7 +2419,7 @@
                                   "codCharge": { "type": "number" },
                                   "courierCharge": { "type": "number" },
                                   "netTotalWithCod": { "type": "number" },
-                                  "netTotalWithOutCod": { "type": "number" }
+                                  "netTotalWithoutCod": { "type": "number" }
                                 }
                               }
                             }
@@ -2550,7 +2590,7 @@
                                   }
                                 },
                                 "netTotalWithCod": { "type": "number" },
-                                "netTotalWithOutCod": { "type": "number" }
+                                "netTotalWithoutCod": { "type": "number" }
                               }
                             }
                           }
@@ -2726,7 +2766,7 @@
                                   }
                                 },
                                 "netTotalWithCod": { "type": "number" },
-                                "netTotalWithOutCod": { "type": "number" }
+                                "netTotalWithoutCod": { "type": "number" }
                               }
                             }
                           }
@@ -2808,7 +2848,7 @@
                           }
                         },
                         "netTotalWithCod": { "type": "number" },
-                        "netTotalWithOutCod": { "type": "number" }
+                        "netTotalWithoutCod": { "type": "number" }
                       }
                     }
                   }
@@ -4162,6 +4202,14 @@
         "properties": {
           "quantity": {
             "type": "integer"
+          },
+          "current_available_stock": {
+            "type": "number",
+            "format": "float"
+          },
+          "isStock": {
+            "type": "integer",
+            "enum": [0, 1]
           },
           "product": {
             "$ref": "#/components/schemas/Product"
