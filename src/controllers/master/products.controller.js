@@ -183,7 +183,7 @@ exports.newArrivals = async (req, res, next) => {
       where: {
         prod_code: {
           [Op.in]: sequelize.literal(
-            `(SELECT prod_code FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
+            `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
           ),
         },
       },
