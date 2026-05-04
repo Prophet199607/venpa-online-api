@@ -103,6 +103,11 @@ exports.generateOrderInvoiceHtml = (
       );
     }, 0);
 
+  const productDiscountTotal = Number(totals.productDiscountTotal || 0);
+  const originalSubTotal = totals.originalSubTotal
+    ? Number(totals.originalSubTotal)
+    : subTotal + productDiscountTotal;
+
   const discountAmount = Number(
     totals.discountAmount || checkoutData.discount_amount || 0,
   );
@@ -138,6 +143,20 @@ exports.generateOrderInvoiceHtml = (
           ${buildItemsRows(cartItems)}
         </tbody>
         <tfoot>
+          ${
+            productDiscountTotal > 0
+              ? `
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">Item Total (Original):</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${originalSubTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #DC2626;">Product Discount:</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #DC2626;">- Rs. ${productDiscountTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          `
+              : ""
+          }
           <tr>
             <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">Sub Total:</td>
             <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${subTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -146,12 +165,8 @@ exports.generateOrderInvoiceHtml = (
             discountAmount > 0
               ? `
           <tr>
-            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #DC2626;">Discount:</td>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #DC2626;">Coupon Discount:</td>
             <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #DC2626;">- Rs. ${discountAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          </tr>
-          <tr>
-            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">Discounted Price:</td>
-            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${(subTotal - discountAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
           `
               : ""

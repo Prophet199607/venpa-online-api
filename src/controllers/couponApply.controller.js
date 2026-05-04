@@ -5,8 +5,8 @@ const {
   Coupon,
   CodValueCharge,
   CourierWeightCharge,
-  Checkout,
   CouponUsage,
+  ProductDiscount,
 } = require("../models");
 const { Op } = require("sequelize");
 
@@ -57,8 +57,51 @@ exports.applyCouponToCart = async (req, res, next) => {
       return res.status(400).json({ message: "Cart is empty" });
     }
 
+    const prodCodes = items
+      .map((item) => item?.product?.prod_code)
+      .filter(Boolean);
+    const nowStr = new Date().toISOString().slice(0, 10);
+    const productDiscounts = await ProductDiscount.findAll({
+      where: {
+        prod_code: { [Op.in]: prodCodes },
+        status: 1,
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { start_date: null },
+              { start_date: "" },
+              { start_date: { [Op.lte]: nowStr } },
+            ],
+          },
+          {
+            [Op.or]: [
+              { end_date: null },
+              { end_date: "" },
+              { end_date: { [Op.gte]: nowStr } },
+            ],
+          },
+        ],
+      },
+    });
+
+    const discountMap = {};
+    productDiscounts.forEach((d) => {
+      discountMap[d.prod_code] = d;
+    });
+
     items.forEach((item) => {
-      const price = parseFloat(item?.product?.selling_price || 0);
+      let price = parseFloat(item?.product?.selling_price || 0);
+      const prodCode = item?.product?.prod_code;
+
+      if (prodCode && discountMap[prodCode]) {
+        const d = discountMap[prodCode];
+        if (parseFloat(d.discount_amount || 0) > 0) {
+          price = Math.max(0, price - parseFloat(d.discount_amount));
+        } else if (parseFloat(d.discount_percentage || 0) > 0) {
+          price = price * (1 - parseFloat(d.discount_percentage) / 100);
+        }
+      }
+
       const weight = parseFloat(item?.product?.weight || 0);
       const quantity = parseInt(item?.quantity || 1, 10);
       subTotal += price * quantity;
@@ -198,7 +241,41 @@ exports.applyCouponToPickAndCollect = async (req, res, next) => {
     }
 
     const qty = Number(picked_qty) || 1;
-    const subTotal = Number(product.selling_price || 0) * qty;
+    let price = Number(product.selling_price || 0);
+    const nowStr = new Date().toISOString().slice(0, 10);
+
+    const discount = await ProductDiscount.findOne({
+      where: {
+        prod_code: prod_code,
+        status: 1,
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { start_date: null },
+              { start_date: "" },
+              { start_date: { [Op.lte]: nowStr } },
+            ],
+          },
+          {
+            [Op.or]: [
+              { end_date: null },
+              { end_date: "" },
+              { end_date: { [Op.gte]: nowStr } },
+            ],
+          },
+        ],
+      },
+    });
+
+    if (discount) {
+      if (parseFloat(discount.discount_amount || 0) > 0) {
+        price = Math.max(0, price - parseFloat(discount.discount_amount));
+      } else if (parseFloat(discount.discount_percentage || 0) > 0) {
+        price = price * (1 - parseFloat(discount.discount_percentage) / 100);
+      }
+    }
+
+    const subTotal = price * qty;
 
     const coupon = await Coupon.findOne({
       where: { code: coupon_code.trim().toUpperCase(), is_active: true },

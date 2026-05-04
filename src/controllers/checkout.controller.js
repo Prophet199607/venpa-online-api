@@ -10,6 +10,7 @@ const {
   CourierWeightCharge,
   Coupon,
   CouponUsage,
+  ProductDiscount,
 } = require("../models");
 const { Op } = require("sequelize");
 const {
@@ -29,6 +30,20 @@ function normalizeCheckoutType(value) {
   if (value === 1 || value === "1") return 1;
   if (value === 2 || value === "2") return 2;
   return null;
+}
+
+function getDiscountedPrice(prodCode, originalPrice, discountMap) {
+  if (prodCode && discountMap && discountMap[prodCode]) {
+    const d = discountMap[prodCode];
+    let price = parseFloat(originalPrice || 0);
+    if (parseFloat(d.discount_amount || 0) > 0) {
+      price = Math.max(0, price - parseFloat(d.discount_amount));
+    } else if (parseFloat(d.discount_percentage || 0) > 0) {
+      price = price * (1 - parseFloat(d.discount_percentage) / 100);
+    }
+    return price;
+  }
+  return parseFloat(originalPrice || 0);
 }
 
 function generateOrderId() {
@@ -145,14 +160,66 @@ async function calculateTotals(
   userId = null,
   orderType = null,
 ) {
+  let originalSubTotal = 0;
+  let productDiscountTotal = 0;
   let subTotal = 0;
   let totalWeight = 0;
 
   const items = cart?.items || cart?.cart_items || [];
+
+  // Fetch active discounts for products in cart
+  const prodCodes = items
+    .map((item) => item?.product?.prod_code)
+    .filter(Boolean);
+  const nowStr = new Date().toISOString().slice(0, 10);
+
+  const discounts = await ProductDiscount.findAll({
+    where: {
+      prod_code: { [Op.in]: prodCodes },
+      status: 1,
+      [Op.and]: [
+        {
+          [Op.or]: [
+            { start_date: null },
+            { start_date: "" },
+            { start_date: { [Op.lte]: nowStr } },
+          ],
+        },
+        {
+          [Op.or]: [
+            { end_date: null },
+            { end_date: "" },
+            { end_date: { [Op.gte]: nowStr } },
+          ],
+        },
+      ],
+    },
+  });
+
+  const discountMap = {};
+  discounts.forEach((d) => {
+    discountMap[d.prod_code] = d;
+  });
+
   items.forEach((item) => {
-    const price = parseFloat(item?.product?.selling_price || 0);
-    const weight = parseFloat(item?.product?.weight || 0);
+    const originalPrice = parseFloat(item?.product?.selling_price || 0);
+    let price = originalPrice;
+    const prodCode = item?.product?.prod_code;
     const quantity = parseInt(item?.quantity || 1, 10);
+
+    // Apply product discount if exists
+    if (prodCode && discountMap[prodCode]) {
+      const d = discountMap[prodCode];
+      if (parseFloat(d.discount_amount || 0) > 0) {
+        price = Math.max(0, price - parseFloat(d.discount_amount));
+      } else if (parseFloat(d.discount_percentage || 0) > 0) {
+        price = price * (1 - parseFloat(d.discount_percentage) / 100);
+      }
+    }
+
+    const weight = parseFloat(item?.product?.weight || 0);
+    originalSubTotal += originalPrice * quantity;
+    productDiscountTotal += (originalPrice - price) * quantity;
     subTotal += price * quantity;
     totalWeight += weight * quantity;
   });
@@ -211,6 +278,8 @@ async function calculateTotals(
   const netTotalWithoutCod = subTotal + courierCharge - cardDiscount;
 
   return {
+    originalSubTotal,
+    productDiscountTotal,
     subTotal,
     totalWeight,
     codCharge,
@@ -219,6 +288,7 @@ async function calculateTotals(
     appliedCoupon,
     netTotalWithCod,
     netTotalWithoutCod,
+    discountMap,
   };
 }
 
@@ -328,8 +398,12 @@ async function createCardPaymentResponse(userId, body) {
           item.product_code ||
           item.prod_code ||
           "N/A",
-        prod_name: item.product?.prod_name || item.product_name,
-        selling_price: item.product?.selling_price || item.price || 0,
+        prod_name: item.product?.prod_name || item.product_name || "Unknown Product",
+        selling_price: getDiscountedPrice(
+          item.product?.prod_code,
+          item.product?.selling_price || item.price || 0,
+          totals.discountMap,
+        ),
         prod_image: item.product?.prod_image || null,
       },
       quantity: Number(item.quantity || 1),
@@ -427,6 +501,13 @@ exports.createCheckout = async (req, res, next) => {
 
     // For type 2 (COD), also fetch cart and extract items
     const cart = await getActiveCartWithProducts(req.user.id);
+    const totals = await calculateTotals(
+      cart,
+      req.body.coupon_code,
+      req.user.id,
+      type,
+    );
+
     let items = [];
     if (cart) {
       const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
@@ -442,7 +523,11 @@ exports.createCheckout = async (req, res, next) => {
               "N/A",
             prod_name:
               item.product?.prod_name || item.product_name || "Unknown Product",
-            selling_price: item.product?.selling_price || item.price || 0,
+            selling_price: getDiscountedPrice(
+              item.product?.prod_code,
+              item.product?.selling_price || item.price || 0,
+              totals.discountMap,
+            ),
             prod_image: item.product?.prod_image || null,
           },
           quantity: Number(item.quantity || 1),
@@ -458,12 +543,7 @@ exports.createCheckout = async (req, res, next) => {
       }
     }
 
-    const totals = await calculateTotals(
-      cart,
-      req.body.coupon_code,
-      req.user.id,
-      type,
-    );
+    // Totals calculated above
 
     const checkout = await Checkout.create({
       order_id: orderId,
@@ -734,13 +814,23 @@ exports.getCheckoutBill = async (req, res, next) => {
           where: { prod_code: pc.prod_code },
         });
 
+        const unitPrice =
+          (Number(pc.net_amount || 0) + Number(pc.discount_amount || 0)) /
+          Number(pc.picked_qty || 1);
+
         checkoutObj = {
           order_id: pc.pick_and_collect_id,
           type: pc.type,
           type_name: pc.type_name || "pick & collect",
           status: pc.status,
           created_at: pc.created_at,
-          payload: { prod_codes: [pc.prod_code] },
+          payload: {
+            prod_codes: [pc.prod_code],
+            totals: {
+              subTotal: unitPrice * (pc.picked_qty || 1),
+              discountAmount: pc.discount_amount,
+            },
+          },
           discount_amount: pc.discount_amount,
           net_amount: pc.net_amount,
         };
@@ -748,13 +838,16 @@ exports.getCheckoutBill = async (req, res, next) => {
         cartItems = [
           {
             product: product
-              ? typeof product.toJSON === "function"
-                ? product.toJSON()
-                : product
+              ? {
+                  ...(typeof product.toJSON === "function"
+                    ? product.toJSON()
+                    : product),
+                  selling_price: unitPrice,
+                }
               : {
                   prod_code: pc.prod_code,
-                  prod_name: pc.prod_name || "Unknown",
-                  selling_price: 0,
+                  prod_name: "Product " + pc.prod_code,
+                  selling_price: unitPrice,
                 },
             quantity: pc.picked_qty || 1,
           },

@@ -7,6 +7,7 @@ const {
   StockMaster,
   User,
   sequelize,
+  ProductDiscount,
 } = require("../models");
 const { enrichProducts } = require("../services/products/enrichProducts");
 const {
@@ -310,10 +311,45 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
   const pickAndCollectId = generatePickAndCollectId();
   const now = new Date();
 
-  // Coupon handling
+  // Coupon and Product Discount handling
   let discountAmount = 0;
   let couponCode = normalizedBody.coupon_code;
-  let subTotal = Number(product?.selling_price || 0) * pickedQty;
+
+  const originalPrice = Number(product?.selling_price || 0);
+  let price = originalPrice;
+  const nowStr = new Date().toISOString().slice(0, 10);
+  const prodDiscount = await ProductDiscount.findOne({
+    where: {
+      prod_code: prodCode,
+      status: 1,
+      [Op.and]: [
+        {
+          [Op.or]: [
+            { start_date: null },
+            { start_date: "" },
+            { start_date: { [Op.lte]: nowStr } },
+          ],
+        },
+        {
+          [Op.or]: [
+            { end_date: null },
+            { end_date: "" },
+            { end_date: { [Op.gte]: nowStr } },
+          ],
+        },
+      ],
+    },
+  });
+
+  if (prodDiscount) {
+    if (parseFloat(prodDiscount.discount_amount || 0) > 0) {
+      price = Math.max(0, price - parseFloat(prodDiscount.discount_amount));
+    } else if (parseFloat(prodDiscount.discount_percentage || 0) > 0) {
+      price = price * (1 - parseFloat(prodDiscount.discount_percentage) / 100);
+    }
+  }
+
+  let subTotal = price * pickedQty;
   let appliedCouponId = null;
 
   if (couponCode) {
