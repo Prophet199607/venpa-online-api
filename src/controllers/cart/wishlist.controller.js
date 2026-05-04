@@ -1,4 +1,4 @@
-const { Wishlist, Product, ProductImage } = require("../../models");
+const { Wishlist, Product, ProductImage, ProductDiscount } = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
 
 async function getProductByCode(prodCode) {
@@ -23,6 +23,10 @@ exports.getWishlist = async (req, res) => {
               model: ProductImage,
               as: "images",
               attributes: { exclude: ["id", "product_id"] },
+            },
+            {
+              model: ProductDiscount,
+              as: "productDiscounts",
             },
           ],
         },

@@ -91,12 +91,35 @@ exports.generateOrderInvoiceHtml = (
       ? "Delivery"
       : "Collect from Store";
 
-  const netTotal = cartItems.reduce((acc, item) => {
-    return (
-      acc +
-      Number(item.product?.selling_price || 0) * Number(item.quantity || 1)
-    );
-  }, 0);
+  const payload = checkoutData.payload || {};
+  const totals = payload.totals || {};
+
+  const subTotal =
+    totals.subTotal ||
+    cartItems.reduce((acc, item) => {
+      return (
+        acc +
+        Number(item.product?.selling_price || 0) * Number(item.quantity || 1)
+      );
+    }, 0);
+
+  const discountAmount = Number(
+    totals.discountAmount || checkoutData.discount_amount || 0,
+  );
+  const codCharge = Number(totals.codCharge || 0);
+  const courierCharge = Number(totals.courierCharge || 0);
+
+  let finalTotal = Number(checkoutData.net_amount || 0);
+  if (!finalTotal) {
+    if (checkoutData.type === 1) {
+      finalTotal =
+        totals.netTotalWithoutCod || subTotal + courierCharge - discountAmount;
+    } else {
+      finalTotal =
+        totals.netTotalWithCod ||
+        subTotal + courierCharge + codCharge - discountAmount;
+    }
+  }
 
   const itemsSection =
     cartItems.length > 0
@@ -116,8 +139,46 @@ exports.generateOrderInvoiceHtml = (
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="4" class="value-text" style="padding: 12px 16px; text-align: right; font-size: 13px; font-weight: 700; color: #374151;">Net Total:</td>
-            <td class="value-text" style="padding: 12px 16px; text-align: right; font-size: 15px; font-weight: 800; color: #111827;">Rs. ${netTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">Sub Total:</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${subTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          ${
+            discountAmount > 0
+              ? `
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #DC2626;">Discount:</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #DC2626;">- Rs. ${discountAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">Discounted Price:</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${(subTotal - discountAmount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          `
+              : ""
+          }
+          ${
+            courierCharge > 0
+              ? `
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">Shipping:</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${courierCharge.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          `
+              : ""
+          }
+          ${
+            checkoutData.type === 2 && codCharge > 0
+              ? `
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">COD Charge:</td>
+            <td class="value-text" style="padding: 8px 16px; text-align: right; font-size: 14px; font-weight: 600; color: #374151;">Rs. ${codCharge.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          `
+              : ""
+          }
+          <tr>
+            <td colspan="4" class="value-text" style="padding: 12px 16px; text-align: right; font-size: 14px; font-weight: 700; color: #111827; border-top: 1px solid #E5E7EB;">Net Total:</td>
+            <td class="value-text" style="padding: 12px 16px; text-align: right; font-size: 16px; font-weight: 800; color: #111827; border-top: 1px solid #E5E7EB;">Rs. ${finalTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
         </tfoot>
       </table>

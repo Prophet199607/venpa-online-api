@@ -549,12 +549,18 @@ exports.listCheckouts = async (req, res, next) => {
 
     const normalizedCheckouts = checkouts.map((c) => {
       const item = c.toJSON ? c.toJSON() : c;
+      const totals = item.payload?.totals || {};
+      const netTotal =
+        item.type === 1 ? totals.netTotalWithoutCod : totals.netTotalWithCod;
+
       return {
         record_type: "checkout",
         order_id: item.order_id,
         type: item.type,
         type_name: item.type_name,
         payload: item.payload,
+        net_total: netTotal || 0,
+        discount_amount: totals.discountAmount || 0,
         status: item.status,
         created_at: item.created_at,
         updated_at: item.updated_at,
@@ -572,6 +578,8 @@ exports.listCheckouts = async (req, res, next) => {
         type: item.type,
         type_name: item.type_name,
         picked_qty: Number(item.picked_qty || 0),
+        net_total: item.net_amount || 0,
+        discount_amount: item.discount_amount || 0,
         status: item.status,
         created_at: item.created_at,
         updated_at: item.updated_at,
@@ -733,6 +741,8 @@ exports.getCheckoutBill = async (req, res, next) => {
           status: pc.status,
           created_at: pc.created_at,
           payload: { prod_codes: [pc.prod_code] },
+          discount_amount: pc.discount_amount,
+          net_amount: pc.net_amount,
         };
 
         cartItems = [

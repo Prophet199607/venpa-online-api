@@ -125,7 +125,10 @@ exports.list = async (req, res, next) => {
       }),
       Product.findAll({
         where,
-        order: [["id", "DESC"]],
+        order: [
+          [sequelize.literal("`productDiscounts`.`id` IS NOT NULL"), "DESC"],
+          ["id", "DESC"],
+        ],
         limit,
         offset,
         include: itemInclude,
