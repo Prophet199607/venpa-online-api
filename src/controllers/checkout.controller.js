@@ -398,7 +398,8 @@ async function createCardPaymentResponse(userId, body) {
           item.product_code ||
           item.prod_code ||
           "N/A",
-        prod_name: item.product?.prod_name || item.product_name || "Unknown Product",
+        prod_name:
+          item.product?.prod_name || item.product_name || "Unknown Product",
         selling_price: getDiscountedPrice(
           item.product?.prod_code,
           item.product?.selling_price || item.price || 0,
@@ -629,18 +630,38 @@ exports.listCheckouts = async (req, res, next) => {
 
     const normalizedCheckouts = checkouts.map((c) => {
       const item = c.toJSON ? c.toJSON() : c;
-      const totals = item.payload?.totals || {};
-      const netTotal =
-        item.type === 1 ? totals.netTotalWithoutCod : totals.netTotalWithCod;
+      
+      // Parse payload if it's a string
+      let payload = item.payload;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch (e) {
+          console.error(`[List] Failed to parse payload for ${item.order_id}`);
+          payload = {};
+        }
+      }
+
+      const totals = payload?.totals || {};
+
+      const total = Number(totals.subTotal || 0);
+      const courierCharge = Number(totals.courierCharge || 0);
+      const codCharge = item.type === 2 ? Number(totals.codCharge || 0) : 0;
+
+      const subTotal = total + courierCharge + codCharge;
+      const discountAmount = Number(totals.discountAmount || 0);
+      const netTotal = subTotal - discountAmount;
 
       return {
         record_type: "checkout",
         order_id: item.order_id,
         type: item.type,
         type_name: item.type_name,
-        payload: item.payload,
-        net_total: netTotal || 0,
-        discount_amount: totals.discountAmount || 0,
+        payload: payload, // Return parsed payload for consistency
+        total,
+        sub_total: subTotal,
+        net_total: netTotal,
+        discount_amount: discountAmount,
         status: item.status,
         created_at: item.created_at,
         updated_at: item.updated_at,
@@ -649,6 +670,10 @@ exports.listCheckouts = async (req, res, next) => {
 
     const normalizedPickAndCollects = pickAndCollects.map((p) => {
       const item = p.toJSON ? p.toJSON() : p;
+      const netAmount = Number(item.net_amount || 0);
+      const discountAmount = Number(item.discount_amount || 0);
+      const total = netAmount + discountAmount;
+
       return {
         record_type: "pick_and_collect",
         pick_and_collect_id: item.pick_and_collect_id,
@@ -658,8 +683,10 @@ exports.listCheckouts = async (req, res, next) => {
         type: item.type,
         type_name: item.type_name,
         picked_qty: Number(item.picked_qty || 0),
-        net_total: item.net_amount || 0,
-        discount_amount: item.discount_amount || 0,
+        total,
+        sub_total: total,
+        net_total: netAmount,
+        discount_amount: discountAmount,
         status: item.status,
         created_at: item.created_at,
         updated_at: item.updated_at,

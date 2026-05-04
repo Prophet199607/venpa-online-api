@@ -1571,7 +1571,33 @@
         "tags": ["Profile"],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "User profile summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "fname": { "type": "string" },
+                        "lname": { "type": "string" },
+                        "email": { "type": "string", "format": "email" },
+                        "phone": { "type": "string" },
+                        "country": { "type": "string", "nullable": true },
+                        "address": { "type": "string", "nullable": true },
+                        "city": { "type": "string", "nullable": true },
+                        "province": { "type": "string", "nullable": true },
+                        "postal_code": { "type": "string", "nullable": true },
+                        "status": { "type": "integer" },
+                        "email_verified": { "type": "boolean" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized"
@@ -1602,6 +1628,10 @@
                   "phone": {
                     "type": "string"
                   },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
                   "country": {
                     "type": "string"
                   },
@@ -1627,10 +1657,39 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Profile updated"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "fname": { "type": "string" },
+                        "lname": { "type": "string" },
+                        "email": { "type": "string", "format": "email" },
+                        "phone": { "type": "string" },
+                        "country": { "type": "string", "nullable": true },
+                        "address": { "type": "string", "nullable": true },
+                        "city": { "type": "string", "nullable": true },
+                        "province": { "type": "string", "nullable": true },
+                        "postal_code": { "type": "string", "nullable": true },
+                        "status": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
-            "description": "Bad Request"
+            "description": "Bad Request - Email already in use or no fields to update"
           }
         }
       }
@@ -1658,9 +1717,9 @@
                         "status": {
                           "type": "string"
                         },
-                        "subTotal": {
-                          "type": "number"
-                        },
+                        "originalSubTotal": { "type": "number" },
+                        "productDiscountTotal": { "type": "number" },
+                        "subTotal": { "type": "number" },
                         "totalWeight": {
                           "type": "number"
                         },
@@ -2414,16 +2473,23 @@
                               "totals": {
                                 "type": "object",
                                 "properties": {
+                                  "originalSubTotal": { "type": "number" },
+                                  "productDiscountTotal": { "type": "number" },
                                   "subTotal": { "type": "number" },
                                   "totalWeight": { "type": "number" },
                                   "codCharge": { "type": "number" },
                                   "courierCharge": { "type": "number" },
+                                  "discountAmount": { "type": "number" },
                                   "netTotalWithCod": { "type": "number" },
                                   "netTotalWithoutCod": { "type": "number" }
                                 }
                               }
                             }
                           },
+                          "total": { "type": "number" },
+                          "sub_total": { "type": "number" },
+                          "net_total": { "type": "number" },
+                          "discount_amount": { "type": "number" },
                           "status": { "type": "string" },
                           "created_at": {
                             "type": "string",
@@ -2453,6 +2519,10 @@
                             "example": "pick & collect"
                           },
                           "picked_qty": { "type": "number" },
+                          "total": { "type": "number" },
+                          "sub_total": { "type": "number" },
+                          "net_total": { "type": "number" },
+                          "discount_amount": { "type": "number" },
                           "status": { "type": "string" },
                           "created_at": {
                             "type": "string",
@@ -2575,6 +2645,8 @@
                             "totals": {
                               "type": "object",
                               "properties": {
+                                "originalSubTotal": { "type": "number" },
+                                "productDiscountTotal": { "type": "number" },
                                 "subTotal": { "type": "number" },
                                 "totalWeight": { "type": "number" },
                                 "codCharge": { "type": "number" },
@@ -2749,6 +2821,8 @@
                             "totals": {
                               "type": "object",
                               "properties": {
+                                "originalSubTotal": { "type": "number" },
+                                "productDiscountTotal": { "type": "number" },
                                 "subTotal": { "type": "number" },
                                 "totalWeight": { "type": "number" },
                                 "codCharge": { "type": "number" },
@@ -2831,6 +2905,8 @@
                     "totals": {
                       "type": "object",
                       "properties": {
+                        "originalSubTotal": { "type": "number" },
+                        "productDiscountTotal": { "type": "number" },
                         "subTotal": { "type": "number" },
                         "totalWeight": { "type": "number" },
                         "codCharge": { "type": "number" },
@@ -3703,6 +3779,8 @@
                     "totals": {
                       "type": "object",
                       "properties": {
+                        "originalSubTotal": { "type": "number" },
+                        "productDiscountTotal": { "type": "number" },
                         "subTotal": { "type": "number" },
                         "discountAmount": { "type": "number" },
                         "appliedCoupon": {
