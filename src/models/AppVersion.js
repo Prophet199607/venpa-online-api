@@ -12,7 +12,6 @@ const AppVersion = sequelize.define(
     platform: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      unique: true,
     },
     latest_version: { type: DataTypes.STRING(50), allowNull: false },
     force_update: {

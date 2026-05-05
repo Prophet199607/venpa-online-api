@@ -5,7 +5,7 @@ const SubCategory = sequelize.define(
   "sub_categories",
   {
     id: { type: DataTypes.BIGINT, primaryKey: true, autoIncrement: true },
-    scat_code: { type: DataTypes.STRING(255), allowNull: false, unique: true },
+    scat_code: { type: DataTypes.STRING(255), allowNull: false },
     scat_name: { type: DataTypes.STRING(255), allowNull: false },
     department: { type: DataTypes.STRING(255), allowNull: false },
     cat_code: { type: DataTypes.STRING(255), allowNull: false },

@@ -12,7 +12,6 @@ const Checkout = sequelize.define(
     order_id: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
-      unique: true,
     },
     user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
     type: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },

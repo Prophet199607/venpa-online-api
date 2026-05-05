@@ -12,7 +12,6 @@ const PickAndCollect = sequelize.define(
     pick_and_collect_id: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
-      unique: true,
     },
     user_id: { type: DataTypes.BIGINT.UNSIGNED, allowNull: false },
     prod_code: { type: DataTypes.STRING(255), allowNull: false },

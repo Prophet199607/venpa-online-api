@@ -5,7 +5,7 @@ const SyncState = sequelize.define(
   "sync_state",
   {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-    entity: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+    entity: { type: DataTypes.STRING(50), allowNull: false },
     last_synced_at: { type: DataTypes.DATE, allowNull: true },
   },
   { timestamps: false },
