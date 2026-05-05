@@ -35,10 +35,18 @@ const ENTITY_CONFIG = {
     key: "id",
     pruneMissing: true,
   },
-  products: { model: Product, key: "prod_code" },
-  product_authors: { model: ProductAuthor, key: "id" },
-  product_sub_categories: { model: ProductSubCategory, key: "id" },
-  product_images: { model: ProductImage, key: ["prod_code", "image"] },
+  products: { model: Product, key: "prod_code", pruneMissing: true },
+  product_authors: { model: ProductAuthor, key: "id", pruneMissing: true },
+  product_sub_categories: {
+    model: ProductSubCategory,
+    key: "id",
+    pruneMissing: true,
+  },
+  product_images: {
+    model: ProductImage,
+    key: ["prod_code", "image"],
+    pruneMissing: true,
+  },
 };
 
 function getFetcher() {
