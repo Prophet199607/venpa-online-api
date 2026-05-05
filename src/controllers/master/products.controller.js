@@ -278,15 +278,41 @@ exports.bestSelling = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
+
+    // 1. Fetch top selling prod_codes first to avoid per-row subqueries
+    const topSellingCodes = await sequelize.query(
+      `SELECT prod_code 
+       FROM ${sourceDbName}.stock_masters 
+       GROUP BY prod_code 
+       HAVING SUM(qty) > 0 
+          AND ABS(SUM(CASE WHEN iid = 'ONL' THEN qty ELSE 0 END)) > 0
+       ORDER BY ABS(SUM(CASE WHEN iid = 'ONL' THEN qty ELSE 0 END)) DESC 
+       LIMIT :limit`,
+      {
+        replacements: { limit: limit * 2 },
+        type: sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    if (!topSellingCodes || topSellingCodes.length === 0) {
+      return res.json([]);
+    }
+
+    const codes = topSellingCodes.map((r) => r.prod_code);
+
+    // 2. Fetch product details and maintain the order using FIELD
     const items = await Product.findAll({
       where: {
-        prod_code: {
-          [Op.in]: sequelize.literal(
-            `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
-          ),
-        },
+        prod_code: { [Op.in]: codes },
       },
-      order: sequelize.random(),
+      order: [
+        [
+          sequelize.literal(
+            `FIELD(prod_code, ${codes.map((c) => sequelize.escape(c)).join(",")})`,
+          ),
+          "ASC",
+        ],
+      ],
       limit,
       include: productIncludes(),
     });
