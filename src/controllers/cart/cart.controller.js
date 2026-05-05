@@ -74,7 +74,9 @@ exports.getCart = async (req, res) => {
         : null;
 
       const quantity = parseInt(item.quantity || 0, 10);
-      const price = parseFloat(enrichedProduct?.selling_price || 0);
+      const price = parseFloat(
+        enrichedProduct?.discounted_price || enrichedProduct?.selling_price || 0,
+      );
       const weight = parseFloat(enrichedProduct?.weight || 0);
 
       subTotal += price * quantity;
