@@ -136,6 +136,13 @@ function formatSyncError(err) {
 async function upsertByKey(model, keyField, item) {
   const payload = sanitizeSyncItem(model, item);
 
+  // If we are syncing by a custom code (not ID), remove the ID from payload
+  // to avoid primary key collisions with existing local records.
+  const isIdKey = keyField === "id" || (Array.isArray(keyField) && keyField.includes("id"));
+  if (!isIdKey && payload.id) {
+    delete payload.id;
+  }
+
   // Find existing by code, otherwise create
   const where = Array.isArray(keyField)
     ? keyField.reduce((acc, key) => {
