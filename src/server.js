@@ -62,9 +62,18 @@ async function safeSyncModel(Model) {
       const modelList = Object.values(models).filter(
         (m) => m && typeof m.sync === "function",
       );
-      for (const Model of modelList) {
-        await safeSyncModel(Model);
+      
+      // Sync models in batches of 5 to balance speed and connection limits
+      const batchSize = 5;
+      const totalBatches = Math.ceil(modelList.length / batchSize);
+      
+      for (let i = 0; i < modelList.length; i += batchSize) {
+        const batchNumber = Math.floor(i / batchSize) + 1;
+        console.log(`  -> Syncing batch ${batchNumber}/${totalBatches}...`);
+        const batch = modelList.slice(i, i + batchSize);
+        await Promise.all(batch.map((Model) => safeSyncModel(Model)));
       }
+      
       console.log("✅ All tables synced!");
     } else {
       console.log("Skipping Sequelize sync on startup (DB_SYNC_MODE=none)");

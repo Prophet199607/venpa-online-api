@@ -11,9 +11,14 @@ const sequelize = new Sequelize(
     logging: false,
     timezone: process.env.DB_TIMEZONE || "+05:30",
     dialectOptions: {
-      useUTC: false,
       dateStrings: true,
       typeCast: true,
+    },
+    pool: {
+      max: 10,
+      min: 0,
+      acquire: 60000,
+      idle: 10000,
     },
     define: {
       freezeTableName: true,
