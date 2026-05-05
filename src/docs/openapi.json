@@ -1206,7 +1206,7 @@
     },
     "/api/v1/products/best/selling": {
       "get": {
-        "summary": "Get best selling (danata random ewa enne)",
+        "summary": "Get best selling",
         "tags": ["Products"],
         "parameters": [
           {

@@ -279,17 +279,18 @@ exports.bestSelling = async (req, res, next) => {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
 
-    // 1. Fetch top selling prod_codes first to avoid per-row subqueries
+    // 1. Fetch top selling prod_codes. Prioritize 'ONL' but fallback to total volume
     const topSellingCodes = await sequelize.query(
       `SELECT prod_code 
        FROM ${sourceDbName}.stock_masters 
        GROUP BY prod_code 
        HAVING SUM(qty) > 0 
-          AND ABS(SUM(CASE WHEN iid = 'ONL' THEN qty ELSE 0 END)) > 0
-       ORDER BY ABS(SUM(CASE WHEN iid = 'ONL' THEN qty ELSE 0 END)) DESC 
+       ORDER BY 
+          ABS(SUM(CASE WHEN iid = 'ONL' THEN qty ELSE 0 END)) DESC, 
+          ABS(SUM(qty)) DESC
        LIMIT :limit`,
       {
-        replacements: { limit: limit * 2 },
+        replacements: { limit: limit }, 
         type: sequelize.QueryTypes.SELECT,
       },
     );
@@ -308,7 +309,7 @@ exports.bestSelling = async (req, res, next) => {
       order: [
         [
           sequelize.literal(
-            `FIELD(prod_code, ${codes.map((c) => sequelize.escape(c)).join(",")})`,
+            `FIELD(products.prod_code, ${codes.map((c) => sequelize.escape(c)).join(",")})`,
           ),
           "ASC",
         ],
