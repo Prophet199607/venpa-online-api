@@ -122,6 +122,30 @@
         }
       }
     },
+    "/api/v1/payment/mintpay/success": {
+      "get": {
+        "summary": "Mintpay Success URL",
+        "description": "URL where users are redirected after successful Mintpay payment.",
+        "tags": ["Payment"],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/payment/mintpay/failed": {
+      "get": {
+        "summary": "Mintpay Failed URL",
+        "description": "URL where users are redirected if Mintpay payment fails.",
+        "tags": ["Payment"],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health check",

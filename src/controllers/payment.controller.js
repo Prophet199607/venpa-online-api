@@ -93,3 +93,36 @@ exports.payhereCancel = async (req, res) => {
     data: req.body,
   });
 };
+
+exports.mintpaySuccess = async (req, res) => {
+  console.log("--- Mintpay Success Callback ---");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  console.log("Query:", req.query);
+  console.log("-------------------------------");
+  
+  res.status(200).json({
+    message: "Mintpay success redirect received",
+    data: {
+      body: req.body,
+      query: req.query
+    }
+  });
+};
+
+exports.mintpayFailed = async (req, res) => {
+  console.log("--- Mintpay Failed Callback ---");
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  console.log("Query:", req.query);
+  console.log("-------------------------------");
+  
+  res.status(200).json({
+    message: "Mintpay failed redirect received",
+    data: {
+      body: req.body,
+      query: req.query
+    }
+  });
+};
+

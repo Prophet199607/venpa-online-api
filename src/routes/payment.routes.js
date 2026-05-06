@@ -7,4 +7,8 @@ router.post("/payhere/notify", paymentController.payhereNotify);
 router.all("/payhere/return", paymentController.payhereReturn);
 router.all("/payhere/cancel", paymentController.payhereCancel);
 
+// Mintpay callback routes
+router.all("/mintpay/success", paymentController.mintpaySuccess);
+router.all("/mintpay/failed", paymentController.mintpayFailed);
+
 module.exports = router;
