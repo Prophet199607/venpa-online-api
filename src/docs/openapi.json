@@ -53,9 +53,75 @@
     },
     {
       "name": "Coupons"
+    },
+    {
+      "name": "Payment"
     }
   ],
   "paths": {
+    "/api/v1/payment/payhere/notify": {
+      "post": {
+        "summary": "PayHere Notify URL",
+        "description": "Callback URL for PayHere to notify payment status (Server-to-Server).",
+        "tags": ["Payment"],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/payment/payhere/return": {
+      "post": {
+        "summary": "PayHere Return URL",
+        "description": "URL where users are redirected after successful payment.",
+        "tags": ["Payment"],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/payment/payhere/cancel": {
+      "post": {
+        "summary": "PayHere Cancel URL",
+        "description": "URL where users are redirected if they cancel the payment.",
+        "tags": ["Payment"],
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health check",

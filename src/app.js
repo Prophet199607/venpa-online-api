@@ -30,6 +30,7 @@ const chathuminaWebKatayamRoutes = require("./routes/chathumina_web_katayam.rout
 const shippingAddressRoutes = require("./routes/shippingAddress.routes");
 const pickAndCollectRoutes = require("./routes/pickAndCollect.routes");
 const orderRoutes = require("./routes/order/order.routes");
+const paymentRoutes = require("./routes/payment.routes");
 
 const errorMiddleware = require("./middleware/error.middleware");
 
@@ -47,6 +48,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 app.use((req, res, next) => {
   const originalJson = res.json.bind(res);
@@ -123,6 +125,7 @@ app.use("/api/v1/chathumina_web_katayam", chathuminaWebKatayamRoutes);
 app.use("/api/v1/shipping-address", shippingAddressRoutes);
 app.use("/api/v1/pick-and-collect", pickAndCollectRoutes);
 app.use("/api/v1/orders", orderRoutes);
+app.use("/api/v1/payment", paymentRoutes);
 
 app.use(errorMiddleware);
 
