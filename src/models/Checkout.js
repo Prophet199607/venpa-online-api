@@ -17,6 +17,8 @@ const Checkout = sequelize.define(
     type: { type: DataTypes.TINYINT.UNSIGNED, allowNull: false },
     type_name: { type: DataTypes.STRING(255), allowNull: true },
     payload: { type: DataTypes.JSON, allowNull: false },
+    payment_payload: { type: DataTypes.JSON, allowNull: true },
+    payment_status: { type: DataTypes.STRING(20), allowNull: true },
     status: {
       type: DataTypes.STRING(50),
       allowNull: false,
