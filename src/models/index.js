@@ -36,6 +36,7 @@ const NotificationLog = require("./NotificationLog");
 const Coupon = require("./Coupon");
 const CouponUsage = require("./CouponUsage");
 const ProductDiscount = require("./ProductDiscount");
+const WebsiteSectionProduct = require("./WebsiteSectionProduct");
 
 // Associations
 Department.hasMany(Category, {
@@ -203,6 +204,18 @@ CouponUsage.belongsTo(User, { foreignKey: "user_id" });
 Coupon.hasMany(CouponUsage, { foreignKey: "coupon_id" });
 CouponUsage.belongsTo(Coupon, { foreignKey: "coupon_id" });
 
+Product.hasMany(WebsiteSectionProduct, {
+  foreignKey: "prod_code",
+  sourceKey: "prod_code",
+  constraints: false,
+});
+WebsiteSectionProduct.belongsTo(Product, {
+  foreignKey: "prod_code",
+  targetKey: "prod_code",
+  as: "product",
+  constraints: false,
+});
+
 module.exports = {
   sequelize,
   Department,
@@ -242,4 +255,5 @@ module.exports = {
   Coupon,
   CouponUsage,
   ProductDiscount,
+  WebsiteSectionProduct,
 };
