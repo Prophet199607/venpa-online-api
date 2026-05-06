@@ -11,7 +11,6 @@ const {
   ProductAuthor,
   ProductSubCategory,
   ProductImage,
-  StockMaster,
   CodValueCharge,
   CourierWeightCharge,
   SyncState,
@@ -138,7 +137,8 @@ async function upsertByKey(model, keyField, item) {
 
   // If we are syncing by a custom code (not ID), remove the ID from payload
   // to avoid primary key collisions with existing local records.
-  const isIdKey = keyField === "id" || (Array.isArray(keyField) && keyField.includes("id"));
+  const isIdKey =
+    keyField === "id" || (Array.isArray(keyField) && keyField.includes("id"));
   if (!isIdKey && payload.id) {
     delete payload.id;
   }
