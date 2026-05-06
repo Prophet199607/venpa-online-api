@@ -96,33 +96,57 @@ exports.payhereCancel = async (req, res) => {
 
 exports.mintpaySuccess = async (req, res) => {
   console.log("--- Mintpay Success Callback ---");
-  console.log("Headers:", req.headers);
   console.log("Body:", req.body);
   console.log("Query:", req.query);
-  console.log("-------------------------------");
+  
+  try {
+    const order_id = req.body.order_id || req.query.order_id || req.body.merchantOrderId;
+    if (order_id) {
+      const checkout = await Checkout.findOne({ where: { order_id: order_id } });
+      if (checkout) {
+        await checkout.update({
+          payment_payload: { body: req.body, query: req.query },
+          payment_status: "success",
+          status: "success"
+        });
+        console.log(`✅ Updated Mintpay checkout for order: ${order_id} to success`);
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error updating checkout from Mintpay success:", error.message);
+  }
   
   res.status(200).json({
     message: "Mintpay success redirect received",
-    data: {
-      body: req.body,
-      query: req.query
-    }
+    data: { body: req.body, query: req.query }
   });
 };
 
 exports.mintpayFailed = async (req, res) => {
   console.log("--- Mintpay Failed Callback ---");
-  console.log("Headers:", req.headers);
   console.log("Body:", req.body);
   console.log("Query:", req.query);
-  console.log("-------------------------------");
+  
+  try {
+    const order_id = req.body.order_id || req.query.order_id || req.body.merchantOrderId;
+    if (order_id) {
+      const checkout = await Checkout.findOne({ where: { order_id: order_id } });
+      if (checkout) {
+        await checkout.update({
+          payment_payload: { body: req.body, query: req.query },
+          payment_status: "failed",
+          status: "failed"
+        });
+        console.log(`❌ Updated Mintpay checkout for order: ${order_id} to failed`);
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error updating checkout from Mintpay failed:", error.message);
+  }
   
   res.status(200).json({
     message: "Mintpay failed redirect received",
-    data: {
-      body: req.body,
-      query: req.query
-    }
+    data: { body: req.body, query: req.query }
   });
 };
 

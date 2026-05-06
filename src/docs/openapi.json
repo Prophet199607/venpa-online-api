@@ -123,7 +123,7 @@
       }
     },
     "/api/v1/payment/mintpay/success": {
-      "get": {
+      "post": {
         "summary": "Mintpay Success URL",
         "description": "URL where users are redirected after successful Mintpay payment.",
         "tags": ["Payment"],
@@ -135,7 +135,7 @@
       }
     },
     "/api/v1/payment/mintpay/failed": {
-      "get": {
+      "post": {
         "summary": "Mintpay Failed URL",
         "description": "URL where users are redirected if Mintpay payment fails.",
         "tags": ["Payment"],
