@@ -2937,6 +2937,74 @@
         }
       }
     },
+    "/api/v1/pick-and-collect/mintpay": {
+      "post": {
+        "summary": "Create Mintpay Pick & Collect order",
+        "description": "Creates a pending Pick & Collect order for Mintpay payment (type 3). Returns the pick_and_collect_id and amount to be used for Mintpay checkout.",
+        "tags": ["Pick & Collect"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["prod_code", "location", "picked_qty"],
+                "properties": {
+                  "prod_code": {
+                    "type": "string",
+                    "description": "Product code to pick and collect"
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "Location code to collect from"
+                  },
+                  "picked_qty": {
+                    "type": "number",
+                    "description": "Quantity to pick"
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mintpay Pick & Collect request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "pick_and_collect_id": { "type": "integer" },
+                    "amount": {
+                      "type": "string",
+                      "example": "1500.00"
+                    },
+                    "pick_and_collect": { "type": "object" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload or insufficient stock"
+          },
+          "404": {
+            "description": "Product or location not found"
+          }
+        }
+      }
+    },
     "/api/v1/checkout/apply-coupon": {
       "post": {
         "summary": "Apply coupon to current active cart",

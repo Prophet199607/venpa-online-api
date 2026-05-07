@@ -37,8 +37,9 @@ function normalizeQuantity(value) {
 }
 
 function normalizePickAndCollectType(value) {
-  if (value === 1 || value === "1") return 1;
-  if (value === 2 || value === "2") return 2;
+  if (value === 1 || value === "1") return 1; // Card (PayHere)
+  if (value === 2 || value === "2") return 2; // COD
+  if (value === 3 || value === "3") return 3; // Mintpay
   return null;
 }
 
@@ -436,6 +437,67 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     };
   }
 
+  // Type 3: Mintpay — create record without hash
+  if (type === 3) {
+    if (!Number.isFinite(netAmount) || netAmount <= 0) {
+      return {
+        status: 400,
+        body: { message: "Product has invalid pricing for Mintpay payment" },
+      };
+    }
+
+    const row = await PickAndCollect.create({
+      pick_and_collect_id: pickAndCollectId,
+      user_id: userId,
+      prod_code: prodCode,
+      location: locationCode,
+      location_name: location.loca_name,
+      type,
+      type_name: "pick & collect",
+      picked_qty: pickedQty,
+      status: "pending",
+      coupon_code: couponCode,
+      discount_amount: discountAmount,
+      net_amount: netAmount,
+      created_at: now,
+      updated_at: now,
+    });
+
+    if (appliedCouponId) {
+      await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+    }
+
+    const [serialized] = await serializeRows([row]);
+
+    // Notify Backoffice
+    User.findByPk(userId).then((user) => {
+      if (user) {
+        sendToTopic("backoffice", {
+          title: "New Pick & Collect Order (Mintpay)",
+          body: `${product?.prod_name} at ${location.loca_name}`,
+          data: {
+            notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+            pick_and_collect_id: String(pickAndCollectId),
+            user_id: String(userId),
+            customer_name: `${user.fname} ${user.lname}`.trim(),
+            product_name: product?.prod_name,
+            location: location.loca_name,
+          },
+        }).catch(console.error);
+      }
+    });
+
+    return {
+      status: 201,
+      body: {
+        message: "Mintpay pick and collect request created",
+        pick_and_collect: serialized,
+        pick_and_collect_id: pickAndCollectId,
+        amount: netAmount.toFixed(2),
+      },
+    };
+  }
+
   const row = await PickAndCollect.create({
     pick_and_collect_id: pickAndCollectId,
     user_id: userId,
@@ -519,6 +581,15 @@ exports.createPickAndCollect = async (req, res, next) => {
 exports.createPickAndCollectPayHereHash = async (req, res, next) => {
   try {
     const result = await createPickAndCollectResponse(req.user.id, req.body, 1);
+    return res.status(result.status).json(result.body);
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.createPickAndCollectMintpay = async (req, res, next) => {
+  try {
+    const result = await createPickAndCollectResponse(req.user.id, req.body, 3);
     return res.status(result.status).json(result.body);
   } catch (e) {
     next(e);

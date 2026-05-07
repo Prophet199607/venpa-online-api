@@ -5,6 +5,7 @@ const auth = require("../middleware/auth.middleware");
 
 router.get("/", auth, c.listMyPickAndCollects);
 router.post("/payhere-hash", auth, c.createPickAndCollectPayHereHash);
+router.post("/mintpay", auth, c.createPickAndCollectMintpay);
 router.post("/", auth, c.createPickAndCollect);
 router.post("/apply-coupon", auth, couponApply.applyCouponToPickAndCollect);
 
