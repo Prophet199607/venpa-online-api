@@ -80,9 +80,16 @@ exports.generateOrderInvoiceHtml = (
   cartItems = [],
   logoUrl = "",
 ) => {
-  const paymentMethod =
-    checkoutData.type === 1 ? "Card Payment" : "Cash on Delivery";
-  const paymentBadgeColor = checkoutData.type === 1 ? "#6366F1" : "#10B981";
+  if (checkoutData.type === 1) {
+    paymentMethod = "Card Payment (PayHere)";
+    paymentBadgeColor = "#6366F1";
+  } else if (checkoutData.type === 2) {
+    paymentMethod = "Cash on Delivery";
+    paymentBadgeColor = "#10B981";
+  } else if (checkoutData.type === 3) {
+    paymentMethod = "Mintpay";
+    paymentBadgeColor = "#003C71";
+  }
   const brandColor = "#0d5b82";
 
   const orderTypeDisplay =
@@ -116,7 +123,7 @@ exports.generateOrderInvoiceHtml = (
 
   let finalTotal = Number(checkoutData.net_amount || 0);
   if (!finalTotal) {
-    if (checkoutData.type === 1) {
+    if (checkoutData.type === 1 || checkoutData.type === 3) {
       finalTotal =
         totals.netTotalWithoutCod || subTotal + courierCharge - discountAmount;
     } else {

@@ -27,8 +27,9 @@ const {
 } = require("../services/notifications/emailService");
 
 function normalizeCheckoutType(value) {
-  if (value === 1 || value === "1") return 1;
-  if (value === 2 || value === "2") return 2;
+  if (value === 1 || value === "1") return 1; // Card (PayHere)
+  if (value === 2 || value === "2") return 2; // COD
+  if (value === 3 || value === "3") return 3; // Mintpay
   return null;
 }
 
@@ -603,7 +604,124 @@ exports.createCheckout = async (req, res, next) => {
       },
     });
   } catch (e) {
-    console.error("COD Checkout Error:", e);
+    console.error("Checkout Error:", e);
+    next(e);
+  }
+};
+
+exports.createMintpayCheckout = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const body = req.body;
+
+    const cart = await getActiveCartWithProducts(userId);
+    if (!cart) {
+      return res.status(404).json({ message: "Active cart not found" });
+    }
+
+    const totals = await calculateTotals(cart, body?.coupon_code, userId, 3);
+    if (totals.subTotal <= 0) {
+      return res
+        .status(400)
+        .json({ message: "Cart total must be greater than zero" });
+    }
+
+    const orderId = generateOrderId();
+
+    // Consume coupon
+    if (totals.appliedCoupon) {
+      await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+    }
+
+    // Stock Availability Check
+    const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
+    const rawCartItems =
+      cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
+    const items = rawCartItems
+      .map((item) => ({
+        product: {
+          prod_code:
+            item.product?.prod_code ||
+            item.product_code ||
+            item.prod_code ||
+            "N/A",
+          prod_name:
+            item.product?.prod_name || item.product_name || "Unknown Product",
+          selling_price: getDiscountedPrice(
+            item.product?.prod_code,
+            item.product?.selling_price || item.price || 0,
+            totals.discountMap,
+          ),
+          prod_image: item.product?.prod_image || null,
+        },
+        quantity: Number(item.quantity || 1),
+      }))
+      .filter((it) => it.product.prod_code !== "N/A");
+
+    const stockCheck = await checkStockAvailability(items);
+    if (!stockCheck.available) {
+      return res.status(400).json({
+        message: "Some items in your cart are out of stock",
+        missingItems: stockCheck.missingItems,
+      });
+    }
+
+    const { type: _type, ...payload } = body || {};
+
+    const checkout = await Checkout.create({
+      order_id: orderId,
+      user_id: userId,
+      type: 3,
+      type_name: "delivery",
+      payload: {
+        ...payload,
+        items,
+        prod_codes: items.map((i) => i.product.prod_code),
+        totals,
+        location: "001",
+      },
+      status: "pending",
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const user = await User.findOne({ where: { id: userId } });
+    if (user) {
+      sendOrderConfirmationEmail(
+        typeof user.toJSON === "function" ? user.toJSON() : user,
+        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+        items,
+      ).catch(console.error);
+
+      // Notify Backoffice
+      sendToTopic("backoffice", {
+        title: "New Delivery Order (Mintpay)",
+        body: `Order #${orderId} for ${totals.netTotalWithoutCod} LKR.`,
+        data: {
+          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+          order_id: String(orderId),
+          user_id: String(userId),
+          customer_name: `${user.fname} ${user.lname}`.trim(),
+          total: String(totals.netTotalWithoutCod),
+        },
+      }).catch(console.error);
+    }
+
+    return res.status(201).json({
+      message: "Mintpay checkout created",
+      order_id: checkout.order_id,
+      amount: totals.netTotalWithoutCod.toFixed(2),
+      checkout: {
+        order_id: checkout.order_id,
+        type: checkout.type,
+        type_name: checkout.type_name,
+        status: checkout.status,
+        payload: checkout.payload,
+        created_at: checkout.created_at,
+      },
+    });
+  } catch (e) {
+    console.error("Mintpay Checkout Error:", e);
     next(e);
   }
 };
@@ -630,7 +748,7 @@ exports.listCheckouts = async (req, res, next) => {
 
     const normalizedCheckouts = checkouts.map((c) => {
       const item = c.toJSON ? c.toJSON() : c;
-      
+
       // Parse payload if it's a string
       let payload = item.payload;
       if (typeof payload === "string") {

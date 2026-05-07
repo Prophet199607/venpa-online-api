@@ -5,6 +5,7 @@ const auth = require("../middleware/auth.middleware");
 
 router.post("/", auth, c.createCheckout);
 router.post("/payhere-hash", auth, c.createPayHereHash);
+router.post("/mintpay-checkout", auth, c.createMintpayCheckout);
 router.post("/apply-coupon", auth, couponApply.applyCouponToCart);
 router.get("/:order_id/bill", auth, c.getCheckoutBill);
 router.get("/", auth, c.listCheckouts);

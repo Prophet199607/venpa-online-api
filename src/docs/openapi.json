@@ -2868,92 +2868,71 @@
                       "type": "string"
                     },
                     "checkout": {
-                      "type": "object",
-                      "properties": {
-                        "order_id": {
-                          "type": "integer"
-                        },
-                        "type": {
-                          "type": "integer",
-                          "enum": [1]
-                        },
-                        "type_name": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "payload": {
-                          "type": "object",
-                          "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
-                          "properties": {
-                            "items": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "product": {
-                                    "type": "object",
-                                    "properties": {
-                                      "prod_code": { "type": "string" },
-                                      "prod_name": { "type": "string" },
-                                      "selling_price": { "type": "number" }
-                                    }
-                                  },
-                                  "quantity": { "type": "integer" }
-                                }
-                              }
-                            },
-                            "prod_codes": {
-                              "type": "array",
-                              "items": { "type": "string" }
-                            },
-                            "totals": {
-                              "type": "object",
-                              "properties": {
-                                "originalSubTotal": { "type": "number" },
-                                "productDiscountTotal": { "type": "number" },
-                                "subTotal": { "type": "number" },
-                                "totalWeight": { "type": "number" },
-                                "codCharge": { "type": "number" },
-                                "courierCharge": { "type": "number" },
-                                "discountAmount": { "type": "number" },
-                                "appliedCoupon": {
-                                  "type": "object",
-                                  "properties": {
-                                    "code": { "type": "string" },
-                                    "discount_type": { "type": "string" },
-                                    "discount_value": { "type": "number" },
-                                    "amount": { "type": "number" },
-                                    "is_cod": { "type": "boolean" },
-                                    "is_card_payment": { "type": "boolean" }
-                                  }
-                                },
-                                "netTotalWithCod": { "type": "number" },
-                                "netTotalWithoutCod": { "type": "number" }
-                              }
-                            }
-                          }
-                        },
-                        "created_at": {
-                          "type": "string",
-                          "format": "date-time"
-                        }
-                      }
+                      "type": "object"
                     }
                   }
                 }
               }
             }
-          },
-          "400": {
-            "description": "Cart is empty or invalid"
-          },
-          "404": {
-            "description": "Active cart not found"
-          },
-          "500": {
-            "description": "PayHere config missing"
+          }
+        }
+      }
+    },
+    "/api/v1/checkout/mintpay-checkout": {
+      "post": {
+        "summary": "Create pending Mintpay order",
+        "tags": ["Checkout"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "integer",
+                    "enum": [3],
+                    "description": "Optional. Mintpay payments always use type 3."
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "integer"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "example": "2500.00"
+                    },
+                    "checkout": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
