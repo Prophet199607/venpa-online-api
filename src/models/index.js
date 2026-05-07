@@ -38,6 +38,7 @@ const CouponUsage = require("./CouponUsage");
 const ProductDiscount = require("./ProductDiscount");
 const WebsiteSectionProduct = require("./WebsiteSectionProduct");
 const ContactUs = require("./ContactUs");
+const GiftReceiverDetail = require("./GiftReceiverDetail");
 
 // Associations
 Department.hasMany(Category, {
@@ -217,6 +218,18 @@ WebsiteSectionProduct.belongsTo(Product, {
   constraints: false,
 });
 
+// Gift Receiver Details
+Checkout.hasOne(GiftReceiverDetail, {
+  foreignKey: "order_id",
+  sourceKey: "id",
+  as: "giftDetails",
+});
+GiftReceiverDetail.belongsTo(Checkout, {
+  foreignKey: "order_id",
+  targetKey: "id",
+  as: "order",
+});
+
 module.exports = {
   sequelize,
   Department,
@@ -258,4 +271,5 @@ module.exports = {
   ProductDiscount,
   WebsiteSectionProduct,
   ContactUs,
+  GiftReceiverDetail,
 };

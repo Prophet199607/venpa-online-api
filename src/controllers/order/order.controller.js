@@ -4,6 +4,7 @@ const {
   DeviceToken,
   PickAndCollect,
   Product,
+  GiftReceiverDetail,
 } = require("../../models");
 const {
   sendToUser,
@@ -49,7 +50,10 @@ exports.getAllOrders = async (req, res, next) => {
 
       checkouts = await Checkout.findAll({
         where: checkoutWhere,
-        include: [userInclude],
+        include: [
+          userInclude,
+          { model: GiftReceiverDetail, as: "giftDetails" },
+        ],
         order: [["id", "DESC"]],
       });
     }
@@ -213,6 +217,10 @@ exports.getOrderById = async (req, res, next) => {
             },
           ],
         },
+        {
+          model: GiftReceiverDetail,
+          as: "giftDetails",
+        },
       ],
     });
 
@@ -270,6 +278,7 @@ exports.getOrderById = async (req, res, next) => {
         updated_at: json.updated_at,
         payload_items: payload?.items || [],
         totals: payload?.totals || {},
+        giftDetails: json.giftDetails || null,
         raw_payload: payload,
       });
     }

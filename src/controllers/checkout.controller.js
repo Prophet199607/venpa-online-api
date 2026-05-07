@@ -11,6 +11,7 @@ const {
   Coupon,
   CouponUsage,
   ProductDiscount,
+  GiftReceiverDetail,
 } = require("../models");
 const { Op } = require("sequelize");
 const {
@@ -440,6 +441,16 @@ async function createCardPaymentResponse(userId, body) {
     updated_at: new Date(),
   });
 
+  // Handle Gift Details
+  if (body.isGift && body.giftDetails) {
+    await GiftReceiverDetail.create({
+      order_id: checkout.id,
+      ...body.giftDetails,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+  }
+
   const user = await User.findOne({ where: { id: userId } });
   if (user) {
     sendOrderConfirmationEmail(
@@ -564,6 +575,16 @@ exports.createCheckout = async (req, res, next) => {
       updated_at: new Date(),
     });
 
+    // Handle Gift Details
+    if (req.body.isGift && req.body.giftDetails) {
+      await GiftReceiverDetail.create({
+        order_id: checkout.id,
+        ...req.body.giftDetails,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
+
     // Consume coupon
     if (totals.appliedCoupon) {
       await consumeCoupon(req.user.id, totals.appliedCoupon.id, orderId);
@@ -684,6 +705,16 @@ exports.createMintpayCheckout = async (req, res, next) => {
       created_at: new Date(),
       updated_at: new Date(),
     });
+
+    // Handle Gift Details
+    if (body.isGift && body.giftDetails) {
+      await GiftReceiverDetail.create({
+        order_id: checkout.id,
+        ...body.giftDetails,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
 
     const user = await User.findOne({ where: { id: userId } });
     if (user) {
