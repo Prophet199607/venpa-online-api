@@ -2429,6 +2429,20 @@
                     "raw_payload": {
                       "type": "object"
                     },
+                    "giftDetails": {
+                      "description": "Gift receiver details. Only present if the order was placed as a gift (isGift = true).",
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "first_name": { "type": "string" },
+                        "last_name": { "type": "string" },
+                        "email": { "type": "string", "format": "email" },
+                        "phone": { "type": "string" },
+                        "address": { "type": "string" },
+                        "city": { "type": "string", "nullable": true },
+                        "country": { "type": "string" }
+                      }
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time"
@@ -2659,6 +2673,24 @@
                   "coupon_code": {
                     "type": "string",
                     "description": "Optional coupon code (e.g., WELCOME5). To apply discount on checkout."
+                  },
+                  "isGift": {
+                    "type": "boolean",
+                    "description": "Set to true if this order is a gift. When true, giftDetails must be provided."
+                  },
+                  "giftDetails": {
+                    "type": "object",
+                    "description": "Delivery details of the gift receiver. Required when isGift is true.",
+                    "required": ["first_name", "last_name", "email", "phone", "address", "country"],
+                    "properties": {
+                      "first_name": { "type": "string", "description": "Recipient's first name" },
+                      "last_name": { "type": "string", "description": "Recipient's last name" },
+                      "email": { "type": "string", "format": "email", "description": "Recipient's email" },
+                      "phone": { "type": "string", "description": "Recipient's phone number" },
+                      "address": { "type": "string", "description": "Recipient's delivery address" },
+                      "city": { "type": "string", "nullable": true, "description": "Recipient's city (optional)" },
+                      "country": { "type": "string", "description": "Recipient's country" }
+                    }
                   }
                 }
               }

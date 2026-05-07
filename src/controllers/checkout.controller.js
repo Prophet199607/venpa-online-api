@@ -441,16 +441,6 @@ async function createCardPaymentResponse(userId, body) {
     updated_at: new Date(),
   });
 
-  // Handle Gift Details
-  if (body.isGift && body.giftDetails) {
-    await GiftReceiverDetail.create({
-      order_id: checkout.id,
-      ...body.giftDetails,
-      created_at: new Date(),
-      updated_at: new Date(),
-    });
-  }
-
   const user = await User.findOne({ where: { id: userId } });
   if (user) {
     sendOrderConfirmationEmail(
@@ -506,6 +496,20 @@ exports.createCheckout = async (req, res, next) => {
 
     if (type === 1) {
       const result = await createCardPaymentResponse(req.user.id, req.body);
+      
+      // Handle Gift Details for type 1 (if successful)
+      if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
+        const checkout = await Checkout.findOne({ where: { order_id: result.body.checkout.order_id } });
+        if (checkout) {
+          await GiftReceiverDetail.create({
+            order_id: checkout.id,
+            ...req.body.giftDetails,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
+      }
+      
       return res.status(result.status).json(result.body);
     }
 
@@ -705,16 +709,6 @@ exports.createMintpayCheckout = async (req, res, next) => {
       created_at: new Date(),
       updated_at: new Date(),
     });
-
-    // Handle Gift Details
-    if (body.isGift && body.giftDetails) {
-      await GiftReceiverDetail.create({
-        order_id: checkout.id,
-        ...body.giftDetails,
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
-    }
 
     const user = await User.findOne({ where: { id: userId } });
     if (user) {
