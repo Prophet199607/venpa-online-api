@@ -37,6 +37,7 @@ const Coupon = require("./Coupon");
 const CouponUsage = require("./CouponUsage");
 const ProductDiscount = require("./ProductDiscount");
 const WebsiteSectionProduct = require("./WebsiteSectionProduct");
+const ContactUs = require("./ContactUs");
 
 // Associations
 Department.hasMany(Category, {
@@ -256,4 +257,5 @@ module.exports = {
   CouponUsage,
   ProductDiscount,
   WebsiteSectionProduct,
+  ContactUs,
 };

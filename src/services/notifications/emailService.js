@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-function getTransporter() {
+exports.getTransporter = function getTransporter() {
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -8,7 +8,7 @@ function getTransporter() {
       pass: process.env.EMAIL_PASS,
     },
   });
-}
+};
 
 function buildItemsRows(cartItems) {
   if (!cartItems || cartItems.length === 0) return "";
@@ -465,5 +465,138 @@ exports.generateOtpEmailHtml = (code) => {
       </div>
     </body>
     </html>
+  `;
+};
+
+/**
+ * Generates a modern branded HTML email for contact us submissions.
+ */
+exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
+  const brandColor = "#0d5b82";
+  const logoUrl = process.env.EMAIL_LOGO_URL;
+  const year = new Date().getFullYear();
+  const messageHtml = String(message).replace(/\n/g, "<br/>");
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Contact Message</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    .email-card { background-color: #ffffff !important; }
+    .label-text { color: #6B7280 !important; }
+    .value-text { color: #111827 !important; }
+    .row-divider { border-bottom: 1px solid #E5E7EB !important; }
+    .message-box { background-color: #F9FAFB !important; border-color: #E5E7EB !important; }
+    .footer-text { color: #9CA3AF !important; }
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #111827 !important; }
+      .email-card { background-color: #1F2937 !important; }
+      .label-text { color: #9CA3AF !important; }
+      .value-text { color: #F9FAFB !important; }
+      .row-divider { border-bottom-color: #4B5563 !important; }
+      .message-box { background-color: #374151 !important; border-color: #4B5563 !important; }
+      .footer-text { color: #6B7280 !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:20px 0;background-color:#F3F4F6;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" class="email-card" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#3160c4 0%,${brandColor} 100%);padding:14px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="110">
+                    ${logoUrl ? `<img src="${logoUrl}" alt="Venpaa" width="110" style="display:block;max-width:110px;height:auto;" />` : ""}
+                  </td>
+                  <td style="padding-left:16px;text-align:right;">
+                    <h1 style="margin:0 0 2px;color:#ffffff;font-size:18px;font-weight:700;line-height:1.1;">New Contact Message</h1>
+                    <p style="margin:0;color:rgba(255,255,255,0.85);font-size:12px;">Someone has submitted a contact form.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Details Card -->
+          <tr>
+            <td style="padding:20px 24px 0;">
+              <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Contact Details</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+
+                <!-- Name -->
+                <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Name</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${name}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Email -->
+                <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Email</td>
+                        <td style="text-align:right;">
+                          <a href="mailto:${email}" style="font-size:13px;font-weight:600;color:${brandColor};text-decoration:none;">${email}</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Subject -->
+                <tr>
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Subject</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${subject}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- Message -->
+          <tr>
+            <td style="padding:16px 24px 0;">
+              <h2 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111827;">Message</h2>
+              <div class="message-box" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;">
+                <p class="value-text" style="margin:0;font-size:13px;color:#374151;line-height:1.7;">${messageHtml}</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 24px;text-align:center;">
+              <p class="footer-text" style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
+              <p style="margin:0;font-size:11px;color:#D1D5DB;">This is an automated notification email.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
   `;
 };

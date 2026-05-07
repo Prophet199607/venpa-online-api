@@ -56,6 +56,9 @@
     },
     {
       "name": "Payment"
+    },
+    {
+      "name": "Contact Us"
     }
   ],
   "paths": {
@@ -3238,6 +3241,61 @@
         "responses": {
           "200": {
             "description": "OK"
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/api/v1/contact-us": {
+      "post": {
+        "summary": "Submit a contact form",
+        "tags": ["Contact Us"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "subject", "message"],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "subject": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request"
