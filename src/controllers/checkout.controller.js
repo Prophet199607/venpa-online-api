@@ -358,7 +358,7 @@ function buildPayHereHash(orderId, amount) {
   };
 }
 
-async function createCardPaymentResponse(userId, body) {
+async function createCardPaymentResponse(userId, body, persist = true) {
   const cart = await getActiveCartWithProducts(userId);
   if (!cart) {
     return { status: 404, body: { message: "Active cart not found" } };
@@ -375,7 +375,7 @@ async function createCardPaymentResponse(userId, body) {
   const orderId = generateOrderId();
 
   // Consume coupon
-  if (totals.appliedCoupon) {
+  if (totals.appliedCoupon && persist) {
     await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
   }
 
@@ -424,49 +424,72 @@ async function createCardPaymentResponse(userId, body) {
     };
   }
 
-  const checkout = await Checkout.create({
-    order_id: orderId,
-    user_id: userId,
-    type: 1,
-    type_name: "delivery",
-    payload: {
-      ...payload,
-      items,
-      prod_codes: items.map((i) => i.product.prod_code),
-      totals,
-      location: "001", // Store deduction location
-    },
-    status: "pending",
-    created_at: new Date(),
-    updated_at: new Date(),
-  });
-
-  const user = await User.findOne({ where: { id: userId } });
-  if (user) {
-    sendOrderConfirmationEmail(
-      typeof user.toJSON === "function" ? user.toJSON() : user,
-      typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
-      items,
-    ).catch(console.error);
-
-    // Notify Backoffice
-    sendToTopic("backoffice", {
-      title: "New Delivery Order",
-      body: `Order #${orderId} for ${totals.netTotalWithoutCod} LKR.`,
-      data: {
-        notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
-        order_id: String(orderId),
-        user_id: String(userId),
-        customer_name: `${user.fname} ${user.lname}`.trim(),
-        total: String(totals.netTotalWithoutCod),
+  let checkout;
+  if (persist) {
+    checkout = await Checkout.create({
+      order_id: orderId,
+      user_id: userId,
+      type: 1,
+      type_name: "delivery",
+      payload: {
+        ...payload,
+        items,
+        prod_codes: items.map((i) => i.product.prod_code),
+        totals,
+        location: "001", // Store deduction location
       },
-    }).catch(console.error);
+      status: "pending",
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    const user = await User.findOne({ where: { id: userId } });
+    if (user) {
+      sendOrderConfirmationEmail(
+        typeof user.toJSON === "function" ? user.toJSON() : user,
+        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+        items,
+      ).catch(console.error);
+
+      // Notify Backoffice
+      sendToTopic("backoffice", {
+        title: "New Delivery Order",
+        body: `Order #${orderId} for ${totals.netTotalWithoutCod} LKR.`,
+        data: {
+          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+          order_id: String(orderId),
+          user_id: String(userId),
+          customer_name: `${user.fname} ${user.lname}`.trim(),
+          total: String(totals.netTotalWithoutCod),
+        },
+      }).catch(console.error);
+    }
+  } else {
+    // Return a mock checkout object for the response if not persisting
+    checkout = {
+      order_id: orderId,
+      type: 1,
+      type_name: "delivery",
+      status: "pending",
+      payload: {
+        ...payload,
+        items,
+        prod_codes: items.map((i) => i.product.prod_code),
+        totals,
+        location: "001",
+      },
+      created_at: new Date(),
+    };
   }
 
   return {
     status: 201,
     body: {
-      message: "PayHere hash generated",
+      message: persist ? "Order created and PayHere hash generated" : "PayHere hash generated (not saved)",
+      order_id: orderId,
+      amount,
+      currency: "LKR",
+      merchant_id: process.env.PAYHERE_MERCHANT_ID,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
@@ -479,6 +502,7 @@ async function createCardPaymentResponse(userId, body) {
     },
   };
 }
+
 
 exports.createCheckout = async (req, res, next) => {
   try {
@@ -495,7 +519,7 @@ exports.createCheckout = async (req, res, next) => {
     }
 
     if (type === 1) {
-      const result = await createCardPaymentResponse(req.user.id, req.body);
+      const result = await createCardPaymentResponse(req.user.id, req.body, true);
       
       // Handle Gift Details for type 1 (if successful)
       if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
@@ -510,6 +534,25 @@ exports.createCheckout = async (req, res, next) => {
         }
       }
       
+      return res.status(result.status).json(result.body);
+    }
+
+    if (type === 3) {
+      const result = await processMintpayResponse(req.user.id, req.body, true);
+
+      // Handle Gift Details for type 3 (if successful)
+      if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
+        const checkout = await Checkout.findOne({ where: { order_id: result.body.checkout.order_id } });
+        if (checkout) {
+          await GiftReceiverDetail.create({
+            order_id: checkout.id,
+            ...req.body.giftDetails,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
+      }
+
       return res.status(result.status).json(result.body);
     }
 
@@ -634,66 +677,68 @@ exports.createCheckout = async (req, res, next) => {
   }
 };
 
-exports.createMintpayCheckout = async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    const body = req.body;
+async function processMintpayResponse(userId, body, persist = true) {
+  const cart = await getActiveCartWithProducts(userId);
+  if (!cart) {
+    return { status: 404, body: { message: "Active cart not found" } };
+  }
 
-    const cart = await getActiveCartWithProducts(userId);
-    if (!cart) {
-      return res.status(404).json({ message: "Active cart not found" });
-    }
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 3);
+  if (totals.subTotal <= 0) {
+    return {
+      status: 400,
+      body: { message: "Cart total must be greater than zero" },
+    };
+  }
 
-    const totals = await calculateTotals(cart, body?.coupon_code, userId, 3);
-    if (totals.subTotal <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Cart total must be greater than zero" });
-    }
+  const orderId = generateOrderId();
 
-    const orderId = generateOrderId();
+  // Consume coupon
+  if (totals.appliedCoupon && persist) {
+    await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+  }
 
-    // Consume coupon
-    if (totals.appliedCoupon) {
-      await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
-    }
+  // Stock Availability Check
+  const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
+  const rawCartItems =
+    cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
+  const items = rawCartItems
+    .map((item) => ({
+      product: {
+        prod_code:
+          item.product?.prod_code ||
+          item.product_code ||
+          item.prod_code ||
+          "N/A",
+        prod_name:
+          item.product?.prod_name || item.product_name || "Unknown Product",
+        selling_price: getDiscountedPrice(
+          item.product?.prod_code,
+          item.product?.selling_price || item.price || 0,
+          totals.discountMap,
+        ),
+        prod_image: item.product?.prod_image || null,
+      },
+      quantity: Number(item.quantity || 1),
+    }))
+    .filter((it) => it.product.prod_code !== "N/A");
 
-    // Stock Availability Check
-    const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
-    const rawCartItems =
-      cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
-    const items = rawCartItems
-      .map((item) => ({
-        product: {
-          prod_code:
-            item.product?.prod_code ||
-            item.product_code ||
-            item.prod_code ||
-            "N/A",
-          prod_name:
-            item.product?.prod_name || item.product_name || "Unknown Product",
-          selling_price: getDiscountedPrice(
-            item.product?.prod_code,
-            item.product?.selling_price || item.price || 0,
-            totals.discountMap,
-          ),
-          prod_image: item.product?.prod_image || null,
-        },
-        quantity: Number(item.quantity || 1),
-      }))
-      .filter((it) => it.product.prod_code !== "N/A");
-
-    const stockCheck = await checkStockAvailability(items);
-    if (!stockCheck.available) {
-      return res.status(400).json({
+  const stockCheck = await checkStockAvailability(items);
+  if (!stockCheck.available) {
+    return {
+      status: 400,
+      body: {
         message: "Some items in your cart are out of stock",
         missingItems: stockCheck.missingItems,
-      });
-    }
+      },
+    };
+  }
 
-    const { type: _type, ...payload } = body || {};
+  const { type: _type, ...payload } = body || {};
 
-    const checkout = await Checkout.create({
+  let checkout;
+  if (persist) {
+    checkout = await Checkout.create({
       order_id: orderId,
       user_id: userId,
       type: 3,
@@ -731,9 +776,27 @@ exports.createMintpayCheckout = async (req, res, next) => {
         },
       }).catch(console.error);
     }
+  } else {
+    checkout = {
+      order_id: orderId,
+      type: 3,
+      type_name: "delivery",
+      status: "pending",
+      payload: {
+        ...payload,
+        items,
+        prod_codes: items.map((i) => i.product.prod_code),
+        totals,
+        location: "001",
+      },
+      created_at: new Date(),
+    };
+  }
 
-    return res.status(201).json({
-      message: "Mintpay checkout created",
+  return {
+    status: 201,
+    body: {
+      message: persist ? "Mintpay checkout created" : "Mintpay hash generated (not saved)",
       order_id: checkout.order_id,
       amount: totals.netTotalWithoutCod.toFixed(2),
       checkout: {
@@ -744,7 +807,14 @@ exports.createMintpayCheckout = async (req, res, next) => {
         payload: checkout.payload,
         created_at: checkout.created_at,
       },
-    });
+    },
+  };
+}
+
+exports.createMintpayCheckout = async (req, res, next) => {
+  try {
+    const result = await processMintpayResponse(req.user.id, req.body, false);
+    return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("Mintpay Checkout Error:", e);
     next(e);
@@ -753,9 +823,10 @@ exports.createMintpayCheckout = async (req, res, next) => {
 
 exports.createPayHereHash = async (req, res, next) => {
   try {
-    const result = await createCardPaymentResponse(req.user.id, req.body);
+    const result = await createCardPaymentResponse(req.user.id, req.body, false);
     return res.status(result.status).json(result.body);
   } catch (e) {
+    console.error("PayHere Hash Error:", e);
     next(e);
   }
 };
