@@ -3,6 +3,7 @@ const {
   ProductDiscount,
   ProductSubCategory,
   SubCategory,
+  sequelize,
 } = require("../../models");
 const { Op } = require("sequelize");
 
@@ -13,11 +14,9 @@ exports.list = async (req, res, next) => {
   try {
     const { department, category, sub_category, q } = req.query;
     const page = Math.max(1, parseInt(req.query.page) || 1);
-    const per_page = Math.min(
-      200,
-      Math.max(1, parseInt(req.query.per_page) || 15),
-    );
-    const offset = (page - 1) * per_page;
+    const per_page = Math.max(1, parseInt(req.query.per_page) || 15);
+    const limit = Math.min(per_page, 200);
+    const offset = (page - 1) * limit;
 
     // Build Product where clause
     const productWhere = {};
@@ -75,9 +74,10 @@ exports.list = async (req, res, next) => {
         },
       ],
       order: [["id", "DESC"]],
-      limit: per_page,
+      limit,
       offset,
       distinct: true,
+      col: "id",
     });
 
     const enrichedRows = rows.map((row) => {
@@ -105,9 +105,9 @@ exports.list = async (req, res, next) => {
       data: enrichedRows,
       pagination: {
         current_page: page,
-        last_page: Math.ceil(count / per_page) || 0,
+        last_page: Math.ceil(count / limit) || 0,
         total: count,
-        per_page,
+        per_page: limit,
       },
     });
   } catch (e) {
@@ -119,50 +119,86 @@ exports.list = async (req, res, next) => {
  * Save or update product discounts
  */
 exports.saveDiscount = async (req, res, next) => {
+  const transaction = await sequelize.transaction();
   try {
-    const {
-      prod_code,
-      discount_amount,
-      discount_percentage,
-      start_date,
-      end_date,
-      status,
-    } = req.body;
+    const data = req.body;
+    const isArray = Array.isArray(data);
+    const items = isArray ? data : [data];
 
-    if (!prod_code) {
-      return res
-        .status(400)
-        .json({ success: false, message: "prod_code is required" });
+    if (items.length === 0) {
+      await transaction.rollback();
+      return res.json({ success: true, message: "No items to save" });
     }
 
-    // Update or Create in ProductDiscount table
-    const [item, created] = await ProductDiscount.findOrCreate({
-      where: { prod_code },
-      defaults: {
-        discount_amount,
-        discount_percentage,
-        start_date,
-        end_date,
-        status: status ?? 1,
-      },
-    });
+    const savedItems = [];
 
-    if (!created) {
-      await item.update({
+    for (const itemData of items) {
+      const {
+        prod_code,
         discount_amount,
         discount_percentage,
         start_date,
         end_date,
-        status: status ?? item.status,
+        status,
+      } = itemData;
+
+      if (!prod_code) continue;
+
+      // Update or Create in ProductDiscount table
+      const [discountItem, created] = await ProductDiscount.findOrCreate({
+        where: { prod_code },
+        defaults: {
+          discount_amount,
+          discount_percentage,
+          start_date,
+          end_date,
+          status: status ?? 1,
+        },
+        transaction,
       });
+
+      if (!created) {
+        await discountItem.update(
+          {
+            discount_amount,
+            discount_percentage,
+            start_date,
+            end_date,
+            status: status ?? discountItem.status,
+          },
+          { transaction },
+        );
+      }
+
+      // Sync to Product table
+      const isActive = (status ?? discountItem.status) === 1;
+      await Product.update(
+        {
+          discount: isActive ? discount_amount || 0 : 0,
+          dis_per: isActive ? discount_percentage || 0 : 0,
+          dis_start_date: isActive ? start_date : null,
+          dis_end_date: isActive ? end_date : null,
+        },
+        {
+          where: { prod_code },
+          transaction,
+        },
+      );
+
+      savedItems.push(discountItem);
     }
+
+    await transaction.commit();
 
     res.json({
       success: true,
-      message: "Discount saved successfully",
-      data: item,
+      message: isArray
+        ? `Successfully saved ${savedItems.length} discounts`
+        : "Discount saved successfully",
+      data: isArray ? savedItems : savedItems[0],
     });
   } catch (e) {
+    if (transaction) await transaction.rollback();
     next(e);
   }
 };
@@ -186,10 +222,38 @@ exports.deleteDiscounts = async (req, res, next) => {
       });
     }
 
+    const transaction = await sequelize.transaction();
+    // Get prod_codes before deleting to sync with Product table
+    const discounts = await ProductDiscount.findAll({
+      where: { id: { [Op.in]: ids } },
+      attributes: ["prod_code"],
+      transaction,
+    });
+    const prodCodes = discounts.map((d) => d.prod_code);
+
     // Delete from ProductDiscount table
     const deletedCount = await ProductDiscount.destroy({
       where: { id: { [Op.in]: ids } },
+      transaction,
     });
+
+    // Clear discount from Product table
+    if (prodCodes.length > 0) {
+      await Product.update(
+        {
+          discount: 0,
+          dis_per: 0,
+          dis_start_date: null,
+          dis_end_date: null,
+        },
+        {
+          where: { prod_code: { [Op.in]: prodCodes } },
+          transaction,
+        },
+      );
+    }
+
+    await transaction.commit();
 
     res.json({
       success: true,
@@ -197,6 +261,7 @@ exports.deleteDiscounts = async (req, res, next) => {
       deleted_count: deletedCount,
     });
   } catch (e) {
+    if (transaction) await transaction.rollback();
     next(e);
   }
 };
