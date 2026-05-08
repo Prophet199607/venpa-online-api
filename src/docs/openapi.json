@@ -1003,6 +1003,76 @@
         }
       }
     },
+    "/api/v1/sections/{type}": {
+      "get": {
+        "summary": "Get website section products",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new-arrival",
+                "special-offer",
+                "top-kids",
+                "best-selling",
+                "new-release"
+              ]
+            },
+            "description": "Section type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update website section products",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prod_code": { "type": "string" },
+                        "position": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/coupons": {
       "get": {
         "summary": "List coupons",
@@ -1348,6 +1418,26 @@
               "type": "string"
             },
             "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/products/most/selling": {
+      "get": {
+        "summary": "Get most selling products (ONL, WEB, APP)",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {

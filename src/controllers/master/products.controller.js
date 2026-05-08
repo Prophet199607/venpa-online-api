@@ -354,7 +354,7 @@ exports.bestSelling = async (req, res, next) => {
     const topSellingCodes = await sequelize.query(
       `SELECT sm.prod_code 
        FROM ${sourceDbName}.stock_masters sm
-       JOIN products p ON p.prod_code = sm.prod_code
+       JOIN products p ON p.prod_code = sm.prod_code COLLATE utf8mb4_unicode_ci
        WHERE 1=1 ${priceWhereSql}
        GROUP BY sm.prod_code 
        HAVING SUM(sm.qty) > 0 
@@ -385,6 +385,52 @@ exports.bestSelling = async (req, res, next) => {
     // 2. Fetch product details and maintain the order using FIELD
     const items = await Product.findAll({
       where,
+      order: [
+        [
+          sequelize.literal(
+            `FIELD(products.prod_code, ${codes.map((c) => sequelize.escape(c)).join(",")})`,
+          ),
+          "ASC",
+        ],
+      ],
+      limit,
+      include: productIncludes(),
+    });
+
+    res.json(await enrichProducts(items));
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.mostSelling = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit || 15), 50);
+    const sourceDbName = process.env.MYSQL_SOURCE_DB;
+
+    // Fetch top selling prod_codes based on qty for ONL, WEB, APP
+    const topSellingCodes = await sequelize.query(
+      `SELECT sm.prod_code 
+       FROM ${sourceDbName}.stock_masters sm
+       JOIN products p ON p.prod_code = sm.prod_code COLLATE utf8mb4_unicode_ci
+       GROUP BY sm.prod_code 
+       HAVING SUM(sm.qty) > 0 
+       ORDER BY ABS(SUM(CASE WHEN sm.iid IN ('ONL', 'WEB', 'APP') THEN sm.qty ELSE 0 END)) DESC
+       LIMIT :limit`,
+      {
+        replacements: { limit: limit },
+        type: sequelize.QueryTypes.SELECT,
+      },
+    );
+
+    if (!topSellingCodes || topSellingCodes.length === 0) {
+      return res.json([]);
+    }
+
+    const codes = topSellingCodes.map((r) => r.prod_code);
+
+    const items = await Product.findAll({
+      where: { prod_code: { [Op.in]: codes } },
       order: [
         [
           sequelize.literal(
