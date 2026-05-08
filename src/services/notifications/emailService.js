@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-exports.getTransporter = function getTransporter() {
+function getTransporter() {
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -8,7 +8,8 @@ exports.getTransporter = function getTransporter() {
       pass: process.env.EMAIL_PASS,
     },
   });
-};
+}
+exports.getTransporter = getTransporter;
 
 function buildItemsRows(cartItems) {
   if (!cartItems || cartItems.length === 0) return "";
@@ -74,12 +75,12 @@ function buildItemsRows(cartItems) {
 /**
  * Generates the Order Invoice HTML
  */
-exports.generateOrderInvoiceHtml = (
+function generateOrderInvoiceHtml(
   user,
   checkoutData,
   cartItems = [],
   logoUrl = "",
-) => {
+) {
   let paymentMethod = "N/A";
   let paymentBadgeColor = "#6B7280";
 
@@ -357,20 +358,7 @@ exports.generateOrderInvoiceHtml = (
               </div>
             </td>
           </tr>
-
-          <!-- Centered Info Note -->
-          <tr>
-            <td style="padding: 16px 24px 0;" align="center">
-            <table cellpadding="0" cellspacing="0" class="info-box" style="border-radius: 6px; background-color: #EFF6FF; border-left: 3px solid ${brandColor}; border-right: 3px solid ${brandColor}; display: inline-block;">
-                <tr>
-                <td style="padding: 8px 20px;">
-                    <p style="margin: 0; color: #1E40AF; font-size: 12px; line-height: 1.4; text-align: center;">We will notify you once your order status is updated.</p>
-                </td>
-                </tr>
-            </table>
-            </td>
-          </tr>
-
+          
           <!-- Footer -->
           <tr>
             <td style="padding: 20px 24px; text-align: center;">
@@ -384,27 +372,22 @@ exports.generateOrderInvoiceHtml = (
     </tr>
   </table>
 </body>
-</html>
   `;
-};
+}
+exports.generateOrderInvoiceHtml = generateOrderInvoiceHtml;
 
-exports.sendOrderConfirmationEmail = async (
-  user,
-  checkoutData,
-  cartItems = [],
-) => {
-  const emailUser = process.env.EMAIL_USER;
-  if (!emailUser) {
-    console.warn("Email address not set. Skipping email.");
+async function sendOrderConfirmationEmail(user, checkoutData, cartItems = []) {
+  if (!user.email) {
+    console.error(
+      "No email address found for user. Cannot send order confirmation.",
+    );
     return;
   }
 
   const transporter = getTransporter();
-
-  // Use EMAIL_LOGO_URL from env if available
   const logoUrl = process.env.EMAIL_LOGO_URL;
 
-  const htmlContent = exports.generateOrderInvoiceHtml(
+  const htmlContent = generateOrderInvoiceHtml(
     user,
     checkoutData,
     cartItems,
@@ -412,6 +395,9 @@ exports.sendOrderConfirmationEmail = async (
   );
 
   try {
+    console.log(
+      `Attempting to send order confirmation email for Order #${checkoutData.order_id} to ${user.email}...`,
+    );
     const info = await transporter.sendMail({
       from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
       replyTo: "no-reply@venpaa.lk",
@@ -419,11 +405,15 @@ exports.sendOrderConfirmationEmail = async (
       subject: `Order Confirmed #${checkoutData.order_id} — Venpaa Bookshop`,
       html: htmlContent,
     });
-    console.log(`Email sent to ${user.email}: ${info.messageId}`);
+    console.log(`Email sent successfully to ${user.email}: ${info.messageId}`);
   } catch (error) {
-    console.error("Email send failed:", error);
+    console.error(
+      `Email send failed for Order #${checkoutData.order_id} to ${user.email}:`,
+      error,
+    );
   }
-};
+}
+exports.sendOrderConfirmationEmail = sendOrderConfirmationEmail;
 
 exports.generateOtpEmailHtml = (code) => {
   const brandColor = "#0d5b82";
