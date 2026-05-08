@@ -1313,6 +1313,34 @@
         }
       }
     },
+    "/api/v1/products/new/releases": {
+      "get": {
+        "summary": "Get new releases",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "price_range",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/v1/products/special/offers": {
       "get": {
         "summary": "Get special offers",
@@ -2811,15 +2839,45 @@
                   "giftDetails": {
                     "type": "object",
                     "description": "Delivery details of the gift receiver. Required when isGift is true.",
-                    "required": ["first_name", "last_name", "email", "phone", "address", "country"],
+                    "required": [
+                      "first_name",
+                      "last_name",
+                      "email",
+                      "phone",
+                      "address",
+                      "country"
+                    ],
                     "properties": {
-                      "first_name": { "type": "string", "description": "Recipient's first name" },
-                      "last_name": { "type": "string", "description": "Recipient's last name" },
-                      "email": { "type": "string", "format": "email", "description": "Recipient's email" },
-                      "phone": { "type": "string", "description": "Recipient's phone number" },
-                      "address": { "type": "string", "description": "Recipient's delivery address" },
-                      "city": { "type": "string", "nullable": true, "description": "Recipient's city (optional)" },
-                      "country": { "type": "string", "description": "Recipient's country" }
+                      "first_name": {
+                        "type": "string",
+                        "description": "Recipient's first name"
+                      },
+                      "last_name": {
+                        "type": "string",
+                        "description": "Recipient's last name"
+                      },
+                      "email": {
+                        "type": "string",
+                        "format": "email",
+                        "description": "Recipient's email"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "description": "Recipient's phone number"
+                      },
+                      "address": {
+                        "type": "string",
+                        "description": "Recipient's delivery address"
+                      },
+                      "city": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Recipient's city (optional)"
+                      },
+                      "country": {
+                        "type": "string",
+                        "description": "Recipient's country"
+                      }
                     }
                   }
                 }

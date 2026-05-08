@@ -108,6 +108,42 @@ function getPriceRangeSql(rangeQuery) {
   return "";
 }
 
+/**
+ * Generic helper to fetch products based on WebsiteSectionProduct mapping
+ */
+const getProductsBySectionType = async (type, limit, priceRange) => {
+  const sectionProducts = await WebsiteSectionProduct.findAll({
+    where: { section_type: type },
+    order: [["position", "ASC"]],
+    limit: limit,
+    attributes: ["prod_code"],
+  });
+
+  if (sectionProducts.length === 0) return [];
+
+  const codes = sectionProducts.map((sp) => sp.prod_code);
+
+  const where = { prod_code: { [Op.in]: codes } };
+  if (priceRange) {
+    Object.assign(where, getPriceRangeWhere(priceRange));
+  }
+
+  const items = await Product.findAll({
+    where,
+    order: [
+      [
+        sequelize.literal(
+          `FIELD(products.prod_code, ${codes.map((c) => sequelize.escape(c)).join(",")})`,
+        ),
+        "ASC",
+      ],
+    ],
+    include: productIncludes(),
+  });
+
+  return await enrichProducts(items);
+};
+
 exports.list = async (req, res, next) => {
   try {
     const { q, department, category, sub_category, price_range } = req.query;
@@ -229,8 +265,9 @@ exports.newArrivals = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const { price_range } = req.query;
-    const sourceDbName = process.env.MYSQL_SOURCE_DB;
 
+    /* Commented out old database-driven logic
+    const sourceDbName = process.env.MYSQL_SOURCE_DB;
     const where = {
       prod_code: {
         [Op.in]: sequelize.literal(
@@ -238,19 +275,24 @@ exports.newArrivals = async (req, res, next) => {
         ),
       },
     };
-
     if (price_range) {
       Object.assign(where, getPriceRangeWhere(price_range));
     }
-
     const items = await Product.findAll({
       where,
       order: [["id", "DESC"]],
       limit,
       include: productIncludes(),
     });
-
     res.json(await enrichProducts(items));
+    */
+
+    const items = await getProductsBySectionType(
+      "new-arrival",
+      limit,
+      price_range,
+    );
+    res.json(items);
   } catch (e) {
     next(e);
   }
@@ -314,8 +356,9 @@ exports.topKidsBooks = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const { price_range } = req.query;
-    const sourceDbName = process.env.MYSQL_SOURCE_DB;
 
+    /* Commented out old database-driven logic
+    const sourceDbName = process.env.MYSQL_SOURCE_DB;
     const where = {
       category: "1004",
       prod_code: {
@@ -324,19 +367,24 @@ exports.topKidsBooks = async (req, res, next) => {
         ),
       },
     };
-
     if (price_range) {
       Object.assign(where, getPriceRangeWhere(price_range));
     }
-
     const items = await Product.findAll({
       where,
       order: [["id", "DESC"]],
       limit,
       include: productIncludes(),
     });
-
     res.json(await enrichProducts(items));
+    */
+
+    const items = await getProductsBySectionType(
+      "top-kids",
+      limit,
+      price_range,
+    );
+    res.json(items);
   } catch (e) {
     next(e);
   }
@@ -346,11 +394,10 @@ exports.bestSelling = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const { price_range } = req.query;
+
+    /* Commented out old database-driven logic
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
-
     const priceWhereSql = getPriceRangeSql(price_range);
-
-    // 1. Fetch top selling prod_codes. Prioritize 'ONL' but fallback to total volume
     const topSellingCodes = await sequelize.query(
       `SELECT sm.prod_code 
        FROM ${sourceDbName}.stock_masters sm
@@ -367,22 +414,16 @@ exports.bestSelling = async (req, res, next) => {
         type: sequelize.QueryTypes.SELECT,
       },
     );
-
     if (!topSellingCodes || topSellingCodes.length === 0) {
       return res.json([]);
     }
-
     const codes = topSellingCodes.map((r) => r.prod_code);
-
     const where = {
       prod_code: { [Op.in]: codes },
     };
-
     if (price_range) {
       Object.assign(where, getPriceRangeWhere(price_range));
     }
-
-    // 2. Fetch product details and maintain the order using FIELD
     const items = await Product.findAll({
       where,
       order: [
@@ -396,8 +437,30 @@ exports.bestSelling = async (req, res, next) => {
       limit,
       include: productIncludes(),
     });
-
     res.json(await enrichProducts(items));
+    */
+
+    const items = await getProductsBySectionType(
+      "top-selling",
+      limit,
+      price_range,
+    );
+    res.json(items);
+  } catch (e) {
+    next(e);
+  }
+};
+
+exports.newReleases = async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit || 10), 50);
+    const { price_range } = req.query;
+    const items = await getProductsBySectionType(
+      "new-release",
+      limit,
+      price_range,
+    );
+    res.json(items);
   } catch (e) {
     next(e);
   }
