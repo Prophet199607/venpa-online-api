@@ -8,6 +8,7 @@ const {
   StockMaster,
   SubCategory,
   ProductDiscount,
+  WebsiteSectionProduct,
   sequelize,
 } = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
