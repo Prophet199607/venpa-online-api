@@ -80,6 +80,9 @@ exports.generateOrderInvoiceHtml = (
   cartItems = [],
   logoUrl = "",
 ) => {
+  let paymentMethod = "N/A";
+  let paymentBadgeColor = "#6B7280";
+
   if (checkoutData.type === 1) {
     paymentMethod = "Card Payment (PayHere)";
     paymentBadgeColor = "#6366F1";
@@ -410,7 +413,7 @@ exports.sendOrderConfirmationEmail = async (
 
   try {
     const info = await transporter.sendMail({
-      from: `Venpaa Bookshop <${process.env.EMAIL_USER}>`,
+      from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
       replyTo: "no-reply@venpaa.lk",
       to: user.email,
       subject: `Order Confirmed #${checkoutData.order_id} — Venpaa Bookshop`,
