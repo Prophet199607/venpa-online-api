@@ -1198,6 +1198,14 @@
               "type": "integer"
             },
             "description": "Products per frame (default: 100, max: 200)"
+          },
+          {
+            "name": "price_range",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
           }
         ],
         "responses": {
@@ -1218,6 +1226,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "price_range",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
           }
         ],
         "responses": {
@@ -1238,6 +1254,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "price_range",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
           }
         ],
         "responses": {
@@ -1258,6 +1282,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "price_range",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
           }
         ],
         "responses": {
@@ -1308,6 +1340,14 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "price_range",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by price range (e.g., '0-1000', '1000-2000', 'upto 5000')"
           }
         ],
         "responses": {

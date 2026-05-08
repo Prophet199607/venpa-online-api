@@ -66,14 +66,59 @@ function resolveFrameSize(rawValue) {
   return Math.min(Math.trunc(parsed), 200);
 }
 
+function getPriceRangeWhere(rangeQuery) {
+  if (!rangeQuery) return {};
+
+  const cleanRange = rangeQuery.toLowerCase().trim();
+
+  if (cleanRange === "upto 5000" || cleanRange === "5000+") {
+    return { selling_price: { [Op.gte]: 5000 } };
+  }
+
+  const parts = cleanRange.split("-");
+  if (parts.length === 2) {
+    const min = parseFloat(parts[0]);
+    const max = parseFloat(parts[1]);
+    if (!isNaN(min) && !isNaN(max)) {
+      return { selling_price: { [Op.between]: [min, max] } };
+    }
+  }
+
+  return {};
+}
+
+function getPriceRangeSql(rangeQuery) {
+  if (!rangeQuery) return "";
+
+  const cleanRange = rangeQuery.toLowerCase().trim();
+
+  if (cleanRange === "upto 5000" || cleanRange === "5000+") {
+    return "AND p.selling_price >= 5000";
+  }
+
+  const parts = cleanRange.split("-");
+  if (parts.length === 2) {
+    const min = parseFloat(parts[0]);
+    const max = parseFloat(parts[1]);
+    if (!isNaN(min) && !isNaN(max)) {
+      return `AND p.selling_price BETWEEN ${min} AND ${max}`;
+    }
+  }
+
+  return "";
+}
+
 exports.list = async (req, res, next) => {
   try {
-    const { q, department, category, sub_category } = req.query;
+    const { q, department, category, sub_category, price_range } = req.query;
     const frame = resolveFrame(req.query.frame || req.query.page);
     const limit = resolveFrameSize(req.query.limit);
     const offset = (frame - 1) * limit;
 
     const where = {};
+    if (price_range) {
+      Object.assign(where, getPriceRangeWhere(price_range));
+    }
     const countInclude = [];
     const itemInclude = productIncludes();
     if (department) where.department = department;
@@ -183,15 +228,23 @@ exports.search = async (req, res, next) => {
 exports.newArrivals = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const { price_range } = req.query;
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
-    const items = await Product.findAll({
-      where: {
-        prod_code: {
-          [Op.in]: sequelize.literal(
-            `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
-          ),
-        },
+
+    const where = {
+      prod_code: {
+        [Op.in]: sequelize.literal(
+          `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
+        ),
       },
+    };
+
+    if (price_range) {
+      Object.assign(where, getPriceRangeWhere(price_range));
+    }
+
+    const items = await Product.findAll({
+      where,
       order: [["id", "DESC"]],
       limit,
       include: productIncludes(),
@@ -206,13 +259,20 @@ exports.newArrivals = async (req, res, next) => {
 exports.specialOffers = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const { price_range } = req.query;
     const nowStr = new Date().toISOString().slice(0, 10);
 
     const baseIncludes = productIncludes().filter(
       (inc) => inc.as !== "productDiscounts",
     );
 
+    const where = {};
+    if (price_range) {
+      Object.assign(where, getPriceRangeWhere(price_range));
+    }
+
     const items = await Product.findAll({
+      where,
       order: [["id", "DESC"]],
       limit,
       include: [
@@ -253,16 +313,24 @@ exports.specialOffers = async (req, res, next) => {
 exports.topKidsBooks = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const { price_range } = req.query;
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
-    const items = await Product.findAll({
-      where: {
-        category: "1004",
-        prod_code: {
-          [Op.in]: sequelize.literal(
-            `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
-          ),
-        },
+
+    const where = {
+      category: "1004",
+      prod_code: {
+        [Op.in]: sequelize.literal(
+          `(SELECT prod_code COLLATE utf8mb4_unicode_ci FROM ${sourceDbName}.stock_masters GROUP BY prod_code HAVING SUM(qty) > 0)`,
+        ),
       },
+    };
+
+    if (price_range) {
+      Object.assign(where, getPriceRangeWhere(price_range));
+    }
+
+    const items = await Product.findAll({
+      where,
       order: [["id", "DESC"]],
       limit,
       include: productIncludes(),
@@ -277,20 +345,25 @@ exports.topKidsBooks = async (req, res, next) => {
 exports.bestSelling = async (req, res, next) => {
   try {
     const limit = Math.min(Number(req.query.limit || 10), 50);
+    const { price_range } = req.query;
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
+
+    const priceWhereSql = getPriceRangeSql(price_range);
 
     // 1. Fetch top selling prod_codes. Prioritize 'ONL' but fallback to total volume
     const topSellingCodes = await sequelize.query(
-      `SELECT prod_code 
-       FROM ${sourceDbName}.stock_masters 
-       GROUP BY prod_code 
-       HAVING SUM(qty) > 0 
+      `SELECT sm.prod_code 
+       FROM ${sourceDbName}.stock_masters sm
+       JOIN products p ON p.prod_code = sm.prod_code
+       WHERE 1=1 ${priceWhereSql}
+       GROUP BY sm.prod_code 
+       HAVING SUM(sm.qty) > 0 
        ORDER BY 
-          ABS(SUM(CASE WHEN iid = 'ONL' THEN qty ELSE 0 END)) DESC, 
-          ABS(SUM(qty)) DESC
+          ABS(SUM(CASE WHEN sm.iid = 'ONL' THEN sm.qty ELSE 0 END)) DESC, 
+          ABS(SUM(sm.qty)) DESC
        LIMIT :limit`,
       {
-        replacements: { limit: limit }, 
+        replacements: { limit: limit },
         type: sequelize.QueryTypes.SELECT,
       },
     );
@@ -301,11 +374,17 @@ exports.bestSelling = async (req, res, next) => {
 
     const codes = topSellingCodes.map((r) => r.prod_code);
 
+    const where = {
+      prod_code: { [Op.in]: codes },
+    };
+
+    if (price_range) {
+      Object.assign(where, getPriceRangeWhere(price_range));
+    }
+
     // 2. Fetch product details and maintain the order using FIELD
     const items = await Product.findAll({
-      where: {
-        prod_code: { [Op.in]: codes },
-      },
+      where,
       order: [
         [
           sequelize.literal(
