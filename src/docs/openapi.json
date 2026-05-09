@@ -56,9 +56,6 @@
     },
     {
       "name": "Payment"
-    },
-    {
-      "name": "Contact Us"
     }
   ],
   "paths": {
@@ -1069,6 +1066,59 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/website-details": {
+      "get": {
+        "summary": "Get website details",
+        "description": "Returns current website configuration including social links, logos, contact info, and locations.",
+        "tags": ["Web Management"],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" },
+                    "data": { "$ref": "#/components/schemas/WebsiteDetail" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update website details",
+        "description": "Updates or creates the website configuration.",
+        "tags": ["Web Management"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WebsiteDetail" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string" },
+                    "message": { "type": "string" },
+                    "data": { "$ref": "#/components/schemas/WebsiteDetail" }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -3471,7 +3521,7 @@
     "/api/v1/contact-us": {
       "post": {
         "summary": "Submit a contact form",
-        "tags": ["Contact Us"],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
@@ -4731,6 +4781,65 @@
           "status": {
             "type": "integer"
           }
+        }
+      },
+      "WebsiteDetail": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "email": { "type": "string", "nullable": true },
+          "phone": { "type": "string", "nullable": true },
+          "about_us": { "type": "string", "nullable": true },
+          "opening_hours": { "type": "string", "nullable": true },
+          "social_links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "platform": { "type": "string" },
+                "url": { "type": "string" }
+              }
+            },
+            "nullable": true
+          },
+          "logos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "url": { "type": "string" }
+              }
+            },
+            "nullable": true
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "address": { "type": "string" },
+                "map_link": { "type": "string" },
+                "phone": { "type": "string" }
+              }
+            },
+            "nullable": true
+          },
+          "navbar_messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": { "type": "string" },
+                "is_active": { "type": "boolean" },
+                "link": { "type": "string", "nullable": true }
+              }
+            },
+            "nullable": true
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
         }
       }
     }
