@@ -960,6 +960,81 @@ exports.updateCheckoutStatus = async (req, res, next) => {
   }
 };
 
+exports.checkoutSuccess = async (req, res, next) => {
+  try {
+    const { order_id, type, t } = req.body;
+
+    if (!order_id || !type) {
+      return res
+        .status(400)
+        .json({ message: "order_id and type are required" });
+    }
+
+    const checkout = await Checkout.findOne({ where: { order_id } });
+    if (!checkout) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    let success = false;
+    let message = "";
+
+    // Mapping based on user request: 1: COD, 2: PayHere, 3: Mintpay
+    if (type === 1 || type === "1") {
+      // COD - Considered success immediately upon reaching this endpoint
+      success = true;
+      message = "COD order confirmed successfully";
+    } else if (type === 2 || type === "2") {
+      // PayHere - Check if payment was already verified by gateway callbacks
+      if (checkout.payment_status === "2" || checkout.status === "success") {
+        success = true;
+        message = "PayHere payment verified successfully";
+      } else {
+        success = false;
+        message = "Payment not yet confirmed by PayHere gateway";
+      }
+    } else if (type === 3 || type === "3") {
+      // Mintpay - Frontend passes t (true/false)
+      if (t === true || t === "true") {
+        success = true;
+        message = "Mintpay payment successful";
+      } else {
+        success = false;
+        message = "Mintpay payment failed or cancelled";
+      }
+    }
+
+    if (success) {
+      await checkout.update({
+        status: "success",
+        updated_at: new Date(),
+      });
+
+      // Clear user cart upon successful checkout
+      const { Cart, CartItem } = require("../models");
+      const cart = await Cart.findOne({ where: { user_id: checkout.user_id } });
+      if (cart) {
+        await CartItem.destroy({ where: { cart_id: cart.id } });
+      }
+
+      return res.json({
+        success: true,
+        message,
+        order_id: checkout.order_id,
+        status: "success",
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message,
+        order_id: checkout.order_id,
+      });
+    }
+  } catch (error) {
+    console.error("Checkout Success Error:", error);
+    next(error);
+  }
+};
+
 exports.getCheckoutBill = async (req, res, next) => {
   try {
     const { order_id: rawOrderId } = req.params;
