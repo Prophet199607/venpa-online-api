@@ -879,6 +879,13 @@ exports.listCheckouts = async (req, res, next) => {
     const [checkouts, pickAndCollects] = await Promise.all([
       Checkout.findAll({
         where: { user_id: req.user.id },
+        include: [
+          {
+            model: GiftReceiverDetail,
+            as: "giftDetails",
+            required: false,
+          },
+        ],
       }),
       PickAndCollect.findAll({
         where: { user_id: req.user.id },
@@ -909,6 +916,8 @@ exports.listCheckouts = async (req, res, next) => {
       const discountAmount = Number(totals.discountAmount || 0);
       const netTotal = subTotal - discountAmount;
 
+      const isGift = !!(payload?.isGift || (item.giftDetails && item.giftDetails.id));
+
       return {
         record_type: "checkout",
         order_id: item.order_id,
@@ -920,6 +929,9 @@ exports.listCheckouts = async (req, res, next) => {
         net_total: netTotal,
         discount_amount: discountAmount,
         status: item.status,
+        payment_status: item.payment_status,
+        is_gift: isGift,
+        gift_details: isGift ? (item.giftDetails || null) : null,
         created_at: item.created_at,
         updated_at: item.updated_at,
       };

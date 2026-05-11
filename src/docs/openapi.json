@@ -2927,7 +2927,34 @@
                           "sub_total": { "type": "number" },
                           "net_total": { "type": "number" },
                           "discount_amount": { "type": "number" },
-                          "status": { "type": "string" },
+                          "status": { "type": "string", "example": "pending" },
+                          "payment_status": {
+                            "type": "string",
+                            "enum": ["success", "pending"],
+                            "description": "Payment status. COD (type 1) is always 'success'. Card/Mintpay start as 'pending' until confirmed.",
+                            "example": "success"
+                          },
+                          "is_gift": {
+                            "type": "boolean",
+                            "description": "Indicates whether this order was placed as a gift",
+                            "example": false
+                          },
+                          "gift_details": {
+                            "type": "object",
+                            "nullable": true,
+                            "description": "Recipient details if is_gift is true, otherwise null",
+                            "properties": {
+                              "id": { "type": "integer" },
+                              "order_id": { "type": "integer" },
+                              "first_name": { "type": "string" },
+                              "last_name": { "type": "string" },
+                              "email": { "type": "string", "format": "email" },
+                              "phone": { "type": "string" },
+                              "address": { "type": "string" },
+                              "city": { "type": "string", "nullable": true },
+                              "country": { "type": "string" }
+                            }
+                          },
                           "created_at": {
                             "type": "string",
                             "format": "date-time"
