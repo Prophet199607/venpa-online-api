@@ -486,7 +486,9 @@ async function createCardPaymentResponse(userId, body, persist = true) {
   return {
     status: 201,
     body: {
-      message: persist ? "Order created and PayHere hash generated" : "PayHere hash generated (not saved)",
+      message: persist
+        ? "Order created and PayHere hash generated"
+        : "PayHere hash generated (not saved)",
       order_id: orderId,
       amount,
       currency: "LKR",
@@ -504,7 +506,6 @@ async function createCardPaymentResponse(userId, body, persist = true) {
   };
 }
 
-
 exports.createCheckout = async (req, res, next) => {
   try {
     if (!req.body || typeof req.body !== "object") {
@@ -520,21 +521,27 @@ exports.createCheckout = async (req, res, next) => {
     }
 
     if (type === 2) {
-      const result = await createCardPaymentResponse(req.user.id, req.body, true);
-      
+      const result = await createCardPaymentResponse(
+        req.user.id,
+        req.body,
+        true,
+      );
+
       // Handle Gift Details for type 2 (if successful)
       if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
-        const checkout = await Checkout.findOne({ where: { order_id: result.body.checkout.order_id } });
+        const checkout = await Checkout.findOne({
+          where: { order_id: result.body.checkout.order_id },
+        });
         if (checkout) {
           await GiftReceiverDetail.create({
-            order_id: checkout.id,
+            order_id: checkout.order_id,
             ...req.body.giftDetails,
             created_at: new Date(),
             updated_at: new Date(),
           });
         }
       }
-      
+
       return res.status(result.status).json(result.body);
     }
 
@@ -543,10 +550,12 @@ exports.createCheckout = async (req, res, next) => {
 
       // Handle Gift Details for type 3 (if successful)
       if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
-        const checkout = await Checkout.findOne({ where: { order_id: result.body.checkout.order_id } });
+        const checkout = await Checkout.findOne({
+          where: { order_id: result.body.checkout.order_id },
+        });
         if (checkout) {
           await GiftReceiverDetail.create({
-            order_id: checkout.id,
+            order_id: checkout.order_id,
             ...req.body.giftDetails,
             created_at: new Date(),
             updated_at: new Date(),
@@ -627,7 +636,7 @@ exports.createCheckout = async (req, res, next) => {
     // Handle Gift Details
     if (req.body.isGift && req.body.giftDetails) {
       await GiftReceiverDetail.create({
-        order_id: checkout.id,
+        order_id: checkout.order_id,
         ...req.body.giftDetails,
         created_at: new Date(),
         updated_at: new Date(),
@@ -799,7 +808,9 @@ async function processMintpayResponse(userId, body, persist = true) {
   return {
     status: 201,
     body: {
-      message: persist ? "Mintpay checkout created" : "Mintpay hash generated (not saved)",
+      message: persist
+        ? "Mintpay checkout created"
+        : "Mintpay hash generated (not saved)",
       order_id: checkout.order_id,
       amount: totals.netTotalWithoutCod.toFixed(2),
       checkout: {
@@ -873,7 +884,11 @@ exports.createPayHereHash = async (req, res, next) => {
     }
 
     // Default flow: Generate hash for a new potential order
-    const result = await createCardPaymentResponse(req.user.id, req.body, false);
+    const result = await createCardPaymentResponse(
+      req.user.id,
+      req.body,
+      false,
+    );
     return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("PayHere Hash Error:", e);
@@ -1102,7 +1117,9 @@ exports.checkoutSuccess = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message,
-        order_id: isPickAndCollect ? record.pick_and_collect_id : record.order_id,
+        order_id: isPickAndCollect
+          ? record.pick_and_collect_id
+          : record.order_id,
       });
     }
   } catch (error) {
