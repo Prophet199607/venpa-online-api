@@ -7,6 +7,7 @@ router.get("/", auth, c.listMyPickAndCollects);
 router.post("/payhere-hash", auth, c.createPickAndCollectPayHereHash);
 router.post("/mintpay", auth, c.createPickAndCollectMintpay);
 router.post("/", auth, c.createPickAndCollect);
+router.post("/success", auth, c.pickAndCollectSuccess);
 router.post("/apply-coupon", auth, couponApply.applyCouponToPickAndCollect);
 
 module.exports = router;

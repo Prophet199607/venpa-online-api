@@ -3400,6 +3400,69 @@
         }
       }
     },
+    "/api/v1/pick-and-collect/success": {
+      "post": {
+        "summary": "Verify Pick & Collect payment success",
+        "description": "Validates if a Pick & Collect payment was successful. For PayHere (type 2), it checks the backend record. For Mintpay (type 3), it validates the success flag.",
+        "tags": ["Pick & Collect"],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["order_id", "type"],
+                "properties": {
+                  "order_id": {
+                    "type": "string",
+                    "description": "The unique Pick & Collect ID",
+                    "example": "1778423005903004"
+                  },
+                  "type": {
+                    "type": "integer",
+                    "enum": [2, 3],
+                    "description": "2 = PayHere, 3 = Mintpay"
+                  },
+                  "t": {
+                    "type": "boolean",
+                    "description": "True if payment was successful (required for Mintpay)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "order_id": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Payment verification failed or invalid parameters"
+          },
+          "404": {
+            "description": "Order not found"
+          }
+        }
+      }
+    },
+
     "/api/v1/checkout/apply-coupon": {
       "post": {
         "summary": "Apply coupon to current active cart",

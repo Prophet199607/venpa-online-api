@@ -633,3 +633,72 @@ exports.createPickAndCollectMintpay = async (req, res, next) => {
     next(e);
   }
 };
+
+exports.pickAndCollectSuccess = async (req, res, next) => {
+  try {
+    const { order_id, type, t } = req.body;
+    const pick_and_collect_id = order_id;
+
+    if (!pick_and_collect_id || !type) {
+      return res
+        .status(400)
+        .json({ message: "pick_and_collect_id and type are required" });
+    }
+
+    const record = await PickAndCollect.findOne({
+      where: { pick_and_collect_id, user_id: req.user.id },
+    });
+
+    if (!record) {
+      return res.status(404).json({ message: "Pick and Collect order not found" });
+    }
+
+    let success = false;
+    let message = "";
+
+    // Mapping: 2: PayHere, 3: Mintpay (COD not supported for P&C)
+    if (type === 2 || type === "2") {
+      // For PayHere, we check the database status (updated by notify/return callbacks)
+      if (record.payment_status === "success") {
+        success = true;
+        message = "PayHere payment verified successfully";
+      } else {
+        success = false;
+        message = "PayHere payment not yet verified or failed";
+      }
+    } else if (type === 3 || type === "3") {
+      // For Mintpay, the frontend passes a success flag 't'
+      if (t === true || t === "true") {
+        success = true;
+        message = "Mintpay payment successful";
+      } else {
+        success = false;
+        message = "Mintpay payment failed or cancelled";
+      }
+    } else {
+      return res.status(400).json({ message: "Invalid payment type for Pick & Collect" });
+    }
+
+    if (success) {
+      await record.update({
+        payment_status: "success",
+        updated_at: new Date(),
+      });
+
+      return res.json({
+        success: true,
+        message,
+        order_id: record.pick_and_collect_id,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message,
+        order_id: record.pick_and_collect_id,
+      });
+    }
+  } catch (e) {
+    next(e);
+  }
+};
+
