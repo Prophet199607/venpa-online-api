@@ -1,5 +1,11 @@
 const { Op } = require("sequelize");
-const { Author, Product, ProductAuthor, ProductImage } = require("../../models");
+const {
+  Author,
+  Product,
+  ProductAuthor,
+  ProductImage,
+  ProductDiscount,
+} = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
 
 function productIncludes() {
@@ -8,6 +14,10 @@ function productIncludes() {
       model: ProductImage,
       as: "images",
       attributes: { exclude: ["id", "product_id"] },
+    },
+    {
+      model: ProductDiscount,
+      as: "productDiscounts",
     },
   ];
 }
