@@ -580,9 +580,47 @@ exports.createPickAndCollect = async (req, res, next) => {
 
 exports.createPickAndCollectPayHereHash = async (req, res, next) => {
   try {
+    const pickAndCollectId = req.body.pick_and_collect_id || req.body.order_id;
+
+    if (pickAndCollectId) {
+      const record = await PickAndCollect.findOne({
+        where: { pick_and_collect_id: pickAndCollectId, user_id: req.user.id },
+      });
+
+      if (!record) {
+        return res
+          .status(404)
+          .json({ message: "Pick and Collect record not found" });
+      }
+
+      const amountValue = Number(record.net_amount || 0);
+      if (amountValue <= 0) {
+        return res
+          .status(400)
+          .json({ message: "Record has invalid amount for payment" });
+      }
+
+      const amount = amountValue.toFixed(2);
+      const hashPayload = buildPayHereHash(pickAndCollectId, amount);
+
+      if (hashPayload.error) {
+        return res.status(500).json({ message: hashPayload.error });
+      }
+
+      return res.json({
+        message: "PayHere hash generated for existing pick and collect order",
+        pick_and_collect_id: record.pick_and_collect_id,
+        amount,
+        currency: "LKR",
+        merchant_id: process.env.PAYHERE_MERCHANT_ID,
+        ...hashPayload,
+      });
+    }
+
     const result = await createPickAndCollectResponse(req.user.id, req.body, 1);
     return res.status(result.status).json(result.body);
   } catch (e) {
+    console.error("PickAndCollect PayHere Hash Error:", e);
     next(e);
   }
 };

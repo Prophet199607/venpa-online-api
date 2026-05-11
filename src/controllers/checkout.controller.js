@@ -823,6 +823,53 @@ exports.createMintpayCheckout = async (req, res, next) => {
 
 exports.createPayHereHash = async (req, res, next) => {
   try {
+    const { order_id } = req.body;
+
+    // If order_id is provided, generate hash for existing record
+    if (order_id) {
+      const checkout = await Checkout.findOne({
+        where: { order_id, user_id: req.user.id },
+      });
+
+      if (!checkout) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Parse payload to get amount
+      let payload = checkout.payload;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch (e) {
+          return res.status(500).json({ message: "Invalid order payload" });
+        }
+      }
+
+      const amountValue = payload.totals?.netTotalWithoutCod || 0;
+      if (amountValue <= 0) {
+        return res
+          .status(400)
+          .json({ message: "Order has invalid amount for payment" });
+      }
+
+      const amount = amountValue.toFixed(2);
+      const hashPayload = buildPayHereHash(order_id, amount);
+
+      if (hashPayload.error) {
+        return res.status(500).json({ message: hashPayload.error });
+      }
+
+      return res.json({
+        message: "PayHere hash generated for existing order",
+        order_id: checkout.order_id,
+        amount,
+        currency: "LKR",
+        merchant_id: process.env.PAYHERE_MERCHANT_ID,
+        ...hashPayload,
+      });
+    }
+
+    // Default flow: Generate hash for a new potential order
     const result = await createCardPaymentResponse(req.user.id, req.body, false);
     return res.status(result.status).json(result.body);
   } catch (e) {
