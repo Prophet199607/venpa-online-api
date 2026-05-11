@@ -3,10 +3,12 @@ const {
   PasswordReset,
   PublicEmailOtp,
   PublicPhoneOtp,
+  DeviceToken,
 } = require("../../models");
 const { z } = require("zod");
-const { OAuth2Client } = require("google-auth-library");
+const { Op } = require("sequelize");
 const nodemailer = require("nodemailer");
+const { OAuth2Client } = require("google-auth-library");
 const {
   generateOtpEmailHtml,
 } = require("../../services/notifications/emailService");
@@ -114,6 +116,40 @@ exports.sendOtp = async (req, res) => {
   }
 };
 
+// Helper to update platform and device token
+async function updateUserLoginInfo(userId, platform, fcmToken) {
+  // 1. Update user platform
+  if (platform) {
+    await User.update({ platform }, { where: { id: userId } });
+  }
+
+  // 2. Handle Device Token
+  if (fcmToken) {
+    // Check if token exists for this user
+    const existing = await DeviceToken.findOne({
+      where: { user_id: userId, token: fcmToken },
+    });
+
+    if (existing) {
+      await existing.update({
+        platform: platform || existing.platform,
+        updated_at: new Date(),
+      });
+    } else {
+      await DeviceToken.create({
+        user_id: userId,
+        token: fcmToken,
+        platform: platform,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
+  } else if (platform) {
+    // Update platform for all device tokens of this user
+    await DeviceToken.update({ platform }, { where: { user_id: userId } });
+  }
+}
+
 // 2. Verify OTP and handle Login/Registration
 exports.verifyOtp = async (req, res) => {
   try {
@@ -162,20 +198,54 @@ exports.verifyOtp = async (req, res) => {
     await record.update({ verified_at: new Date(), updated_at: new Date() });
 
     // Handle User creation or fetch
-    let user = await User.findOne({ where: queryField });
+    const cleanEmail = email ? String(email).trim().toLowerCase() : null;
+    const cleanPhone = phone ? phone.replace(/\D/g, "") : null;
+
+    const userConditions = [];
+    if (cleanEmail) userConditions.push({ email: cleanEmail });
+    if (cleanPhone) userConditions.push({ phone: cleanPhone });
+
+    let user = await User.findOne({
+      where: { [Op.or]: userConditions },
+    });
+
     if (!user) {
       // Create new user automatically during first login/registration
       const randomPassword = `otp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       user = await User.create({
         fname: "",
         lname: "",
-        email: email ? email.trim().toLowerCase() : null,
-        phone: phone ? phone.replace(/\D/g, "") : null,
+        email: cleanEmail,
+        phone: cleanPhone,
         password: randomPassword,
         status: 1,
         auth_provider: "local",
       });
+    } else {
+      // Update email/phone if missing but provided now
+      const updateData = {};
+      if (cleanEmail && !user.email) {
+        // Check if another user has this email
+        const emailOwner = await User.findOne({
+          where: { email: cleanEmail, id: { [Op.ne]: user.id } },
+        });
+        if (!emailOwner) updateData.email = cleanEmail;
+      }
+      if (cleanPhone && !user.phone) {
+        // Check if another user has this phone
+        const phoneOwner = await User.findOne({
+          where: { phone: cleanPhone, id: { [Op.ne]: user.id } },
+        });
+        if (!phoneOwner) updateData.phone = cleanPhone;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await user.update(updateData);
+      }
     }
+
+    // Update platform and device token
+    const { platform, fcmToken } = req.body || {};
+    await updateUserLoginInfo(user.id, platform, fcmToken);
 
     const userResponse = user.toJSON();
     delete userResponse.password;
@@ -184,6 +254,7 @@ exports.verifyOtp = async (req, res) => {
     userResponse.lname = userResponse.lname || "";
     userResponse.email = userResponse.email || "";
     userResponse.phone = userResponse.phone || "";
+    userResponse.platform = platform || user.platform || "";
 
     res.json({
       success: true,
@@ -247,21 +318,45 @@ exports.googleLogin = async (req, res) => {
     const fname = parts[0] || "User";
     const lname = parts.slice(1).join(" ") || " ";
 
-    let user = await User.findOne({ where: { email: payload.email } });
+    const cleanEmail = payload.email.trim().toLowerCase();
+    const cleanPhone = (payload.phone_number || "").replace(/\D/g, "");
+
+    const userConditions = [{ email: cleanEmail }];
+    if (cleanPhone) userConditions.push({ phone: cleanPhone });
+
+    let user = await User.findOne({
+      where: { [Op.or]: userConditions },
+    });
+
     if (!user) {
       const randomPassword = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
       user = await User.create({
         fname,
         lname,
-        email: payload.email,
-        phone: payload.phone_number || null,
+        email: cleanEmail,
+        phone: cleanPhone || null,
         password: randomPassword,
         auth_provider: "google",
         status: 1,
       });
-    } else if (user.auth_provider !== "google") {
-      await user.update({ auth_provider: "google" });
+    } else {
+      const updateData = {};
+      if (user.auth_provider !== "google") updateData.auth_provider = "google";
+      if (cleanPhone && !user.phone) {
+        // Check if another user has this phone
+        const phoneOwner = await User.findOne({
+          where: { phone: cleanPhone, id: { [Op.ne]: user.id } },
+        });
+        if (!phoneOwner) updateData.phone = cleanPhone;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await user.update(updateData);
+      }
     }
+
+    // Update platform and device token
+    const { platform, fcmToken } = req.body || {};
+    await updateUserLoginInfo(user.id, platform, fcmToken);
 
     const userResponse = user.toJSON();
     delete userResponse.password;
@@ -270,6 +365,7 @@ exports.googleLogin = async (req, res) => {
     userResponse.lname = userResponse.lname || "";
     userResponse.email = userResponse.email || "";
     userResponse.phone = userResponse.phone || "";
+    userResponse.platform = platform || user.platform || "";
 
     res.json({
       success: true,

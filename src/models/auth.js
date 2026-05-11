@@ -30,6 +30,7 @@ const User = sequelize.define(
       allowNull: false,
       defaultValue: "local",
     },
+    platform: { type: DataTypes.STRING(20), allowNull: true },
     status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
   },
   {
