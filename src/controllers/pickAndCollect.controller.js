@@ -16,6 +16,9 @@ const {
 const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
+const {
+  sendOrderConfirmationEmail,
+} = require("../services/notifications/emailService");
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
 
 function normalizeString(value) {
@@ -37,7 +40,6 @@ function normalizeQuantity(value) {
 }
 
 function normalizePickAndCollectType(value) {
-  if (value === 1 || value === "1") return 1; // COD
   if (value === 2 || value === "2") return 2; // Card (PayHere)
   if (value === 3 || value === "3") return 3; // Mintpay
   return null;
@@ -650,6 +652,10 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
 
     const record = await PickAndCollect.findOne({
       where: { pick_and_collect_id, user_id: req.user.id },
+      include: [
+        { model: User, attributes: ["id", "fname", "lname", "email", "phone"] },
+        { model: Product, as: "product" },
+      ],
     });
 
     if (!record) {
@@ -691,6 +697,39 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
         payment_status: "success",
         updated_at: new Date(),
       });
+
+      // Send Confirmation Email
+      if (record.User) {
+        const items = [
+          {
+            product: record.product
+              ? record.product.toJSON
+                ? record.product.toJSON()
+                : record.product
+              : null,
+            quantity: record.picked_qty,
+          },
+        ];
+
+        sendOrderConfirmationEmail(
+          record.User.toJSON ? record.User.toJSON() : record.User,
+          record.toJSON ? record.toJSON() : record,
+          items,
+        ).catch(console.error);
+
+        // Notify Backoffice
+        sendToTopic("backoffice", {
+          title: "Order Payment Success (P&C)",
+          body: `Order #${record.pick_and_collect_id} payment confirmed.`,
+          data: {
+            notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+            pick_and_collect_id: String(record.pick_and_collect_id),
+            user_id: String(record.user_id),
+            customer_name: `${record.User.fname} ${record.User.lname}`.trim(),
+            total: String(record.net_amount || 0),
+          },
+        }).catch(console.error);
+      }
 
       return res.json({
         success: true,

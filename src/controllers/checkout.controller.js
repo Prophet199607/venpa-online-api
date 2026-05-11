@@ -648,28 +648,6 @@ exports.createCheckout = async (req, res, next) => {
       await consumeCoupon(req.user.id, totals.appliedCoupon.id, orderId);
     }
 
-    const user = await User.findOne({ where: { id: req.user.id } });
-    if (user) {
-      sendOrderConfirmationEmail(
-        typeof user.toJSON === "function" ? user.toJSON() : user,
-        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
-        items,
-      ).catch(console.error);
-
-      // Notify Backoffice
-      sendToTopic("backoffice", {
-        title: "New Delivery Order (COD)",
-        body: `Order #${orderId} for ${totals.netTotalWithCod} LKR.`,
-        data: {
-          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
-          order_id: String(orderId),
-          user_id: String(req.user.id),
-          customer_name: `${user.fname} ${user.lname}`.trim(),
-          total: String(totals.netTotalWithCod),
-        },
-      }).catch(console.error);
-    }
-
     return res.status(201).json({
       message: "Checkout created",
       order_id: orderId,
@@ -1102,6 +1080,39 @@ exports.checkoutSuccess = async (req, res, next) => {
         const cart = await Cart.findOne({ where: { user_id: record.user_id } });
         if (cart) {
           await CartItem.destroy({ where: { cart_id: cart.id } });
+        }
+
+        // Send Confirmation Email & Notify Backoffice
+        const user = await User.findOne({ where: { id: record.user_id } });
+        if (user) {
+          let payload = record.payload;
+          if (typeof payload === "string") {
+            try {
+              payload = JSON.parse(payload);
+            } catch (e) {
+              payload = {};
+            }
+          }
+          const items = payload.items || [];
+          const totals = payload.totals || {};
+
+          sendOrderConfirmationEmail(
+            typeof user.toJSON === "function" ? user.toJSON() : user,
+            typeof record.toJSON === "function" ? record.toJSON() : record,
+            items
+          ).catch(console.error);
+
+          sendToTopic("backoffice", {
+            title: "Order Payment Success",
+            body: `Order #${record.order_id} payment confirmed.`,
+            data: {
+              notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+              order_id: String(record.order_id),
+              user_id: String(record.user_id),
+              customer_name: `${user.fname} ${user.lname}`.trim(),
+              total: String(totals.netTotalWithoutCod || totals.subTotal || 0),
+            },
+          }).catch(console.error);
         }
       }
 
