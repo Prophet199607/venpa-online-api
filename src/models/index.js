@@ -224,11 +224,13 @@ Checkout.hasOne(GiftReceiverDetail, {
   foreignKey: "order_id",
   sourceKey: "order_id",
   as: "giftDetails",
+  constraints: false,
 });
 GiftReceiverDetail.belongsTo(Checkout, {
   foreignKey: "order_id",
   targetKey: "order_id",
   as: "order",
+  constraints: false,
 });
 
 module.exports = {
