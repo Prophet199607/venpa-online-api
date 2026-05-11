@@ -28,6 +28,7 @@ const PickAndCollect = sequelize.define(
     coupon_code: { type: DataTypes.STRING(20), allowNull: true },
     discount_amount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0.0 },
     net_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: true },
+    payment_status: { type: DataTypes.STRING(20), allowNull: true },
     created_at: { type: DataTypes.DATE, allowNull: true },
     updated_at: { type: DataTypes.DATE, allowNull: true },
   },

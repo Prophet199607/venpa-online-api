@@ -2786,7 +2786,7 @@
     "/api/v1/checkout/success": {
       "post": {
         "summary": "Confirm checkout success and update status",
-        "description": "Frontend calls this after a successful payment redirect or COD selection. 1=COD, 2=PayHere, 3=Mintpay.",
+        "description": "Frontend calls this after a successful payment redirect or COD selection. Handles both Delivery (order_id) and Pick & Collect (pick_and_collect_id).",
         "tags": ["Checkout"],
         "security": [
           {
@@ -2803,12 +2803,13 @@
                 "properties": {
                   "order_id": {
                     "type": "string",
+                    "description": "The unique Order ID or Pick & Collect ID",
                     "example": "1778423005903004"
                   },
                   "type": {
                     "type": "integer",
                     "enum": [1, 2, 3],
-                    "description": "1 = COD, 2 = PayHere, 3 = Mintpay"
+                    "description": "1 = COD (Delivery only), 2 = PayHere, 3 = Mintpay"
                   },
                   "t": {
                     "type": "boolean",

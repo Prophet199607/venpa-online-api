@@ -970,8 +970,19 @@ exports.checkoutSuccess = async (req, res, next) => {
         .json({ message: "order_id and type are required" });
     }
 
-    const checkout = await Checkout.findOne({ where: { order_id } });
-    if (!checkout) {
+    const { Checkout, PickAndCollect, Cart, CartItem } = require("../models");
+
+    let record = await Checkout.findOne({ where: { order_id } });
+    let isPickAndCollect = false;
+
+    if (!record) {
+      record = await PickAndCollect.findOne({
+        where: { pick_and_collect_id: order_id },
+      });
+      isPickAndCollect = true;
+    }
+
+    if (!record) {
       return res.status(404).json({ message: "Order not found" });
     }
 
@@ -980,15 +991,27 @@ exports.checkoutSuccess = async (req, res, next) => {
 
     // Mapping based on user request: 1: COD, 2: PayHere, 3: Mintpay
     if (type === 1 || type === "1") {
-      // COD - Considered success immediately upon reaching this endpoint
-      success = true;
-      message = "COD order confirmed successfully";
+      // COD - Only for Delivery (Checkout)
+      if (isPickAndCollect) {
+        success = false;
+        message = "COD is not available for this Pick & Collect request";
+      } else {
+        success = true;
+        message = "COD order confirmed successfully";
+      }
     } else if (type === 2 || type === "2") {
-      // PayHere - Check if payment was already verified by gateway callbacks
-      if (checkout.payment_status === "2" || checkout.status === "success") {
+      // PayHere
+      // For Checkout, we can verify via payment_status
+      // For PickAndCollect, if status is already success, we trust it
+      if (
+        record.payment_status === "2" ||
+        record.status === "success" ||
+        record.status === "confirmed"
+      ) {
         success = true;
         message = "PayHere payment verified successfully";
       } else {
+        // If we had PayHere Merchant API, we would check it here
         success = false;
         message = "Payment not yet confirmed by PayHere gateway";
       }
@@ -1004,29 +1027,32 @@ exports.checkoutSuccess = async (req, res, next) => {
     }
 
     if (success) {
-      await checkout.update({
-        status: "success",
+      await record.update({
+        payment_status: "success",
         updated_at: new Date(),
       });
 
-      // Clear user cart upon successful checkout
-      const { Cart, CartItem } = require("../models");
-      const cart = await Cart.findOne({ where: { user_id: checkout.user_id } });
-      if (cart) {
-        await CartItem.destroy({ where: { cart_id: cart.id } });
+      // Clear user cart upon successful Delivery checkout (not needed for P&C as it's direct)
+      if (!isPickAndCollect) {
+        const cart = await Cart.findOne({ where: { user_id: record.user_id } });
+        if (cart) {
+          await CartItem.destroy({ where: { cart_id: cart.id } });
+        }
       }
 
       return res.json({
         success: true,
         message,
-        order_id: checkout.order_id,
-        status: "success",
+        order_id: isPickAndCollect
+          ? record.pick_and_collect_id
+          : record.order_id,
+        payment_status: "success",
       });
     } else {
       return res.status(400).json({
         success: false,
         message,
-        order_id: checkout.order_id,
+        order_id: isPickAndCollect ? record.pick_and_collect_id : record.order_id,
       });
     }
   } catch (error) {
