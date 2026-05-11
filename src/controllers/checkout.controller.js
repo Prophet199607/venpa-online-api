@@ -28,8 +28,8 @@ const {
 } = require("../services/notifications/emailService");
 
 function normalizeCheckoutType(value) {
-  if (value === 1 || value === "1") return 1; // Card (PayHere)
-  if (value === 2 || value === "2") return 2; // COD
+  if (value === 1 || value === "1") return 1; // COD
+  if (value === 2 || value === "2") return 2; // Card (PayHere)
   if (value === 3 || value === "3") return 3; // Mintpay
   return null;
 }
@@ -429,7 +429,7 @@ async function createCardPaymentResponse(userId, body, persist = true) {
     checkout = await Checkout.create({
       order_id: orderId,
       user_id: userId,
-      type: 1,
+      type: 2, // Card (PayHere)
       type_name: "delivery",
       payload: {
         ...payload,
@@ -439,6 +439,7 @@ async function createCardPaymentResponse(userId, body, persist = true) {
         location: "001", // Store deduction location
       },
       status: "pending",
+      payment_status: "pending",
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -468,7 +469,7 @@ async function createCardPaymentResponse(userId, body, persist = true) {
     // Return a mock checkout object for the response if not persisting
     checkout = {
       order_id: orderId,
-      type: 1,
+      type: 2,
       type_name: "delivery",
       status: "pending",
       payload: {
@@ -518,10 +519,10 @@ exports.createCheckout = async (req, res, next) => {
       });
     }
 
-    if (type === 1) {
+    if (type === 2) {
       const result = await createCardPaymentResponse(req.user.id, req.body, true);
       
-      // Handle Gift Details for type 1 (if successful)
+      // Handle Gift Details for type 2 (if successful)
       if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
         const checkout = await Checkout.findOne({ where: { order_id: result.body.checkout.order_id } });
         if (checkout) {
@@ -618,6 +619,7 @@ exports.createCheckout = async (req, res, next) => {
         location: "001",
       },
       status: "pending",
+      payment_status: "success", // Type 1 is COD, always success as requested
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -741,7 +743,7 @@ async function processMintpayResponse(userId, body, persist = true) {
     checkout = await Checkout.create({
       order_id: orderId,
       user_id: userId,
-      type: 3,
+      type: 3, // Mintpay
       type_name: "delivery",
       payload: {
         ...payload,
@@ -751,6 +753,7 @@ async function processMintpayResponse(userId, body, persist = true) {
         location: "001",
       },
       status: "pending",
+      payment_status: "pending",
       created_at: new Date(),
       updated_at: new Date(),
     });

@@ -37,8 +37,8 @@ function normalizeQuantity(value) {
 }
 
 function normalizePickAndCollectType(value) {
-  if (value === 1 || value === "1") return 1; // Card (PayHere)
-  if (value === 2 || value === "2") return 2; // COD
+  if (value === 1 || value === "1") return 1; // COD
+  if (value === 2 || value === "2") return 2; // Card (PayHere)
   if (value === 3 || value === "3") return 3; // Mintpay
   return null;
 }
@@ -371,7 +371,8 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
 
   const netAmount = subTotal - discountAmount;
 
-  if (type === 1) {
+  if (type === 2) {
+    // Type 2: Card (PayHere) — generate hash
     const amountValue = netAmount;
     if (!Number.isFinite(amountValue) || amountValue <= 0) {
       return {
@@ -396,6 +397,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       type_name: "pick & collect",
       picked_qty: pickedQty,
       status: "pending",
+      payment_status: "pending",
       coupon_code: couponCode,
       discount_amount: discountAmount,
       net_amount: netAmount,
@@ -413,7 +415,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     User.findByPk(userId).then((user) => {
       if (user) {
         sendToTopic("backoffice", {
-          title: "New Pick & Collect Order",
+          title: "New Pick & Collect Order (Card)",
           body: `${product?.prod_name} at ${location.loca_name}`,
           data: {
             notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
@@ -456,6 +458,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       type_name: "pick & collect",
       picked_qty: pickedQty,
       status: "pending",
+      payment_status: "pending",
       coupon_code: couponCode,
       discount_amount: discountAmount,
       net_amount: netAmount,
@@ -650,7 +653,9 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
     });
 
     if (!record) {
-      return res.status(404).json({ message: "Pick and Collect order not found" });
+      return res
+        .status(404)
+        .json({ message: "Pick and Collect order not found" });
     }
 
     let success = false;
@@ -676,7 +681,9 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
         message = "Mintpay payment failed or cancelled";
       }
     } else {
-      return res.status(400).json({ message: "Invalid payment type for Pick & Collect" });
+      return res
+        .status(400)
+        .json({ message: "Invalid payment type for Pick & Collect" });
     }
 
     if (success) {
@@ -701,4 +708,3 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
     next(e);
   }
 };
-

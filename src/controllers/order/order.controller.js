@@ -109,6 +109,29 @@ exports.getAllOrders = async (req, res, next) => {
         result.customer_name = "N/A";
         result.source = "Unknown";
       }
+
+      let payload = result.payload;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch (e) {
+          payload = {};
+        }
+      }
+
+      const totals = payload?.totals || {};
+      if (Number(result.type) === 1) {
+        result.amount = totals.netTotalWithCod || totals.subTotal || 0;
+      } else {
+        totals.codCharge = 0;
+        result.amount = totals.netTotalWithoutCod || totals.subTotal || 0;
+        if (totals.netTotalWithoutCod !== undefined) {
+          totals.netTotalWithCod = totals.netTotalWithoutCod;
+        }
+      }
+      result.totals = totals;
+      result.raw_payload = payload;
+
       return result;
     });
 
@@ -152,11 +175,21 @@ exports.getAllOrders = async (req, res, next) => {
         result.source = "Unknown";
       }
 
-      // Add simple summary for the list
+      // Add complete summary for the list
       result.total_items = 1;
-      result.amount =
-        (parseFloat(productData.selling_price) || 0) *
-        (parseFloat(json.picked_qty) || 1);
+      const subTotal = (parseFloat(productData.selling_price) || 0) * (parseFloat(json.picked_qty) || 1);
+      const discountAmount = parseFloat(json.discount_amount) || 0;
+      const netTotal = subTotal - discountAmount;
+
+      result.amount = netTotal;
+      result.totals = {
+        subTotal,
+        discountAmount,
+        netTotalWithCod: netTotal,
+        netTotalWithoutCod: netTotal,
+        codCharge: 0,
+        courierCharge: 0
+      };
 
       return result;
     });
@@ -262,6 +295,21 @@ exports.getOrderById = async (req, res, next) => {
         delete json.user.DeviceTokens;
       }
 
+      const totals = payload?.totals || {};
+      const orderType = Number(json.type);
+      
+      if (orderType === 1) {
+        // COD - Ensure codCharge is present (though it should be in payload already)
+        // No changes needed if payload was saved correctly, but ensuring it's treated as COD
+      } else {
+        // Card/Mintpay (2 or 3) - Force codCharge to 0
+        totals.codCharge = 0;
+        // The net total should be the one without COD
+        if (totals.netTotalWithoutCod !== undefined) {
+          totals.netTotalWithCod = totals.netTotalWithoutCod;
+        }
+      }
+
       return res.json({
         record_type: "checkout",
         id: json.id,
@@ -274,10 +322,11 @@ exports.getOrderById = async (req, res, next) => {
         type: json.type,
         type_name: json.type_name,
         status: json.status,
+        payment_status: json.payment_status,
         created_at: json.created_at,
         updated_at: json.updated_at,
         payload_items: payload?.items || [],
-        totals: payload?.totals || {},
+        totals: totals,
         giftDetails: json.giftDetails || null,
         raw_payload: payload,
       });
@@ -346,6 +395,11 @@ exports.getOrderById = async (req, res, next) => {
         },
       ];
 
+      const subTotal = (parseFloat(productData.selling_price) || 0) * (parseFloat(pc.picked_qty) || 1);
+      const discountAmount = parseFloat(pc.discount_amount) || 0;
+      const netTotal = subTotal - discountAmount;
+      const orderType = Number(pc.type);
+
       return res.json({
         record_type: "pick_and_collect",
         id: pc.id,
@@ -360,16 +414,17 @@ exports.getOrderById = async (req, res, next) => {
         location: pc.location,
         location_name: pc.location_name,
         status: pc.status,
+        payment_status: pc.payment_status,
         created_at: pc.created_at,
         updated_at: pc.updated_at,
         payload_items,
         totals: {
-          subTotal:
-            (parseFloat(productData.selling_price) || 0) *
-            (parseFloat(pc.picked_qty) || 1),
-          netTotalWithOutCod:
-            (parseFloat(productData.selling_price) || 0) *
-            (parseFloat(pc.picked_qty) || 1),
+          subTotal: subTotal,
+          discountAmount: discountAmount,
+          netTotalWithCod: netTotal,
+          netTotalWithoutCod: netTotal,
+          codCharge: 0, // P&C usually has no COD charge, but if type=1 is COD, we keep it as 0 for now as requested
+          courierCharge: 0
         },
       });
     }
