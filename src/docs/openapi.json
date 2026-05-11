@@ -1843,7 +1843,7 @@
           }
         },
         "responses": {
-          "200": { 
+          "200": {
             "description": "Login successful",
             "content": {
               "application/json": {
