@@ -7,6 +7,18 @@ const { uploadToS3 } = require("../../utils/s3");
 async function processImage(imageValue, orientation, placement_key) {
   if (!imageValue) return null;
   if (typeof imageValue === "string" && imageValue.startsWith("data:")) {
+    const base64Data = imageValue.split(",")[1];
+    if (base64Data) {
+      const padding = (base64Data.match(/=+$/) || [""])[0].length;
+      const sizeInBytes = Math.ceil((base64Data.length * 3) / 4) - padding;
+      
+      if (sizeInBytes > 5 * 1024 * 1024) {
+        const error = new Error("Image size exceeds 5MB limit");
+        error.status = 400;
+        throw error;
+      }
+    }
+
     const slug = (placement_key || orientation || "banner")
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "_");
