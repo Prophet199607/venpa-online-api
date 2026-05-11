@@ -1737,6 +1737,11 @@
                   },
                   "name": {
                     "type": "string"
+                  },
+                  "platform": {
+                    "type": "integer",
+                    "enum": [1, 2, 3],
+                    "description": "1 = Android, 2 = iOS, 3 = Web"
                   }
                 }
               }
@@ -1745,7 +1750,30 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "fname": { "type": "string" },
+                        "lname": { "type": "string" },
+                        "email": { "type": "string" },
+                        "phone": { "type": "string" },
+                        "platform": { "type": "string" }
+                      }
+                    },
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request"
@@ -1803,14 +1831,44 @@
                 "properties": {
                   "email": { "type": "string", "format": "email" },
                   "phone": { "type": "string" },
-                  "code": { "type": "string" }
+                  "code": { "type": "string" },
+                  "platform": {
+                    "type": "integer",
+                    "enum": [1, 2, 3],
+                    "description": "1 = Android, 2 = iOS, 3 = Web"
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Login successful" },
+          "200": { 
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "fname": { "type": "string" },
+                        "lname": { "type": "string" },
+                        "email": { "type": "string" },
+                        "phone": { "type": "string" },
+                        "platform": { "type": "string" }
+                      }
+                    },
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
           "400": { "description": "Invalid code" }
         }
       }
@@ -1892,6 +1950,7 @@
                         "province": { "type": "string", "nullable": true },
                         "postal_code": { "type": "string", "nullable": true },
                         "status": { "type": "integer" },
+                        "platform": { "type": "string", "nullable": true },
                         "email_verified": { "type": "boolean" }
                       }
                     }

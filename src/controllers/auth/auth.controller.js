@@ -117,35 +117,12 @@ exports.sendOtp = async (req, res) => {
 };
 
 // Helper to update platform and device token
-async function updateUserLoginInfo(userId, platform, fcmToken) {
+async function updateUserLoginInfo(userId, platform) {
   // 1. Update user platform
   if (platform) {
     await User.update({ platform }, { where: { id: userId } });
-  }
 
-  // 2. Handle Device Token
-  if (fcmToken) {
-    // Check if token exists for this user
-    const existing = await DeviceToken.findOne({
-      where: { user_id: userId, token: fcmToken },
-    });
-
-    if (existing) {
-      await existing.update({
-        platform: platform || existing.platform,
-        updated_at: new Date(),
-      });
-    } else {
-      await DeviceToken.create({
-        user_id: userId,
-        token: fcmToken,
-        platform: platform,
-        created_at: new Date(),
-        updated_at: new Date(),
-      });
-    }
-  } else if (platform) {
-    // Update platform for all device tokens of this user
+    // 2. Update platform for all device tokens of this user
     await DeviceToken.update({ platform }, { where: { user_id: userId } });
   }
 }
@@ -244,8 +221,8 @@ exports.verifyOtp = async (req, res) => {
     }
 
     // Update platform and device token
-    const { platform, fcmToken } = req.body || {};
-    await updateUserLoginInfo(user.id, platform, fcmToken);
+    const { platform } = req.body || {};
+    await updateUserLoginInfo(user.id, platform);
 
     const userResponse = user.toJSON();
     delete userResponse.password;
@@ -355,8 +332,8 @@ exports.googleLogin = async (req, res) => {
     }
 
     // Update platform and device token
-    const { platform, fcmToken } = req.body || {};
-    await updateUserLoginInfo(user.id, platform, fcmToken);
+    const { platform } = req.body || {};
+    await updateUserLoginInfo(user.id, platform);
 
     const userResponse = user.toJSON();
     delete userResponse.password;
