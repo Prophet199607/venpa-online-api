@@ -101,7 +101,18 @@ exports.updateProfile = async (req, res, next) => {
     }
     if (has("fname")) updates.fname = payload.fname;
     if (has("lname")) updates.lname = payload.lname;
-    if (has("phone")) updates.phone = payload.phone;
+    if (has("phone")) {
+      const newPhone = String(payload.phone || "").replace(/\D/g, "");
+      if (newPhone && newPhone !== req.user.phone) {
+        const existing = await User.findOne({
+          where: { phone: newPhone, id: { [Op.ne]: req.user.id } },
+        });
+        if (existing) {
+          return res.status(400).json({ message: "Phone number already in use" });
+        }
+        updates.phone = newPhone;
+      }
+    }
     if (has("country") && supports("country"))
       updates.country = payload.country;
     if (has("address") && supports("address"))
