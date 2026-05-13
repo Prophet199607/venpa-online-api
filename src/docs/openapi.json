@@ -4379,6 +4379,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "successful": { "type": "boolean" },
                     "message": { "type": "string" },
                     "pick_and_collect": {
                       "type": "object",
@@ -4548,6 +4549,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "successful": { "type": "boolean" },
                     "message": { "type": "string" },
                     "pick_and_collect": {
                       "type": "object",
