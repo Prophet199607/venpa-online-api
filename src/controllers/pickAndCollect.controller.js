@@ -79,6 +79,7 @@ function buildPayHereHash(pickAndCollectId, amount) {
 
   return {
     pick_and_collect_id: pickAndCollectId,
+    order_id: pickAndCollectId,
     amount,
     currency,
     merchant_id: merchantId,
@@ -498,6 +499,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
         message: "Mintpay pick and collect request created",
         pick_and_collect: serialized,
         pick_and_collect_id: pickAndCollectId,
+        order_id: pickAndCollectId,
         amount: netAmount.toFixed(2),
       },
     };
@@ -549,6 +551,8 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     body: {
       message: "Pick and collect request created",
       pick_and_collect: serialized,
+      pick_and_collect_id: pickAndCollectId,
+      order_id: pickAndCollectId,
     },
   };
 }
@@ -615,6 +619,7 @@ exports.createPickAndCollectPayHereHash = async (req, res, next) => {
       return res.json({
         message: "PayHere hash generated for existing pick and collect order",
         pick_and_collect_id: record.pick_and_collect_id,
+        order_id: record.pick_and_collect_id,
         amount,
         currency: "LKR",
         merchant_id: process.env.PAYHERE_MERCHANT_ID,

@@ -3406,8 +3406,10 @@
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "successful": { "type": "boolean" },
                     "message": { "type": "string" },
                     "pick_and_collect_id": { "type": "integer" },
+                    "order_id": { "type": "integer" },
                     "amount": {
                       "type": "string",
                       "example": "1500.00"
@@ -4381,6 +4383,12 @@
                   "properties": {
                     "successful": { "type": "boolean" },
                     "message": { "type": "string" },
+                    "pick_and_collect_id": { "type": "integer" },
+                    "order_id": { "type": "integer" },
+                    "amount": { "type": "string", "example": "1500.00" },
+                    "currency": { "type": "string", "example": "LKR" },
+                    "merchant_id": { "type": "string" },
+                    "hash": { "type": "string" },
                     "pick_and_collect": {
                       "type": "object",
                       "properties": {
@@ -4551,6 +4559,12 @@
                   "properties": {
                     "successful": { "type": "boolean" },
                     "message": { "type": "string" },
+                    "pick_and_collect_id": { "type": "integer" },
+                    "order_id": { "type": "integer" },
+                    "amount": { "type": "string", "example": "1500.00" },
+                    "currency": { "type": "string", "example": "LKR" },
+                    "merchant_id": { "type": "string" },
+                    "hash": { "type": "string" },
                     "pick_and_collect": {
                       "type": "object",
                       "properties": {
