@@ -622,7 +622,7 @@ exports.createPickAndCollectPayHereHash = async (req, res, next) => {
       });
     }
 
-    const result = await createPickAndCollectResponse(req.user.id, req.body, 1);
+    const result = await createPickAndCollectResponse(req.user.id, req.body, 2);
     return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("PickAndCollect PayHere Hash Error:", e);
