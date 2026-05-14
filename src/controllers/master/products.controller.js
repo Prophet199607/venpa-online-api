@@ -301,7 +301,7 @@ exports.newArrivals = async (req, res, next) => {
 
 exports.specialOffers = async (req, res, next) => {
   try {
-    const limit = Math.min(Number(req.query.limit || 10), 50);
+    const limit = Math.min(Number(req.query.limit || 20), 50);
     const { price_range } = req.query;
     const nowStr = new Date().toISOString().slice(0, 10);
 
