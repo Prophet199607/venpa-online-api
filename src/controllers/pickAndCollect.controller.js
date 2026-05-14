@@ -698,6 +698,9 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
     }
 
     if (success) {
+      // Check if it was already success to avoid duplicate emails on refresh
+      const wasAlreadySuccess = record.payment_status === "success";
+
       await record.update({
         payment_status: "success",
         updated_at: new Date(),
@@ -716,11 +719,15 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
           },
         ];
 
-        sendOrderConfirmationEmail(
-          record.User.toJSON ? record.User.toJSON() : record.User,
-          record.toJSON ? record.toJSON() : record,
-          items,
-        ).catch(console.error);
+        // Only send if not already successfully handled (to prevent duplicates)
+        // or if it's the first time landing on success page
+        if (!wasAlreadySuccess || type === 2 || type === "2") {
+          await sendOrderConfirmationEmail(
+            record.User.toJSON ? record.User.toJSON() : record.User,
+            record.toJSON ? record.toJSON() : record,
+            items,
+          );
+        }
 
         // Notify Backoffice
         sendToTopic("backoffice", {
