@@ -46,11 +46,9 @@ function normalizePickAndCollectType(value) {
 }
 
 function generatePickAndCollectId() {
-  return Number(
-    `${Date.now()}${Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")}`,
-  );
+  return `${Date.now()}${Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0")}`;
 }
 
 function buildPayHereHash(pickAndCollectId, amount) {

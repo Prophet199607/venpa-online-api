@@ -49,11 +49,9 @@ function getDiscountedPrice(prodCode, originalPrice, discountMap) {
 }
 
 function generateOrderId() {
-  return Number(
-    `${Date.now()}${Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")}`,
-  );
+  return `${Date.now()}${Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0")}`;
 }
 
 async function getActiveCartWithProducts(userId) {
