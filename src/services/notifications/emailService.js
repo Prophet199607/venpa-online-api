@@ -127,13 +127,16 @@ function generateOrderInvoiceHtml(
 
   let finalTotal = Number(checkoutData.net_amount || 0);
   if (!finalTotal) {
-    if (checkoutData.type === 1 || checkoutData.type === 3) {
-      finalTotal =
-        totals.netTotalWithoutCod || subTotal + courierCharge - discountAmount;
-    } else {
+    if (checkoutData.type === 1) {
+      // COD
       finalTotal =
         totals.netTotalWithCod ||
         subTotal + courierCharge + codCharge - discountAmount;
+    } else {
+      // Card (2) or Mintpay (3)
+      finalTotal =
+        totals.netTotalWithoutCod ||
+        subTotal + courierCharge - discountAmount;
     }
   }
 
@@ -193,7 +196,7 @@ function generateOrderInvoiceHtml(
               : ""
           }
           ${
-            checkoutData.type === 2 && codCharge > 0
+            checkoutData.type === 1 && codCharge > 0
               ? `
           <tr>
             <td colspan="4" class="value-text" style="padding: 8px 16px; text-align: right; font-size: 13px; font-weight: 500; color: #6B7280;">COD Charge:</td>
