@@ -878,7 +878,7 @@ exports.listCheckouts = async (req, res, next) => {
   try {
     const [checkouts, pickAndCollects] = await Promise.all([
       Checkout.findAll({
-        where: { user_id: req.user.id },
+        where: { user_id: req.user.id, payment_status: "success" },
         include: [
           {
             model: GiftReceiverDetail,
@@ -888,7 +888,7 @@ exports.listCheckouts = async (req, res, next) => {
         ],
       }),
       PickAndCollect.findAll({
-        where: { user_id: req.user.id },
+        where: { user_id: req.user.id, payment_status: "success" },
       }),
     ]);
 
