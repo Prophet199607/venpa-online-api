@@ -222,13 +222,13 @@ WebsiteSectionProduct.belongsTo(Product, {
 // Gift Receiver Details
 Checkout.hasOne(GiftReceiverDetail, {
   foreignKey: "order_id",
-  sourceKey: "id",
+  sourceKey: "order_id",
   as: "giftDetails",
   constraints: false,
 });
 GiftReceiverDetail.belongsTo(Checkout, {
   foreignKey: "order_id",
-  targetKey: "id",
+  targetKey: "order_id",
   as: "order",
   constraints: false,
 });
