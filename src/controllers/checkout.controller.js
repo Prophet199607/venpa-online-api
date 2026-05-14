@@ -534,7 +534,7 @@ exports.createCheckout = async (req, res, next) => {
         });
         if (checkout) {
           await GiftReceiverDetail.create({
-            order_id: checkout.order_id,
+            order_id: checkout.id,
             ...req.body.giftDetails,
             created_at: new Date(),
             updated_at: new Date(),
@@ -555,7 +555,7 @@ exports.createCheckout = async (req, res, next) => {
         });
         if (checkout) {
           await GiftReceiverDetail.create({
-            order_id: checkout.order_id,
+            order_id: checkout.id,
             ...req.body.giftDetails,
             created_at: new Date(),
             updated_at: new Date(),
@@ -636,7 +636,7 @@ exports.createCheckout = async (req, res, next) => {
     // Handle Gift Details
     if (req.body.isGift && req.body.giftDetails) {
       await GiftReceiverDetail.create({
-        order_id: checkout.order_id,
+        order_id: checkout.id,
         ...req.body.giftDetails,
         created_at: new Date(),
         updated_at: new Date(),

@@ -12,7 +12,7 @@ const GiftReceiverDetail = sequelize.define(
     order_id: {
       type: DataTypes.BIGINT.UNSIGNED,
       allowNull: false,
-      comment: "Checkout order_id (business key)",
+      comment: "Internal Checkout ID (references checkouts.id)",
       references: false,
     },
     first_name: {
