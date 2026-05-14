@@ -372,7 +372,7 @@ async function createCardPaymentResponse(userId, body, persist = true) {
     };
   }
 
-  const orderId = generateOrderId();
+  const orderId = body?.order_id || generateOrderId();
 
   // Consume coupon
   if (totals.appliedCoupon && persist) {
