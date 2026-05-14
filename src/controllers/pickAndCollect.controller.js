@@ -672,18 +672,12 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
     let success = false;
     let message = "";
 
-    // Mapping: 2: PayHere, 3: Mintpay (COD not supported for P&C)
     if (type === 2 || type === "2") {
-      // For PayHere, we check the database status (updated by notify/return callbacks)
-      if (record.payment_status === "success") {
-        success = true;
-        message = "PayHere payment verified successfully";
-      } else {
-        success = false;
-        message = "PayHere payment not yet verified or failed";
-      }
+      // PayHere - Frontend only calls this when payment is success
+      success = true;
+      message = "Payment successful";
     } else if (type === 3 || type === "3") {
-      // For Mintpay, the frontend passes a success flag 't'
+      // Mintpay - Frontend passes t (true/false)
       if (t === true || t === "true") {
         success = true;
         message = "Mintpay payment successful";
@@ -720,8 +714,7 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
         ];
 
         // Only send if not already successfully handled (to prevent duplicates)
-        // or if it's the first time landing on success page
-        if (!wasAlreadySuccess || type === 2 || type === "2") {
+        if (!wasAlreadySuccess) {
           await sendOrderConfirmationEmail(
             record.User.toJSON ? record.User.toJSON() : record.User,
             record.toJSON ? record.toJSON() : record,

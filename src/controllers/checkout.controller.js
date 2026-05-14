@@ -1055,21 +1055,9 @@ exports.checkoutSuccess = async (req, res, next) => {
         message = "COD order confirmed successfully";
       }
     } else if (type === 2 || type === "2") {
-      // PayHere
-      // For Checkout, we can verify via payment_status
-      // For PickAndCollect, if status is already success, we trust it
-      if (
-        record.payment_status === "2" ||
-        record.status === "success" ||
-        record.status === "confirmed"
-      ) {
-        success = true;
-        message = "PayHere payment verified successfully";
-      } else {
-        // If we had PayHere Merchant API, we would check it here
-        success = false;
-        message = "Payment not yet confirmed by PayHere gateway";
-      }
+      // PayHere - Frontend only calls this when payment is success
+      success = true;
+      message = "Payment successful";
     } else if (type === 3 || type === "3") {
       // Mintpay - Frontend passes t (true/false)
       if (t === true || t === "true") {
@@ -1082,10 +1070,24 @@ exports.checkoutSuccess = async (req, res, next) => {
     }
 
     if (success) {
+      const wasAlreadyPaid = record.payment_status === "success";
+
       await record.update({
         payment_status: "success",
         updated_at: new Date(),
       });
+
+      // Avoid duplicate actions if already processed by payment callbacks
+      if (wasAlreadyPaid) {
+        return res.json({
+          success: true,
+          message: "Order already confirmed",
+          order_id: isPickAndCollect
+            ? record.pick_and_collect_id
+            : record.order_id,
+          payment_status: "success",
+        });
+      }
 
       // Clear user cart upon successful Delivery checkout (not needed for P&C as it's direct)
       if (!isPickAndCollect) {
@@ -1108,11 +1110,14 @@ exports.checkoutSuccess = async (req, res, next) => {
           const items = payload.items || [];
           const totals = payload.totals || {};
 
-          sendOrderConfirmationEmail(
-            typeof user.toJSON === "function" ? user.toJSON() : user,
-            typeof record.toJSON === "function" ? record.toJSON() : record,
-            items
-          ).catch(console.error);
+          // Only send if not already successfully handled (to prevent duplicates)
+          if (!wasAlreadyPaid) {
+            await sendOrderConfirmationEmail(
+              typeof user.toJSON === "function" ? user.toJSON() : user,
+              typeof record.toJSON === "function" ? record.toJSON() : record,
+              items
+            );
+          }
 
           sendToTopic("backoffice", {
             title: "Order Payment Success",
