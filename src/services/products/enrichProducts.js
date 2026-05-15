@@ -11,6 +11,7 @@ const {
   ProductAuthor,
   ProductSubCategory,
 } = require("../../models");
+const { buildPriceLevelMap } = require("./priceService");
 
 function normalizeCode(value) {
   if (value === null || value === undefined) return null;
@@ -363,6 +364,7 @@ async function enrichProducts(items) {
     languageMap,
     authorsByProduct,
     stockMap,
+    priceLevelMap,
   ] = await Promise.all([
     buildDepartmentMap(products),
     buildCategoryMap(products),
@@ -373,6 +375,7 @@ async function enrichProducts(items) {
     buildLanguageMap(products),
     buildAuthorsByProductMap(products),
     buildStockMap(products),
+    buildPriceLevelMap(products),
   ]);
 
   return products
@@ -441,8 +444,12 @@ async function enrichProducts(items) {
         author_codes: authorCodes,
         author_name: authorNames[0] || null,
         author_names: authorNames,
+        selling_price:
+          priceLevelMap.get(normalizedProdCode)?.selling_price ||
+          product.selling_price,
       };
     })
+
     .map((product) => {
       // Calculate active discount from productDiscounts or fallback to legacy fields
       const now = new Date();

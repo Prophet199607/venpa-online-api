@@ -26,6 +26,7 @@ const {
   sendOrderConfirmationEmail,
   generateOrderInvoiceHtml,
 } = require("../services/notifications/emailService");
+const { buildPriceLevelMap } = require("../services/products/priceService");
 
 function normalizeCheckoutType(value) {
   if (value === 1 || value === "1") return 1; // COD
@@ -201,10 +202,22 @@ async function calculateTotals(
     discountMap[d.prod_code] = d;
   });
 
+  // Fetch latest price levels for products in cart
+  const priceLevelMap = await buildPriceLevelMap(
+    items.map((i) => i.product).filter(Boolean),
+  );
+
   items.forEach((item) => {
-    const originalPrice = parseFloat(item?.product?.selling_price || 0);
-    let price = originalPrice;
     const prodCode = item?.product?.prod_code;
+    const pl = prodCode
+      ? priceLevelMap.get(prodCode.trim().toUpperCase())
+      : null;
+    const latestPrice = pl?.selling_price;
+    const originalPrice = parseFloat(
+      latestPrice || item?.product?.selling_price || 0,
+    );
+    let price = originalPrice;
+
     const quantity = parseInt(item?.quantity || 1, 10);
 
     // Apply product discount if exists
@@ -914,7 +927,10 @@ exports.listCheckouts = async (req, res, next) => {
       const discountAmount = Number(totals.discountAmount || 0);
       const netTotal = subTotal - discountAmount;
 
-      const isGift = !!(payload?.isGift || (item.giftDetails && item.giftDetails.id));
+      const isGift = !!(
+        payload?.isGift ||
+        (item.giftDetails && item.giftDetails.id)
+      );
 
       return {
         record_type: "checkout",
@@ -929,7 +945,7 @@ exports.listCheckouts = async (req, res, next) => {
         status: item.status,
         payment_status: item.payment_status,
         is_gift: isGift,
-        gift_details: isGift ? (item.giftDetails || null) : null,
+        gift_details: isGift ? item.giftDetails || null : null,
         created_at: item.created_at,
         updated_at: item.updated_at,
       };
@@ -1113,7 +1129,7 @@ exports.checkoutSuccess = async (req, res, next) => {
             await sendOrderConfirmationEmail(
               typeof user.toJSON === "function" ? user.toJSON() : user,
               typeof record.toJSON === "function" ? record.toJSON() : record,
-              items
+              items,
             );
           }
 

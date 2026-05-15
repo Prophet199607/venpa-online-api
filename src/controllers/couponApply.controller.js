@@ -9,6 +9,7 @@ const {
   ProductDiscount,
 } = require("../models");
 const { Op } = require("sequelize");
+const { buildPriceLevelMap } = require("../services/products/priceService");
 
 async function getActiveCartWithProducts(userId) {
   return Cart.findOne({
@@ -89,9 +90,18 @@ exports.applyCouponToCart = async (req, res, next) => {
       discountMap[d.prod_code] = d;
     });
 
+    const priceLevelMap = await buildPriceLevelMap(
+      items.map((i) => i.product).filter(Boolean),
+    );
+
     items.forEach((item) => {
-      let price = parseFloat(item?.product?.selling_price || 0);
       const prodCode = item?.product?.prod_code;
+      const pl = prodCode
+        ? priceLevelMap.get(prodCode.trim().toUpperCase())
+        : null;
+      let price = parseFloat(
+        pl?.selling_price || item?.product?.selling_price || 0,
+      );
 
       if (prodCode && discountMap[prodCode]) {
         const d = discountMap[prodCode];
@@ -241,7 +251,13 @@ exports.applyCouponToPickAndCollect = async (req, res, next) => {
     }
 
     const qty = Number(picked_qty) || 1;
-    let price = Number(product.selling_price || 0);
+
+    const priceLevelMap = await buildPriceLevelMap([
+      { prod_code: product.prod_code },
+    ]);
+    const pl = priceLevelMap.get(product.prod_code.trim().toUpperCase());
+    let price = Number(pl?.selling_price || product.selling_price || 0);
+
     const nowStr = new Date().toISOString().slice(0, 10);
 
     const discount = await ProductDiscount.findOne({
