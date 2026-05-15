@@ -418,6 +418,15 @@ async function enrichProducts(items) {
           ? subCategoryMap.get(resolvedSubCategoryCode) || null
           : null);
 
+      const pl = priceLevelMap.get(normalizedProdCode);
+      const newPrice = pl?.selling_price || product.selling_price;
+
+      if (pl) {
+        console.log(
+          `[Enrichment] Overriding price for ${normalizedProdCode}: ${product.selling_price} -> ${newPrice}`,
+        );
+      }
+
       return {
         ...product,
         department_name: normalizedDepartmentCode
@@ -444,11 +453,10 @@ async function enrichProducts(items) {
         author_codes: authorCodes,
         author_name: authorNames[0] || null,
         author_names: authorNames,
-        selling_price:
-          priceLevelMap.get(normalizedProdCode)?.selling_price ||
-          product.selling_price,
+        selling_price: newPrice,
       };
     })
+
 
     .map((product) => {
       // Calculate active discount from productDiscounts or fallback to legacy fields

@@ -26,8 +26,9 @@ async function buildPriceLevelMap(products) {
   if (!codes.length) return new Map();
 
   console.log(
-    `[PriceService] Fetching price levels for ${codes.length} codes...`,
+    `[PriceService] Fetching price levels for codes: ${JSON.stringify(codes)}`,
   );
+
 
   try {
     // Query the source database directly
@@ -35,7 +36,8 @@ async function buildPriceLevelMap(products) {
       `SELECT prod_code, selling_price, purchase_price 
        FROM price_levels 
        WHERE prod_code IN (:codes) 
-       ORDER BY u_id DESC`,
+       ORDER BY id DESC`,
+
       {
         replacements: { codes },
         type: QueryTypes.SELECT,
@@ -45,6 +47,10 @@ async function buildPriceLevelMap(products) {
     console.log(
       `[PriceService] Found ${rows.length} rows in price_levels table.`,
     );
+    if (rows.length > 0) {
+      console.log(`[PriceService] Sample row:`, JSON.stringify(rows[0]));
+    }
+
 
     const map = new Map();
     for (const row of rows) {
