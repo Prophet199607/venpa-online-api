@@ -90,7 +90,7 @@ const { normalizePlatform } = require("../services/notifications/platform");
 exports.registerToken = async (req, res, next) => {
   try {
     const { token, platform } = req.body || {};
-    if (!token) return res.status(400).json({ message: "token is required" });
+    // if (!token) return res.status(400).json({ message: "token is required" });
 
     const normalizedPlatform = normalizePlatform(platform);
     if (platform !== undefined && normalizedPlatform === null) {
