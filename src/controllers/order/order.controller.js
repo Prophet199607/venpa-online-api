@@ -1,7 +1,6 @@
 const {
   Checkout,
   User,
-  DeviceToken,
   PickAndCollect,
   Product,
   GiftReceiverDetail,
@@ -20,24 +19,12 @@ exports.getAllOrders = async (req, res, next) => {
 
     const userInclude = {
       model: User,
-      attributes: ["id", "fname", "lname", "email", "phone"],
-      include: [],
+      attributes: ["id", "fname", "lname", "email", "phone", "platform"],
     };
 
     if (device) {
+      userInclude.where = { platform: device };
       userInclude.required = true;
-      userInclude.include.push({
-        model: DeviceToken,
-        where: { platform: device },
-        attributes: ["platform"],
-        required: true,
-      });
-    } else {
-      userInclude.include.push({
-        model: DeviceToken,
-        attributes: ["platform"],
-        required: false,
-      });
     }
 
     let checkouts = [];
@@ -90,11 +77,7 @@ exports.getAllOrders = async (req, res, next) => {
         result.customer_name =
           `${json.user.fname || ""} ${json.user.lname || ""}`.trim();
 
-        let platformVal = null;
-        const tokens = json.user.device_tokens || json.user.DeviceTokens || [];
-        if (tokens.length > 0) {
-          platformVal = tokens[0].platform;
-        }
+        let platformVal = json.user.platform;
         if (device) platformVal = device;
 
         result.device = Number(platformVal) || null;
@@ -103,8 +86,6 @@ exports.getAllOrders = async (req, res, next) => {
         else if (result.device === 3) result.source = "Web";
         else result.source = "Unknown";
 
-        delete result.user.device_tokens;
-        delete result.user.DeviceTokens;
       } else {
         result.customer_name = "N/A";
         result.source = "Unknown";
@@ -155,11 +136,7 @@ exports.getAllOrders = async (req, res, next) => {
         result.customer_name =
           `${json.user.fname || ""} ${json.user.lname || ""}`.trim();
 
-        let platformVal = null;
-        const tokens = json.user.device_tokens || json.user.DeviceTokens || [];
-        if (tokens.length > 0) {
-          platformVal = tokens[0].platform;
-        }
+        let platformVal = json.user.platform;
         if (device) platformVal = device;
 
         result.device = Number(platformVal) || null;
@@ -168,8 +145,6 @@ exports.getAllOrders = async (req, res, next) => {
         else if (result.device === 3) result.source = "Web";
         else result.source = "Unknown";
 
-        delete result.user.device_tokens;
-        delete result.user.DeviceTokens;
       } else {
         result.customer_name = "N/A";
         result.source = "Unknown";
@@ -177,7 +152,9 @@ exports.getAllOrders = async (req, res, next) => {
 
       // Add complete summary for the list
       result.total_items = 1;
-      const subTotal = (parseFloat(productData.selling_price) || 0) * (parseFloat(json.picked_qty) || 1);
+      const subTotal =
+        (parseFloat(productData.selling_price) || 0) *
+        (parseFloat(json.picked_qty) || 1);
       const discountAmount = parseFloat(json.discount_amount) || 0;
       const netTotal = subTotal - discountAmount;
 
@@ -188,7 +165,7 @@ exports.getAllOrders = async (req, res, next) => {
         netTotalWithCod: netTotal,
         netTotalWithoutCod: netTotal,
         codCharge: 0,
-        courierCharge: 0
+        courierCharge: 0,
       };
 
       return result;
@@ -241,13 +218,7 @@ exports.getOrderById = async (req, res, next) => {
             "city",
             "province",
             "postal_code",
-          ],
-          include: [
-            {
-              model: DeviceToken,
-              attributes: ["platform"],
-              required: false,
-            },
+            "platform",
           ],
         },
         {
@@ -268,21 +239,8 @@ exports.getOrderById = async (req, res, next) => {
 
       let source = "Unknown";
       let device = null;
-      if (
-        json.user &&
-        json.user.device_tokens &&
-        json.user.device_tokens.length > 0
-      ) {
-        device = Number(json.user.device_tokens[0].platform);
-        if (device === 1) source = "Android";
-        else if (device === 2) source = "Ios";
-        else if (device === 3) source = "Web";
-      } else if (
-        json.user &&
-        json.user.DeviceTokens &&
-        json.user.DeviceTokens.length > 0
-      ) {
-        device = Number(json.user.DeviceTokens[0].platform);
+      if (json.user && json.user.platform) {
+        device = Number(json.user.platform);
         if (device === 1) source = "Android";
         else if (device === 2) source = "Ios";
         else if (device === 3) source = "Web";
@@ -291,13 +249,11 @@ exports.getOrderById = async (req, res, next) => {
       if (json.user) {
         json.customer_name =
           `${json.user.fname || ""} ${json.user.lname || ""}`.trim();
-        delete json.user.device_tokens;
-        delete json.user.DeviceTokens;
       }
 
       const totals = payload?.totals || {};
       const orderType = Number(json.type);
-      
+
       if (orderType === 1) {
         // COD - Ensure codCharge is present (though it should be in payload already)
         // No changes needed if payload was saved correctly, but ensuring it's treated as COD
@@ -339,14 +295,7 @@ exports.getOrderById = async (req, res, next) => {
       include: [
         {
           model: User,
-          attributes: ["id", "fname", "lname", "email", "phone"],
-          include: [
-            {
-              model: DeviceToken,
-              attributes: ["platform"],
-              required: false,
-            },
-          ],
+          attributes: ["id", "fname", "lname", "email", "phone", "platform"],
         },
         {
           model: Product,
@@ -363,12 +312,8 @@ exports.getOrderById = async (req, res, next) => {
       let source = "Unknown";
       let device = null;
 
-      if (
-        pc.user &&
-        pc.user.device_tokens &&
-        pc.user.device_tokens.length > 0
-      ) {
-        device = Number(pc.user.device_tokens[0].platform);
+      if (pc.user && pc.user.platform) {
+        device = Number(pc.user.platform);
         if (device === 1) source = "Android";
         else if (device === 2) source = "Ios";
         else if (device === 3) source = "Web";
@@ -377,8 +322,6 @@ exports.getOrderById = async (req, res, next) => {
       if (pc.user) {
         pc.customer_name =
           `${pc.user.fname || ""} ${pc.user.lname || ""}`.trim();
-        delete pc.user.device_tokens;
-        delete pc.user.DeviceTokens;
       }
 
       // Reconstruct single item payload for Pick & Collect
@@ -395,7 +338,9 @@ exports.getOrderById = async (req, res, next) => {
         },
       ];
 
-      const subTotal = (parseFloat(productData.selling_price) || 0) * (parseFloat(pc.picked_qty) || 1);
+      const subTotal =
+        (parseFloat(productData.selling_price) || 0) *
+        (parseFloat(pc.picked_qty) || 1);
       const discountAmount = parseFloat(pc.discount_amount) || 0;
       const netTotal = subTotal - discountAmount;
       const orderType = Number(pc.type);
@@ -424,7 +369,7 @@ exports.getOrderById = async (req, res, next) => {
           netTotalWithCod: netTotal,
           netTotalWithoutCod: netTotal,
           codCharge: 0, // P&C usually has no COD charge, but if type=1 is COD, we keep it as 0 for now as requested
-          courierCharge: 0
+          courierCharge: 0,
         },
       });
     }

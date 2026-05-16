@@ -2635,7 +2635,8 @@
                           "fname": { "type": "string" },
                           "lname": { "type": "string" },
                           "email": { "type": "string" },
-                          "phone": { "type": "string" }
+                          "phone": { "type": "string" },
+                          "platform": { "type": "string", "nullable": true }
                         }
                       }
                     }
