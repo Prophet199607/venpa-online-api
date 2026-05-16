@@ -32,7 +32,7 @@ exports.getAllOrders = async (req, res, next) => {
 
     // Fetch Delivery Orders (Checkouts)
     if (!order_type || order_type === "delivery") {
-      const checkoutWhere = {};
+      const checkoutWhere = { payment_status: "success" };
       if (status) checkoutWhere.status = status;
 
       checkouts = await Checkout.findAll({
@@ -47,7 +47,7 @@ exports.getAllOrders = async (req, res, next) => {
 
     // Fetch Pick & Collect Orders
     if (!order_type || order_type === "pick_and_collect") {
-      const pcWhere = {};
+      const pcWhere = { payment_status: "success" };
       if (status) pcWhere.status = status;
 
       pickAndCollects = await PickAndCollect.findAll({
