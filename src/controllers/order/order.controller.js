@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const {
   Checkout,
   User,
@@ -15,7 +16,7 @@ const { deductStock } = require("../../services/products/stockService");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status, device, order_type } = req.query;
+    const { status, device, order_type, start_date, end_date } = req.query;
 
     const userInclude = {
       model: User,
@@ -30,9 +31,32 @@ exports.getAllOrders = async (req, res, next) => {
     let checkouts = [];
     let pickAndCollects = [];
 
+    // Common date filter
+    const dateFilter = {};
+
+    if (start_date && end_date) {
+      dateFilter.created_at = {
+        [Op.between]: [
+          new Date(`${start_date} 00:00:00`),
+          new Date(`${end_date} 23:59:59`),
+        ],
+      };
+    } else if (start_date) {
+      dateFilter.created_at = {
+        [Op.gte]: new Date(`${start_date} 00:00:00`),
+      };
+    } else if (end_date) {
+      dateFilter.created_at = {
+        [Op.lte]: new Date(`${end_date} 23:59:59`),
+      };
+    }
+
     // Fetch Delivery Orders (Checkouts)
     if (!order_type || order_type === "delivery") {
-      const checkoutWhere = { payment_status: "success" };
+      const checkoutWhere = {
+        payment_status: "success",
+        ...dateFilter,
+      };
       if (status) checkoutWhere.status = status;
 
       checkouts = await Checkout.findAll({
@@ -47,7 +71,10 @@ exports.getAllOrders = async (req, res, next) => {
 
     // Fetch Pick & Collect Orders
     if (!order_type || order_type === "pick_and_collect") {
-      const pcWhere = { payment_status: "success" };
+      const pcWhere = {
+        payment_status: "success",
+        ...dateFilter,
+      };
       if (status) pcWhere.status = status;
 
       pickAndCollects = await PickAndCollect.findAll({
@@ -85,7 +112,6 @@ exports.getAllOrders = async (req, res, next) => {
         else if (result.device === 2) result.source = "Ios";
         else if (result.device === 3) result.source = "Web";
         else result.source = "Unknown";
-
       } else {
         result.customer_name = "N/A";
         result.source = "Unknown";
@@ -144,7 +170,6 @@ exports.getAllOrders = async (req, res, next) => {
         else if (result.device === 2) result.source = "Ios";
         else if (result.device === 3) result.source = "Web";
         else result.source = "Unknown";
-
       } else {
         result.customer_name = "N/A";
         result.source = "Unknown";
@@ -452,7 +477,9 @@ exports.updateOrderStatus = async (req, res, next) => {
       // Build payload update
       let currentPayload = checkout.payload || {};
       if (typeof currentPayload === "string") {
-        try { currentPayload = JSON.parse(currentPayload); } catch (_) {}
+        try {
+          currentPayload = JSON.parse(currentPayload);
+        } catch (_) {}
       }
 
       const updateData = { status, updated_at: new Date() };
@@ -491,17 +518,28 @@ exports.updateOrderStatus = async (req, res, next) => {
             `[OrderUpdate] Triggering rowConfigs stock deduction for ${rowConfigs.length} rows`,
           );
           for (const row of rowConfigs) {
-            const { prod_code: prodCode, location, quantity, selling_price: rowPrice } = row;
-            if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0)) continue;
+            const {
+              prod_code: prodCode,
+              location,
+              quantity,
+              selling_price: rowPrice,
+            } = row;
+            if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0))
+              continue;
             console.log(
               `[OrderUpdate] Deducting ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
             );
-            await deductStock(prodCode, location, quantity, iid, rowPrice ?? null).catch(
-              (err) =>
-                console.error(
-                  `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
-                  err,
-                ),
+            await deductStock(
+              prodCode,
+              location,
+              quantity,
+              iid,
+              rowPrice ?? null,
+            ).catch((err) =>
+              console.error(
+                `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
+                err,
+              ),
             );
           }
         } else {
@@ -545,7 +583,6 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
-
     // 2. Try PickAndCollect table
     let pickAndCollect = await PickAndCollect.findOne({
       where: { pick_and_collect_id: orderIdValue },
@@ -583,7 +620,8 @@ exports.updateOrderStatus = async (req, res, next) => {
         );
         if (invalid.length > 0) {
           return res.status(400).json({
-            message: "All confirmation rows must have a location, product code, and positive quantity.",
+            message:
+              "All confirmation rows must have a location, product code, and positive quantity.",
             invalid_rows: invalid,
           });
         }
@@ -601,7 +639,10 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
 
         // Validate total quantity against original order quantity
-        const totalConfirmedQty = rowConfigs.reduce((sum, r) => sum + parseFloat(r.quantity), 0);
+        const totalConfirmedQty = rowConfigs.reduce(
+          (sum, r) => sum + parseFloat(r.quantity),
+          0,
+        );
         if (totalConfirmedQty > parseFloat(pickAndCollect.picked_qty)) {
           return res.status(400).json({
             message: `Total confirmed quantity (${totalConfirmedQty}) exceeds original order quantity (${pickAndCollect.picked_qty}).`,
@@ -610,8 +651,8 @@ exports.updateOrderStatus = async (req, res, next) => {
       }
 
       const updateData = { status, updated_at: new Date() };
-      
-      // Note: We don't save rowConfigs to PickAndCollect table as there's no payload field 
+
+      // Note: We don't save rowConfigs to PickAndCollect table as there's no payload field
       // and location column is limited in size. We use it primarily for stock deduction.
       if (overrideLocation && !rowConfigs) {
         updateData.location = overrideLocation;
@@ -641,18 +682,28 @@ exports.updateOrderStatus = async (req, res, next) => {
             `[OrderUpdate] Triggering rowConfigs stock deduction for ${rowConfigs.length} rows (PickAndCollect)`,
           );
           for (const row of rowConfigs) {
-            const { prod_code: prodCode, location, quantity, selling_price: rowPrice } = row;
+            const {
+              prod_code: prodCode,
+              location,
+              quantity,
+              selling_price: rowPrice,
+            } = row;
             if (!prodCode || !location || !(quantity > 0)) continue;
-            
+
             console.log(
               `[OrderUpdate] Deducting ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
             );
-            await deductStock(prodCode, location, quantity, iid, rowPrice ?? null).catch(
-              (err) =>
-                console.error(
-                  `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
-                  err,
-                ),
+            await deductStock(
+              prodCode,
+              location,
+              quantity,
+              iid,
+              rowPrice ?? null,
+            ).catch((err) =>
+              console.error(
+                `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
+                err,
+              ),
             );
           }
         } else {
