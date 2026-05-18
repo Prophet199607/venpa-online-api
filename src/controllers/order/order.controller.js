@@ -396,60 +396,135 @@ exports.updateOrderStatus = async (req, res, next) => {
     // 1. Try Checkout table
     let checkout = await Checkout.findOne({
       where: { order_id: orderIdValue },
+      include: [{ model: User, attributes: ["platform"] }],
     });
     if (checkout) {
       const oldStatus = checkout.status;
-      const updateData = { status, updated_at: new Date() };
 
+      // Idempotency guard: don't re-deduct stock if already confirmed
+      if (
+        status.toLowerCase() === "confirmed" &&
+        oldStatus.toLowerCase() === "confirmed"
+      ) {
+        return res.status(409).json({
+          message: "Order is already confirmed. Stock deduction skipped.",
+        });
+      }
+
+      // Parse rowConfigs from the location field (sent as JSON string from the frontend)
+      let rowConfigs = null;
       if (overrideLocation) {
-        let payload = checkout.payload || {};
-        if (typeof payload === "string") {
-          try {
-            payload = JSON.parse(payload);
-          } catch (e) {}
+        try {
+          const parsed = JSON.parse(overrideLocation);
+          if (Array.isArray(parsed)) rowConfigs = parsed;
+        } catch (_) {
+          // Not JSON – treat as a plain location string (legacy behaviour)
         }
-        // Create a new object to ensure Sequelize detects the change in a JSON field
-        updateData.payload = {
-          ...payload,
-          location: overrideLocation,
-        };
+      }
+
+      // --- Validate rowConfigs before persisting ---
+      if (status.toLowerCase() === "confirmed" && rowConfigs) {
+        // Every row must have a location and a positive quantity
+        const invalid = rowConfigs.filter(
+          (r) => !r.location || !r.prod_code || !(r.quantity > 0),
+        );
+        if (invalid.length > 0) {
+          return res.status(400).json({
+            message:
+              "All confirmation rows must have a location, product code, and positive quantity.",
+            invalid_rows: invalid,
+          });
+        }
+
+        // Detect duplicate (prod_code + location + price_level_id) combos
+        const seen = new Set();
+        for (const r of rowConfigs) {
+          const key = `${r.prod_code}__${r.location}__${r.price_level_id || ""}`;
+          if (seen.has(key)) {
+            return res.status(400).json({
+              message: `Duplicate row detected for product ${r.prod_code} at location ${r.location} with the same price level. Please merge or remove the duplicate.`,
+            });
+          }
+          seen.add(key);
+        }
+      }
+
+      // Build payload update
+      let currentPayload = checkout.payload || {};
+      if (typeof currentPayload === "string") {
+        try { currentPayload = JSON.parse(currentPayload); } catch (_) {}
+      }
+
+      const updateData = { status, updated_at: new Date() };
+      if (rowConfigs) {
+        // Store confirmed rowConfigs in payload for audit trail
+        updateData.payload = { ...currentPayload, confirmed_rows: rowConfigs };
+      } else if (overrideLocation) {
+        // Legacy single-location override
+        updateData.payload = { ...currentPayload, location: overrideLocation };
       }
 
       await checkout.update(updateData);
 
-      // Deduct stock only when transitioning to confirmed/paid from a pending/non-confirmed state
-      const confirmedStatuses = "confirmed";
+      // Deduct stock only when transitioning TO confirmed
+      const isBeingConfirmed =
+        status.toLowerCase() === "confirmed" &&
+        oldStatus.toLowerCase() !== "confirmed";
+
       console.log(
         `[OrderUpdate] Checkout ${orderIdValue} status: ${oldStatus} -> ${status}`,
       );
-      if (
-        confirmedStatuses.includes(status.toLowerCase()) &&
-        !confirmedStatuses.includes(oldStatus.toLowerCase())
-      ) {
+
+      if (isBeingConfirmed) {
         const payload = checkout.payload || {};
-        const items = payload.items || [];
-        const location = overrideLocation || payload.location || "001";
-        const device = payload.device;
+        let device = null;
+        if (checkout.user && checkout.user.platform) {
+          device = Number(checkout.user.platform);
+        } else if (payload.device) {
+          device = Number(payload.device);
+        }
         const iid = device === 3 ? "WEB" : "APP";
 
-        console.log(
-          `[OrderUpdate] Triggering stock deduction for ${items.length} items at location ${location}`,
-        );
-
-        for (const item of items) {
-          const prodCode = item.product?.prod_code || item.prod_code;
-          const price = item.product?.selling_price || 0;
-          if (prodCode && prodCode !== "N/A") {
+        if (rowConfigs && rowConfigs.length > 0) {
+          // New multi-location/price-level deduction flow
+          console.log(
+            `[OrderUpdate] Triggering rowConfigs stock deduction for ${rowConfigs.length} rows`,
+          );
+          for (const row of rowConfigs) {
+            const { prod_code: prodCode, location, quantity, selling_price: rowPrice } = row;
+            if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0)) continue;
             console.log(
-              `[OrderUpdate] Deducting ${item.quantity} units of ${prodCode} at ${price}`,
+              `[OrderUpdate] Deducting ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
             );
-            await deductStock(prodCode, location, item.quantity, iid).catch(
+            await deductStock(prodCode, location, quantity, iid, rowPrice ?? null).catch(
               (err) =>
                 console.error(
                   `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
                   err,
                 ),
             );
+          }
+        } else {
+          // Legacy single-location flow
+          const items = payload.items || [];
+          const location = overrideLocation || payload.location || "001";
+          console.log(
+            `[OrderUpdate] Triggering legacy stock deduction for ${items.length} items at location ${location}`,
+          );
+          for (const item of items) {
+            const prodCode = item.product?.prod_code || item.prod_code;
+            if (prodCode && prodCode !== "N/A") {
+              console.log(
+                `[OrderUpdate] Deducting ${item.quantity} units of ${prodCode}`,
+              );
+              await deductStock(prodCode, location, item.quantity, iid).catch(
+                (err) =>
+                  console.error(
+                    `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
+                    err,
+                  ),
+              );
+            }
           }
         }
       }
@@ -470,45 +545,133 @@ exports.updateOrderStatus = async (req, res, next) => {
       });
     }
 
+
     // 2. Try PickAndCollect table
     let pickAndCollect = await PickAndCollect.findOne({
       where: { pick_and_collect_id: orderIdValue },
+      include: [{ model: User, attributes: ["platform"] }],
     });
     if (pickAndCollect) {
       const oldStatus = pickAndCollect.status;
-      const updateData = { status, updated_at: new Date() };
 
+      // Idempotency guard: don't re-deduct stock if already confirmed
+      if (
+        status.toLowerCase() === "confirmed" &&
+        oldStatus.toLowerCase() === "confirmed"
+      ) {
+        return res.status(409).json({
+          message: "Order is already confirmed. Stock deduction skipped.",
+        });
+      }
+
+      // Parse rowConfigs from the location field (sent as JSON string from the frontend)
+      let rowConfigs = null;
       if (overrideLocation) {
+        try {
+          const parsed = JSON.parse(overrideLocation);
+          if (Array.isArray(parsed)) rowConfigs = parsed;
+        } catch (_) {
+          // Not JSON
+        }
+      }
+
+      // --- Validate rowConfigs before processing ---
+      if (status.toLowerCase() === "confirmed" && rowConfigs) {
+        // Every row must have a location and a positive quantity
+        const invalid = rowConfigs.filter(
+          (r) => !r.location || !r.prod_code || !(r.quantity > 0),
+        );
+        if (invalid.length > 0) {
+          return res.status(400).json({
+            message: "All confirmation rows must have a location, product code, and positive quantity.",
+            invalid_rows: invalid,
+          });
+        }
+
+        // Detect duplicate (prod_code + location + price_level_id) combos
+        const seen = new Set();
+        for (const r of rowConfigs) {
+          const key = `${r.prod_code}__${r.location}__${r.price_level_id || ""}`;
+          if (seen.has(key)) {
+            return res.status(400).json({
+              message: `Duplicate row detected for product ${r.prod_code} at location ${r.location}.`,
+            });
+          }
+          seen.add(key);
+        }
+
+        // Validate total quantity against original order quantity
+        const totalConfirmedQty = rowConfigs.reduce((sum, r) => sum + parseFloat(r.quantity), 0);
+        if (totalConfirmedQty > parseFloat(pickAndCollect.picked_qty)) {
+          return res.status(400).json({
+            message: `Total confirmed quantity (${totalConfirmedQty}) exceeds original order quantity (${pickAndCollect.picked_qty}).`,
+          });
+        }
+      }
+
+      const updateData = { status, updated_at: new Date() };
+      
+      // Note: We don't save rowConfigs to PickAndCollect table as there's no payload field 
+      // and location column is limited in size. We use it primarily for stock deduction.
+      if (overrideLocation && !rowConfigs) {
         updateData.location = overrideLocation;
       }
 
       await pickAndCollect.update(updateData);
 
-      // Deduct stock only when transitioning to confirmed/paid
-      const confirmedStatuses = "confirmed";
+      // Deduct stock only when transitioning to confirmed
+      const isBeingConfirmed =
+        status.toLowerCase() === "confirmed" &&
+        oldStatus.toLowerCase() !== "confirmed";
+
       console.log(
         `[OrderUpdate] PickAndCollect ${orderIdValue} status: ${oldStatus} -> ${status}`,
       );
-      if (
-        confirmedStatuses.includes(status.toLowerCase()) &&
-        !confirmedStatuses.includes(oldStatus.toLowerCase())
-      ) {
-        const iid = Number(pickAndCollect.type) === 3 ? "WEB" : "APP";
-        const location = overrideLocation || pickAndCollect.location;
-        console.log(
-          `[OrderUpdate] Deducting ${pickAndCollect.picked_qty} units of ${pickAndCollect.prod_code} at location ${location}`,
-        );
-        await deductStock(
-          pickAndCollect.prod_code,
-          location,
-          pickAndCollect.picked_qty,
-          iid,
-        ).catch((err) =>
-          console.error(
-            `[OrderUpdate] Stock deduction failed for ${pickAndCollect.prod_code}:`,
-            err,
-          ),
-        );
+
+      if (isBeingConfirmed) {
+        let device = null;
+        if (pickAndCollect.user && pickAndCollect.user.platform) {
+          device = Number(pickAndCollect.user.platform);
+        }
+        // Fallback if no user device: assume APP if not explicitly WEB
+        const iid = device === 3 ? "WEB" : "APP";
+
+        if (rowConfigs && rowConfigs.length > 0) {
+          console.log(
+            `[OrderUpdate] Triggering rowConfigs stock deduction for ${rowConfigs.length} rows (PickAndCollect)`,
+          );
+          for (const row of rowConfigs) {
+            const { prod_code: prodCode, location, quantity, selling_price: rowPrice } = row;
+            if (!prodCode || !location || !(quantity > 0)) continue;
+            
+            console.log(
+              `[OrderUpdate] Deducting ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
+            );
+            await deductStock(prodCode, location, quantity, iid, rowPrice ?? null).catch(
+              (err) =>
+                console.error(
+                  `[OrderUpdate] Stock deduction failed for ${prodCode}:`,
+                  err,
+                ),
+            );
+          }
+        } else {
+          const location = overrideLocation || pickAndCollect.location;
+          console.log(
+            `[OrderUpdate] Triggering legacy stock deduction for PickAndCollect at location ${location}`,
+          );
+          await deductStock(
+            pickAndCollect.prod_code,
+            location,
+            pickAndCollect.picked_qty,
+            iid,
+          ).catch((err) =>
+            console.error(
+              `[OrderUpdate] Stock deduction failed for ${pickAndCollect.prod_code}:`,
+              err,
+            ),
+          );
+        }
       }
 
       await sendToUser(pickAndCollect.user_id, {

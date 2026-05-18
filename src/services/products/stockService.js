@@ -49,8 +49,9 @@ async function checkStockAvailability(items) {
  * @param {string} location
  * @param {number} quantity
  * @param {string} iid - identification for the source (Web/Mobile)
+ * @param {number|null} sellingPrice - override selling price (e.g. from a specific price level)
  */
-async function deductStock(prodCode, location, quantity, iid = null) {
+async function deductStock(prodCode, location, quantity, iid = null, sellingPrice = null) {
   const amountToDeduct = parseFloat(quantity);
   if (isNaN(amountToDeduct) || amountToDeduct <= 0) return;
 
@@ -73,9 +74,14 @@ async function deductStock(prodCode, location, quantity, iid = null) {
   const pPrice = referenceStock
     ? parseFloat(referenceStock.purchase_price || 0)
     : 0;
-  const sPrice = referenceStock
-    ? parseFloat(referenceStock.selling_price || 0)
-    : 0;
+  // Use the explicitly provided selling price (from price level) if available,
+  // otherwise fall back to the most-recent stock record's selling price.
+  const sPrice =
+    sellingPrice !== null && !isNaN(parseFloat(sellingPrice))
+      ? parseFloat(sellingPrice)
+      : referenceStock
+        ? parseFloat(referenceStock.selling_price || 0)
+        : 0;
 
   const qtyToStore = -amountToDeduct;
   const amountToStore = Math.abs(sPrice * amountToDeduct);
