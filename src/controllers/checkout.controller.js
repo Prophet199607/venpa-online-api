@@ -435,6 +435,8 @@ async function createCardPaymentResponse(userId, body, persist = true) {
     };
   }
 
+  // NOTE: Email & backoffice notification are sent AFTER payment confirmation
+  // via payhereNotify (handleOrderSuccess). Do NOT send them here to avoid duplicates.
   let checkout;
   if (persist) {
     checkout = await Checkout.create({
@@ -454,28 +456,6 @@ async function createCardPaymentResponse(userId, body, persist = true) {
       created_at: new Date(),
       updated_at: new Date(),
     });
-
-    const user = await User.findOne({ where: { id: userId } });
-    if (user) {
-      sendOrderConfirmationEmail(
-        typeof user.toJSON === "function" ? user.toJSON() : user,
-        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
-        items,
-      ).catch(console.error);
-
-      // Notify Backoffice
-      sendToTopic("backoffice", {
-        title: "New Delivery Order",
-        body: `Order #${orderId} for ${totals.netTotalWithoutCod} LKR.`,
-        data: {
-          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
-          order_id: String(orderId),
-          user_id: String(userId),
-          customer_name: `${user.fname} ${user.lname}`.trim(),
-          total: String(totals.netTotalWithoutCod),
-        },
-      }).catch(console.error);
-    }
   } else {
     // Return a mock checkout object for the response if not persisting
     checkout = {
@@ -736,6 +716,8 @@ async function processMintpayResponse(userId, body, persist = true) {
 
   const { type: _type, ...payload } = body || {};
 
+  // NOTE: Email & backoffice notification are sent AFTER payment confirmation
+  // via mintpaySuccess (handleOrderSuccess). Do NOT send them here to avoid duplicates.
   let checkout;
   if (persist) {
     checkout = await Checkout.create({
@@ -755,28 +737,6 @@ async function processMintpayResponse(userId, body, persist = true) {
       created_at: new Date(),
       updated_at: new Date(),
     });
-
-    const user = await User.findOne({ where: { id: userId } });
-    if (user) {
-      sendOrderConfirmationEmail(
-        typeof user.toJSON === "function" ? user.toJSON() : user,
-        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
-        items,
-      ).catch(console.error);
-
-      // Notify Backoffice
-      sendToTopic("backoffice", {
-        title: "New Delivery Order (Mintpay)",
-        body: `Order #${orderId} for ${totals.netTotalWithoutCod} LKR.`,
-        data: {
-          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
-          order_id: String(orderId),
-          user_id: String(userId),
-          customer_name: `${user.fname} ${user.lname}`.trim(),
-          total: String(totals.netTotalWithoutCod),
-        },
-      }).catch(console.error);
-    }
   } else {
     checkout = {
       order_id: orderId,
@@ -872,11 +832,13 @@ exports.createPayHereHash = async (req, res, next) => {
       });
     }
 
-    // Default flow: Generate hash for a new potential order
+    // Default flow: Create order AND generate hash.
+    // persist=true ensures the order_id is stored in DB BEFORE being sent to PayHere,
+    // so when PayHere calls back with the same order_id it can be found.
     const result = await createCardPaymentResponse(
       req.user.id,
       req.body,
-      false,
+      true,
     );
     return res.status(result.status).json(result.body);
   } catch (e) {
