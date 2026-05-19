@@ -135,8 +135,7 @@ function generateOrderInvoiceHtml(
     } else {
       // Card (2) or Mintpay (3)
       finalTotal =
-        totals.netTotalWithoutCod ||
-        subTotal + courierCharge - discountAmount;
+        totals.netTotalWithoutCod || subTotal + courierCharge - discountAmount;
     }
   }
 
@@ -342,7 +341,7 @@ function generateOrderInvoiceHtml(
                       <tr>
                         <td class="label-text" style="font-size: 13px;">Status</td>
                         <td style="text-align: right;">
-                          <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: capitalize;">${checkoutData.status}</span>
+                          <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; text-transform: capitalize;">${checkoutData.payment_status}</span>
                         </td>
                       </tr>
                     </table>

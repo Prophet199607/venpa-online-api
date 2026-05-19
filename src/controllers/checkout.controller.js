@@ -639,6 +639,33 @@ exports.createCheckout = async (req, res, next) => {
       await consumeCoupon(req.user.id, totals.appliedCoupon.id, orderId);
     }
 
+    // Clear user cart upon successful COD checkout
+    if (cart) {
+      await CartItem.destroy({ where: { cart_id: cart.id } });
+    }
+
+    // Send Confirmation Email & Notify Backoffice
+    const user = await User.findOne({ where: { id: req.user.id } });
+    if (user) {
+      await sendOrderConfirmationEmail(
+        typeof user.toJSON === "function" ? user.toJSON() : user,
+        typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+        items,
+      );
+
+      sendToTopic("backoffice", {
+        title: "New COD Order Placed",
+        body: `Order #${checkout.order_id} placed successfully.`,
+        data: {
+          notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+          order_id: String(checkout.order_id),
+          user_id: String(checkout.user_id),
+          customer_name: `${user.fname} ${user.lname}`.trim(),
+          total: String(totals.netTotalWithCod || totals.subTotal || 0),
+        },
+      }).catch(console.error);
+    }
+
     return res.status(201).json({
       message: "Checkout created",
       order_id: orderId,
