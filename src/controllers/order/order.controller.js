@@ -177,14 +177,23 @@ exports.getAllOrders = async (req, res, next) => {
 
       // Add complete summary for the list
       result.total_items = 1;
-      const subTotal =
+      const originalSubTotal =
         (parseFloat(productData.selling_price) || 0) *
         (parseFloat(json.picked_qty) || 1);
       const discountAmount = parseFloat(json.discount_amount) || 0;
-      const netTotal = subTotal - discountAmount;
+      
+      let netTotal = parseFloat(json.net_amount);
+      if (isNaN(netTotal)) {
+        netTotal = originalSubTotal - discountAmount;
+      }
+      
+      const subTotal = netTotal + discountAmount;
+      const productDiscountTotal = originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
 
       result.amount = netTotal;
       result.totals = {
+        originalSubTotal,
+        productDiscountTotal,
         subTotal,
         discountAmount,
         netTotalWithCod: netTotal,
@@ -359,15 +368,23 @@ exports.getOrderById = async (req, res, next) => {
       const payload_items = [
         {
           product: productData,
-          quantity: pc.picked_qty || 1,
+          quantity: pc.picked_qty,
         },
       ];
 
-      const subTotal =
+      const originalSubTotal =
         (parseFloat(productData.selling_price) || 0) *
-        (parseFloat(pc.picked_qty) || 1);
+        parseFloat(pc.picked_qty);
       const discountAmount = parseFloat(pc.discount_amount) || 0;
-      const netTotal = subTotal - discountAmount;
+      
+      let netTotal = parseFloat(pc.net_amount);
+      if (isNaN(netTotal)) {
+        netTotal = originalSubTotal - discountAmount;
+      }
+      
+      const subTotal = netTotal + discountAmount;
+      const productDiscountTotal = originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
+      
       const orderType = Number(pc.type);
 
       return res.json({
@@ -389,6 +406,8 @@ exports.getOrderById = async (req, res, next) => {
         updated_at: pc.updated_at,
         payload_items,
         totals: {
+          originalSubTotal: originalSubTotal,
+          productDiscountTotal: productDiscountTotal,
           subTotal: subTotal,
           discountAmount: discountAmount,
           netTotalWithCod: netTotal,
