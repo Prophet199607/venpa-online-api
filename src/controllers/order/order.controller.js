@@ -16,7 +16,15 @@ const { deductStock } = require("../../services/products/stockService");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
-    const { status, device, order_type, start_date, end_date } = req.query;
+    const {
+      status,
+      device,
+      order_type,
+      start_date,
+      end_date,
+      location,
+      location_name,
+    } = req.query;
 
     const userInclude = {
       model: User,
@@ -76,6 +84,19 @@ exports.getAllOrders = async (req, res, next) => {
         ...dateFilter,
       };
       if (status) pcWhere.status = status;
+
+      // Filter Pick & Collect by location / location_name (Checkout/delivery data is not filtered by location)
+      if (location || location_name) {
+        const orConditions = [];
+        if (location) {
+          orConditions.push({ location: location });
+          orConditions.push({ location_name: { [Op.like]: `%${location}%` } });
+        }
+        if (location_name) {
+          orConditions.push({ location_name: { [Op.like]: `%${location_name}%` } });
+        }
+        pcWhere[Op.or] = orConditions;
+      }
 
       pickAndCollects = await PickAndCollect.findAll({
         where: pcWhere,
@@ -181,14 +202,15 @@ exports.getAllOrders = async (req, res, next) => {
         (parseFloat(productData.selling_price) || 0) *
         (parseFloat(json.picked_qty) || 1);
       const discountAmount = parseFloat(json.discount_amount) || 0;
-      
+
       let netTotal = parseFloat(json.net_amount);
       if (isNaN(netTotal)) {
         netTotal = originalSubTotal - discountAmount;
       }
-      
+
       const subTotal = netTotal + discountAmount;
-      const productDiscountTotal = originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
+      const productDiscountTotal =
+        originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
 
       result.amount = netTotal;
       result.totals = {
@@ -376,15 +398,16 @@ exports.getOrderById = async (req, res, next) => {
         (parseFloat(productData.selling_price) || 0) *
         parseFloat(pc.picked_qty);
       const discountAmount = parseFloat(pc.discount_amount) || 0;
-      
+
       let netTotal = parseFloat(pc.net_amount);
       if (isNaN(netTotal)) {
         netTotal = originalSubTotal - discountAmount;
       }
-      
+
       const subTotal = netTotal + discountAmount;
-      const productDiscountTotal = originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
-      
+      const productDiscountTotal =
+        originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
+
       const orderType = Number(pc.type);
 
       return res.json({
