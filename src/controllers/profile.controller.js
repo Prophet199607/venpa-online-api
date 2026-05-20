@@ -69,6 +69,23 @@ exports.updateProfile = async (req, res, next) => {
     const userAttrs = req.user.constructor?.rawAttributes || {};
     const supports = (attr) => Boolean(userAttrs[attr]);
 
+    const normalizePhone = (phone) => {
+      let digits = String(phone || "").replace(/\D/g, "");
+
+      if (digits.startsWith("0") && digits.length === 10) {
+        digits = "94" + digits.slice(1);
+      } else if (digits.length === 9) {
+        digits = "94" + digits;
+      }
+
+      // final validation
+      if (!/^94\d{9}$/.test(digits)) {
+        return null;
+      }
+
+      return digits;
+    };
+
     if (
       !has("fname") &&
       !has("lname") &&
@@ -102,14 +119,30 @@ exports.updateProfile = async (req, res, next) => {
     if (has("fname")) updates.fname = payload.fname;
     if (has("lname")) updates.lname = payload.lname;
     if (has("phone")) {
-      const newPhone = String(payload.phone || "").replace(/\D/g, "");
-      if (newPhone && newPhone !== req.user.phone) {
-        const existing = await User.findOne({
-          where: { phone: newPhone, id: { [Op.ne]: req.user.id } },
+      const newPhone = normalizePhone(payload.phone);
+
+      if (!newPhone) {
+        return res.status(400).json({
+          message: "Invalid phone number",
         });
+      }
+
+      const currentPhone = normalizePhone(req.user.phone);
+
+      if (newPhone && newPhone !== currentPhone) {
+        const existing = await User.findOne({
+          where: {
+            phone: newPhone,
+            id: { [Op.ne]: req.user.id },
+          },
+        });
+
         if (existing) {
-          return res.status(400).json({ message: "Phone number already in use" });
+          return res.status(400).json({
+            message: "Phone number already in use",
+          });
         }
+
         updates.phone = newPhone;
       }
     }
