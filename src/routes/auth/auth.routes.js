@@ -8,8 +8,6 @@ router.post("/register", c.sendOtp);
 router.post("/login", c.sendOtp);
 router.post("/verify", c.verifyOtp);
 router.post("/google-login", c.googleLogin);
-router.post("/password/forgot", c.forgotPassword);
-router.post("/password/reset", c.resetPassword);
 router.get("/me", auth, (req, res) => {
   const user = req.user.toJSON();
   delete user.password;
