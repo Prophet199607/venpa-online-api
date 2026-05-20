@@ -383,11 +383,36 @@ async function createCardPaymentResponse(userId, body, persist = true) {
     };
   }
 
-  const orderId = body?.order_id || generateOrderId();
+  // Look for an existing pending checkout for this user
+  let existingCheckout = null;
+  const now = new Date();
+  if (persist) {
+    existingCheckout = await Checkout.findOne({
+      where: {
+        user_id: userId,
+        status: "pending",
+        payment_status: "pending",
+        type: 2,
+      },
+      order: [["created_at", "DESC"]],
+    });
+  }
+
+  let orderId;
+  if (existingCheckout && (now - new Date(existingCheckout.created_at)) < 5 * 60 * 1000) {
+    orderId = existingCheckout.order_id;
+  } else {
+    orderId = body?.order_id || generateOrderId();
+  }
 
   // Consume coupon
   if (totals.appliedCoupon && persist) {
-    await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+    const couponAlreadyUsed = await CouponUsage.findOne({
+      where: { order_id: String(orderId) },
+    });
+    if (!couponAlreadyUsed) {
+      await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+    }
   }
 
   const amountValue = totals.netTotalWithoutCod;
@@ -439,23 +464,37 @@ async function createCardPaymentResponse(userId, body, persist = true) {
   // via payhereNotify (handleOrderSuccess). Do NOT send them here to avoid duplicates.
   let checkout;
   if (persist) {
-    checkout = await Checkout.create({
-      order_id: orderId,
-      user_id: userId,
-      type: 2, // Card (PayHere)
-      type_name: "delivery",
-      payload: {
-        ...payload,
-        items,
-        prod_codes: items.map((i) => i.product.prod_code),
-        totals,
-        location: "001", // Store deduction location
-      },
-      status: "pending",
-      payment_status: "pending",
-      created_at: new Date(),
-      updated_at: new Date(),
-    });
+    if (existingCheckout && (now - new Date(existingCheckout.created_at)) < 5 * 60 * 1000) {
+      await existingCheckout.update({
+        payload: {
+          ...payload,
+          items,
+          prod_codes: items.map((i) => i.product.prod_code),
+          totals,
+          location: "001",
+        },
+        updated_at: new Date(),
+      });
+      checkout = existingCheckout;
+    } else {
+      checkout = await Checkout.create({
+        order_id: orderId,
+        user_id: userId,
+        type: 2, // Card (PayHere)
+        type_name: "delivery",
+        payload: {
+          ...payload,
+          items,
+          prod_codes: items.map((i) => i.product.prod_code),
+          totals,
+          location: "001", // Store deduction location
+        },
+        status: "pending",
+        payment_status: "pending",
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
   } else {
     // Return a mock checkout object for the response if not persisting
     checkout = {
@@ -524,12 +563,22 @@ exports.createCheckout = async (req, res, next) => {
           where: { order_id: result.body.checkout.order_id },
         });
         if (checkout) {
-          await GiftReceiverDetail.create({
-            order_id: checkout.order_id,
-            ...req.body.giftDetails,
-            created_at: new Date(),
-            updated_at: new Date(),
+          const existingGift = await GiftReceiverDetail.findOne({
+            where: { order_id: checkout.order_id },
           });
+          if (!existingGift) {
+            await GiftReceiverDetail.create({
+              order_id: checkout.order_id,
+              ...req.body.giftDetails,
+              created_at: new Date(),
+              updated_at: new Date(),
+            });
+          } else {
+            await existingGift.update({
+              ...req.body.giftDetails,
+              updated_at: new Date(),
+            });
+          }
         }
       }
 

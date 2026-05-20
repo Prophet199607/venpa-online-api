@@ -310,8 +310,29 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
   const { prodCode, locationCode, type, pickedQty, product, location } =
     validated;
 
-  const pickAndCollectId = generatePickAndCollectId();
+  // Look for an existing pending pick & collect for this user, product, location
+  let existingPC = null;
+  if (type === 2 || type === 3) {
+    existingPC = await PickAndCollect.findOne({
+      where: {
+        user_id: userId,
+        prod_code: prodCode,
+        location: locationCode,
+        status: "pending",
+        payment_status: "pending",
+        type,
+      },
+      order: [["created_at", "DESC"]],
+    });
+  }
+
+  let pickAndCollectId;
   const now = new Date();
+  if (existingPC && (now - new Date(existingPC.created_at)) < 5 * 60 * 1000) {
+    pickAndCollectId = existingPC.pick_and_collect_id;
+  } else {
+    pickAndCollectId = generatePickAndCollectId();
+  }
 
   // Coupon and Product Discount handling
   let discountAmount = 0;
@@ -388,26 +409,44 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       return { status: 500, body: { message: hashPayload.error } };
     }
 
-    const row = await PickAndCollect.create({
-      pick_and_collect_id: pickAndCollectId,
-      user_id: userId,
-      prod_code: prodCode,
-      location: locationCode,
-      location_name: location.loca_name,
-      type,
-      type_name: "pick & collect",
-      picked_qty: pickedQty,
-      status: "pending",
-      payment_status: "pending",
-      coupon_code: couponCode,
-      discount_amount: discountAmount,
-      net_amount: netAmount,
-      created_at: now,
-      updated_at: now,
-    });
+    let row;
+    if (existingPC && (now - new Date(existingPC.created_at)) < 5 * 60 * 1000) {
+      await existingPC.update({
+        picked_qty: pickedQty,
+        coupon_code: couponCode,
+        discount_amount: discountAmount,
+        net_amount: netAmount,
+        updated_at: now,
+      });
+      row = existingPC;
+    } else {
+      row = await PickAndCollect.create({
+        pick_and_collect_id: pickAndCollectId,
+        user_id: userId,
+        prod_code: prodCode,
+        location: locationCode,
+        location_name: location.loca_name,
+        type,
+        type_name: "pick & collect",
+        picked_qty: pickedQty,
+        status: "pending",
+        payment_status: "pending",
+        coupon_code: couponCode,
+        discount_amount: discountAmount,
+        net_amount: netAmount,
+        created_at: now,
+        updated_at: now,
+      });
+    }
 
     if (appliedCouponId) {
-      await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+      const { CouponUsage } = require("../models");
+      const couponAlreadyUsed = await CouponUsage.findOne({
+        where: { order_id: String(pickAndCollectId) },
+      });
+      if (!couponAlreadyUsed) {
+        await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+      }
     }
 
     const [serialized] = await serializeRows([row]);
@@ -449,26 +488,44 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       };
     }
 
-    const row = await PickAndCollect.create({
-      pick_and_collect_id: pickAndCollectId,
-      user_id: userId,
-      prod_code: prodCode,
-      location: locationCode,
-      location_name: location.loca_name,
-      type,
-      type_name: "pick & collect",
-      picked_qty: pickedQty,
-      status: "pending",
-      payment_status: "pending",
-      coupon_code: couponCode,
-      discount_amount: discountAmount,
-      net_amount: netAmount,
-      created_at: now,
-      updated_at: now,
-    });
+    let row;
+    if (existingPC && (now - new Date(existingPC.created_at)) < 5 * 60 * 1000) {
+      await existingPC.update({
+        picked_qty: pickedQty,
+        coupon_code: couponCode,
+        discount_amount: discountAmount,
+        net_amount: netAmount,
+        updated_at: now,
+      });
+      row = existingPC;
+    } else {
+      row = await PickAndCollect.create({
+        pick_and_collect_id: pickAndCollectId,
+        user_id: userId,
+        prod_code: prodCode,
+        location: locationCode,
+        location_name: location.loca_name,
+        type,
+        type_name: "pick & collect",
+        picked_qty: pickedQty,
+        status: "pending",
+        payment_status: "pending",
+        coupon_code: couponCode,
+        discount_amount: discountAmount,
+        net_amount: netAmount,
+        created_at: now,
+        updated_at: now,
+      });
+    }
 
     if (appliedCouponId) {
-      await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+      const { CouponUsage } = require("../models");
+      const couponAlreadyUsed = await CouponUsage.findOne({
+        where: { order_id: String(pickAndCollectId) },
+      });
+      if (!couponAlreadyUsed) {
+        await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+      }
     }
 
     const [serialized] = await serializeRows([row]);
@@ -521,7 +578,13 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
   });
 
   if (appliedCouponId) {
-    await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+    const { CouponUsage } = require("../models");
+    const couponAlreadyUsed = await CouponUsage.findOne({
+      where: { order_id: String(pickAndCollectId) },
+    });
+    if (!couponAlreadyUsed) {
+      await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+    }
   }
 
   const [serialized] = await serializeRows([row]);
