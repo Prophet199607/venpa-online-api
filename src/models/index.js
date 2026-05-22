@@ -124,6 +124,51 @@ ProductDiscount.belongsTo(Product, {
   as: "product",
   constraints: false,
 });
+
+// Product <-> Author (through ProductAuthor)
+Product.hasMany(ProductAuthor, {
+  foreignKey: "prod_code",
+  sourceKey: "prod_code",
+  as: "productAuthors",
+  constraints: false,
+});
+ProductAuthor.belongsTo(Product, {
+  foreignKey: "prod_code",
+  targetKey: "prod_code",
+  as: "product",
+  constraints: false,
+});
+ProductAuthor.belongsTo(Author, {
+  foreignKey: "auth_code",
+  targetKey: "auth_code",
+  as: "author",
+  constraints: false,
+});
+Author.hasMany(ProductAuthor, {
+  foreignKey: "auth_code",
+  sourceKey: "auth_code",
+  as: "productAuthors",
+  constraints: false,
+});
+Product.belongsToMany(Author, {
+  through: ProductAuthor,
+  foreignKey: "prod_code",
+  otherKey: "auth_code",
+  sourceKey: "prod_code",
+  targetKey: "auth_code",
+  as: "authors",
+  constraints: false,
+});
+Author.belongsToMany(Product, {
+  through: ProductAuthor,
+  foreignKey: "auth_code",
+  otherKey: "prod_code",
+  sourceKey: "auth_code",
+  targetKey: "prod_code",
+  as: "products",
+  constraints: false,
+});
+
 // Cart Relations
 User.hasOne(Cart, { foreignKey: "user_id" });
 Cart.belongsTo(User, { foreignKey: "user_id" });

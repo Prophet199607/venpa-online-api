@@ -191,10 +191,26 @@ exports.list = async (req, res, next) => {
     }
 
     if (q) {
+      // Find prod_codes whose authors match the query
+      const authorMatchedCodes = await sequelize.query(
+        `SELECT DISTINCT pa.prod_code
+         FROM product_authors pa
+         INNER JOIN authors a ON a.auth_code = pa.auth_code
+         WHERE a.auth_name LIKE :q OR a.auth_name_other_language LIKE :q`,
+        {
+          replacements: { q: `%${q}%` },
+          type: sequelize.QueryTypes.SELECT,
+        },
+      );
+      const authorProdCodes = authorMatchedCodes.map((r) => r.prod_code);
+
       where[Op.or] = [
         { prod_code: { [Op.like]: `%${q}%` } },
         { prod_name: { [Op.like]: `%${q}%` } },
         { isbn: { [Op.like]: `%${q}%` } },
+        ...(authorProdCodes.length
+          ? [{ prod_code: { [Op.in]: authorProdCodes } }]
+          : []),
       ];
     }
 
@@ -244,12 +260,28 @@ exports.search = async (req, res, next) => {
       return res.status(400).json({ message: "Search query is required" });
     }
 
+    // Find prod_codes whose authors match the query
+    const authorMatchedCodes = await sequelize.query(
+      `SELECT DISTINCT pa.prod_code
+       FROM product_authors pa
+       INNER JOIN authors a ON a.auth_code = pa.auth_code
+       WHERE a.auth_name LIKE :q OR a.auth_name_other_language LIKE :q`,
+      {
+        replacements: { q: `%${q}%` },
+        type: sequelize.QueryTypes.SELECT,
+      },
+    );
+    const authorProdCodes = authorMatchedCodes.map((r) => r.prod_code);
+
     const items = await Product.findAll({
       where: {
         [Op.or]: [
           { prod_code: { [Op.like]: `%${q}%` } },
           { prod_name: { [Op.like]: `%${q}%` } },
           { isbn: { [Op.like]: `%${q}%` } },
+          ...(authorProdCodes.length
+            ? [{ prod_code: { [Op.in]: authorProdCodes } }]
+            : []),
         ],
       },
       order: [["id", "DESC"]],
