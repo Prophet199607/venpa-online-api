@@ -23,9 +23,12 @@ const {
 } = require("../services/notifications/notificationTypes");
 const { checkStockAvailability } = require("../services/products/stockService");
 const {
-  sendOrderConfirmationEmail,
+  sendOrderPlacedEmail,
   generateOrderInvoiceHtml,
+  sendOrderCancelledEmail,
+  sendOrderConfirmationEmail,
 } = require("../services/notifications/emailService");
+
 const { buildPriceLevelMap } = require("../services/products/priceService");
 
 function normalizeCheckoutType(value) {
@@ -399,7 +402,10 @@ async function createCardPaymentResponse(userId, body, persist = true) {
   }
 
   let orderId;
-  if (existingCheckout && (now - new Date(existingCheckout.created_at)) < 5 * 60 * 1000) {
+  if (
+    existingCheckout &&
+    now - new Date(existingCheckout.created_at) < 5 * 60 * 1000
+  ) {
     orderId = existingCheckout.order_id;
   } else {
     orderId = body?.order_id || generateOrderId();
@@ -464,7 +470,10 @@ async function createCardPaymentResponse(userId, body, persist = true) {
   // via payhereNotify (handleOrderSuccess). Do NOT send them here to avoid duplicates.
   let checkout;
   if (persist) {
-    if (existingCheckout && (now - new Date(existingCheckout.created_at)) < 5 * 60 * 1000) {
+    if (
+      existingCheckout &&
+      now - new Date(existingCheckout.created_at) < 5 * 60 * 1000
+    ) {
       await existingCheckout.update({
         payload: {
           ...payload,
@@ -696,7 +705,7 @@ exports.createCheckout = async (req, res, next) => {
     // Send Confirmation Email & Notify Backoffice
     const user = await User.findOne({ where: { id: req.user.id } });
     if (user) {
-      await sendOrderConfirmationEmail(
+      await sendOrderPlacedEmail(
         typeof user.toJSON === "function" ? user.toJSON() : user,
         typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
         items,
@@ -911,11 +920,7 @@ exports.createPayHereHash = async (req, res, next) => {
     // Default flow: Create order AND generate hash.
     // persist=true ensures the order_id is stored in DB BEFORE being sent to PayHere,
     // so when PayHere calls back with the same order_id it can be found.
-    const result = await createCardPaymentResponse(
-      req.user.id,
-      req.body,
-      true,
-    );
+    const result = await createCardPaymentResponse(req.user.id, req.body, true);
     return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("PayHere Hash Error:", e);
@@ -1057,6 +1062,26 @@ exports.updateCheckoutStatus = async (req, res, next) => {
       },
     });
 
+    if (status.toLowerCase() === "cancelled") {
+      const user = await User.findOne({ where: { id: checkout.user_id } });
+      if (user) {
+        let payload = checkout.payload;
+        if (typeof payload === "string") {
+          try {
+            payload = JSON.parse(payload);
+          } catch (e) {
+            payload = {};
+          }
+        }
+        const items = payload.items || [];
+        await sendOrderCancelledEmail(
+          typeof user.toJSON === "function" ? user.toJSON() : user,
+          typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+          items,
+        );
+      }
+    }
+
     res.json({
       message: "Checkout status updated",
       order_id: checkout.order_id,
@@ -1164,9 +1189,9 @@ exports.checkoutSuccess = async (req, res, next) => {
 
           // Only send if not already successfully handled (to prevent duplicates)
           if (!wasAlreadyPaid) {
-            await sendOrderConfirmationEmail(
-              typeof user.toJSON === "function" ? user.toJSON() : user,
-              typeof record.toJSON === "function" ? record.toJSON() : record,
+            await sendOrderPlacedEmail(
+              user.toJSON ? user.toJSON() : user,
+              record.toJSON ? record.toJSON() : record,
               items,
             );
           }

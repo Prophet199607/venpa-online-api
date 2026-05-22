@@ -13,6 +13,11 @@ const {
   NOTIFICATION_TYPES,
 } = require("../../services/notifications/notificationTypes");
 const { deductStock } = require("../../services/products/stockService");
+const {
+  sendOrderConfirmationEmail,
+  sendOrderShippedEmail,
+  sendOrderCancelledEmail,
+} = require("../../services/notifications/emailService");
 
 exports.getAllOrders = async (req, res, next) => {
   try {
@@ -93,7 +98,9 @@ exports.getAllOrders = async (req, res, next) => {
           orConditions.push({ location_name: { [Op.like]: `%${location}%` } });
         }
         if (location_name) {
-          orConditions.push({ location_name: { [Op.like]: `%${location_name}%` } });
+          orConditions.push({
+            location_name: { [Op.like]: `%${location_name}%` },
+          });
         }
         pcWhere[Op.or] = orConditions;
       }
@@ -618,6 +625,40 @@ exports.updateOrderStatus = async (req, res, next) => {
           status,
         },
       });
+
+      if (checkout.user) {
+        try {
+          // If payload is a string, it was parsed above into `currentPayload`
+          const cartItems = currentPayload?.items || [];
+          const userObj = checkout.user?.toJSON
+            ? checkout.user.toJSON()
+            : checkout.user;
+          const checkoutObj = checkout.toJSON ? checkout.toJSON() : checkout;
+
+          if (
+            status.toLowerCase() === "confirmed" &&
+            oldStatus.toLowerCase() !== "confirmed"
+          ) {
+            await sendOrderConfirmationEmail(userObj, checkoutObj, cartItems);
+          } else if (
+            status.toLowerCase() === "shipped" &&
+            oldStatus.toLowerCase() !== "shipped"
+          ) {
+            await sendOrderShippedEmail(userObj, checkoutObj, cartItems);
+          } else if (
+            status.toLowerCase() === "cancelled" &&
+            oldStatus.toLowerCase() !== "cancelled"
+          ) {
+            await sendOrderCancelledEmail(userObj, checkoutObj, cartItems);
+          }
+        } catch (emailErr) {
+          console.error(
+            `[OrderUpdate] Failed to send email for Checkout ${orderIdValue}:`,
+            emailErr,
+          );
+        }
+      }
+
       return res.json({
         message: "Order status updated",
         order_id: checkout.order_id,
@@ -776,6 +817,51 @@ exports.updateOrderStatus = async (req, res, next) => {
           status,
         },
       });
+
+      if (pickAndCollect.user) {
+        try {
+          // PickAndCollect doesn't use payload/items in the same way, but it has product details
+          // We'll mock a cart item for the email service
+          const cartItems = [
+            {
+              product: pickAndCollect.product?.toJSON
+                ? pickAndCollect.product.toJSON()
+                : pickAndCollect.product,
+              quantity: pickAndCollect.picked_qty,
+            },
+          ];
+
+          const userObj = pickAndCollect.user?.toJSON
+            ? pickAndCollect.user.toJSON()
+            : pickAndCollect.user;
+          const pcObj = pickAndCollect.toJSON
+            ? pickAndCollect.toJSON()
+            : pickAndCollect;
+
+          if (
+            status.toLowerCase() === "confirmed" &&
+            oldStatus.toLowerCase() !== "confirmed"
+          ) {
+            await sendOrderConfirmationEmail(userObj, pcObj, cartItems);
+          } else if (
+            status.toLowerCase() === "shipped" &&
+            oldStatus.toLowerCase() !== "shipped"
+          ) {
+            await sendOrderShippedEmail(userObj, pcObj, cartItems);
+          } else if (
+            status.toLowerCase() === "cancelled" &&
+            oldStatus.toLowerCase() !== "cancelled"
+          ) {
+            await sendOrderCancelledEmail(userObj, pcObj, cartItems);
+          }
+        } catch (emailErr) {
+          console.error(
+            `[OrderUpdate] Failed to send email for PickAndCollect ${orderIdValue}:`,
+            emailErr,
+          );
+        }
+      }
+
       return res.json({
         message: "Pick & Collect status updated",
         order_id: pickAndCollect.pick_and_collect_id,

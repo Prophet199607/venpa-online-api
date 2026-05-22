@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { Checkout, PickAndCollect, Cart, CartItem, User, Product } = require("../models");
-const { sendOrderConfirmationEmail } = require("../services/notifications/emailService");
+const { sendOrderPlacedEmail } = require("../services/notifications/emailService");
 const { sendToTopic } = require("../services/notifications/notificationService");
 const { NOTIFICATION_TYPES } = require("../services/notifications/notificationTypes");
 
@@ -107,11 +107,11 @@ async function handleOrderSuccess(record, isPickAndCollect, payload = {}) {
       totals = checkoutPayload.totals || {};
     }
 
-    sendOrderConfirmationEmail(
-      user.toJSON ? user.toJSON() : user,
-      record.toJSON ? record.toJSON() : record,
+    sendOrderPlacedEmail(
+      typeof user.toJSON === "function" ? user.toJSON() : user,
+      typeof record.toJSON === "function" ? record.toJSON() : record,
       items
-    ).catch(console.error);
+    ).catch((e) => console.error("Email send failed:", e));
 
     sendToTopic("backoffice", {
       title: isPickAndCollect ? "Order Payment Success (P&C)" : "Order Payment Success",

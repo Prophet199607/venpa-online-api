@@ -80,6 +80,7 @@ function generateOrderInvoiceHtml(
   checkoutData,
   cartItems = [],
   logoUrl = "",
+  statusTitle = "Order Confirmed!"
 ) {
   let paymentMethod = "N/A";
   let paymentBadgeColor = "#6B7280";
@@ -280,7 +281,7 @@ function generateOrderInvoiceHtml(
                     ${logoImgTag}
                   </td>
                   <td style="padding-left: 16px; text-align: right;">
-                    <h1 style="margin: 0 0 2px; color: #ffffff; font-size: 19px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.1;">Order Confirmed!</h1>
+                    <h1 style="margin: 0 0 2px; color: #ffffff; font-size: 19px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.1;">${statusTitle}</h1>
                     <p style="margin: 0; color: rgba(255,255,255,0.85); font-size: 12px; line-height: 1.2;">Thank you for shopping, ${user.fname || "Customer"}.</p>
                   </td>
                 </tr>
@@ -298,7 +299,7 @@ function generateOrderInvoiceHtml(
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td class="label-text" style="font-size: 12px;">Order ID</td>
-                        <td class="value-text" style="font-size: 13px; font-weight: 600; text-align: right;">#${checkoutData.order_id}</td>
+                        <td class="value-text" style="font-size: 13px; font-weight: 600; text-align: right;">#${checkoutData.order_id || checkoutData.pick_and_collect_id}</td>
                       </tr>
                     </table>
                   </td>
@@ -398,24 +399,144 @@ async function sendOrderConfirmationEmail(user, checkoutData, cartItems = []) {
 
   try {
     console.log(
-      `Attempting to send order confirmation email for Order #${checkoutData.order_id} to ${user.email}...`,
+      `Attempting to send order confirmation email for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}...`,
     );
     const info = await transporter.sendMail({
       from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
       replyTo: "no-reply@venpaa.lk",
       to: user.email,
-      subject: `Order Confirmed #${checkoutData.order_id} — Venpaa Bookshop`,
+      subject: `Order Confirmed #${checkoutData.order_id || checkoutData.pick_and_collect_id} — Venpaa Bookshop`,
       html: htmlContent,
     });
     console.log(`Email sent successfully to ${user.email}: ${info.messageId}`);
   } catch (error) {
     console.error(
-      `Email send failed for Order #${checkoutData.order_id} to ${user.email}:`,
+      `Email send failed for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}:`,
       error,
     );
   }
 }
 exports.sendOrderConfirmationEmail = sendOrderConfirmationEmail;
+
+async function sendOrderShippedEmail(user, checkoutData, cartItems = []) {
+  if (!user.email) {
+    console.error(
+      "No email address found for user. Cannot send order shipped email.",
+    );
+    return;
+  }
+
+  const transporter = getTransporter();
+  const logoUrl = process.env.EMAIL_LOGO_URL;
+
+  const htmlContent = generateOrderInvoiceHtml(
+    user,
+    checkoutData,
+    cartItems,
+    logoUrl,
+    "Order Shipped!"
+  );
+
+  try {
+    console.log(
+      `Attempting to send order shipped email for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}...`,
+    );
+    const info = await transporter.sendMail({
+      from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
+      replyTo: "no-reply@venpaa.lk",
+      to: user.email,
+      subject: `Order Shipped #${checkoutData.order_id || checkoutData.pick_and_collect_id} — Venpaa Bookshop`,
+      html: htmlContent,
+    });
+    console.log(`Email sent successfully to ${user.email}: ${info.messageId}`);
+  } catch (error) {
+    console.error(
+      `Email send failed for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}:`,
+      error,
+    );
+  }
+}
+exports.sendOrderShippedEmail = sendOrderShippedEmail;
+
+async function sendOrderPlacedEmail(user, checkoutData, cartItems = []) {
+  if (!user.email) {
+    console.error(
+      "No email address found for user. Cannot send order placed email.",
+    );
+    return;
+  }
+
+  const transporter = getTransporter();
+  const logoUrl = process.env.EMAIL_LOGO_URL;
+
+  const htmlContent = generateOrderInvoiceHtml(
+    user,
+    checkoutData,
+    cartItems,
+    logoUrl,
+    "Order Placed Successfully!"
+  );
+
+  try {
+    console.log(
+      `Attempting to send order placed email for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}...`,
+    );
+    const info = await transporter.sendMail({
+      from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
+      replyTo: "no-reply@venpaa.lk",
+      to: user.email,
+      subject: `Order Placed #${checkoutData.order_id || checkoutData.pick_and_collect_id} — Venpaa Bookshop`,
+      html: htmlContent,
+    });
+    console.log(`Email sent successfully to ${user.email}: ${info.messageId}`);
+  } catch (error) {
+    console.error(
+      `Email send failed for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}:`,
+      error,
+    );
+  }
+}
+exports.sendOrderPlacedEmail = sendOrderPlacedEmail;
+
+async function sendOrderCancelledEmail(user, checkoutData, cartItems = []) {
+  if (!user.email) {
+    console.error(
+      "No email address found for user. Cannot send order cancelled email.",
+    );
+    return;
+  }
+
+  const transporter = getTransporter();
+  const logoUrl = process.env.EMAIL_LOGO_URL;
+
+  const htmlContent = generateOrderInvoiceHtml(
+    user,
+    checkoutData,
+    cartItems,
+    logoUrl,
+    "Order Cancelled"
+  );
+
+  try {
+    console.log(
+      `Attempting to send order cancelled email for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}...`,
+    );
+    const info = await transporter.sendMail({
+      from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
+      replyTo: "no-reply@venpaa.lk",
+      to: user.email,
+      subject: `Order Cancelled #${checkoutData.order_id || checkoutData.pick_and_collect_id} — Venpaa Bookshop`,
+      html: htmlContent,
+    });
+    console.log(`Email sent successfully to ${user.email}: ${info.messageId}`);
+  } catch (error) {
+    console.error(
+      `Email send failed for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}:`,
+      error,
+    );
+  }
+}
+exports.sendOrderCancelledEmail = sendOrderCancelledEmail;
 
 exports.generateOtpEmailHtml = (code) => {
   const brandColor = "#0d5b82";

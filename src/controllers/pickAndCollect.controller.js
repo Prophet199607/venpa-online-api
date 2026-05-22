@@ -17,7 +17,7 @@ const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
 const {
-  sendOrderConfirmationEmail,
+  sendOrderPlacedEmail,
 } = require("../services/notifications/emailService");
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
 
@@ -328,7 +328,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
 
   let pickAndCollectId;
   const now = new Date();
-  if (existingPC && (now - new Date(existingPC.created_at)) < 5 * 60 * 1000) {
+  if (existingPC && now - new Date(existingPC.created_at) < 5 * 60 * 1000) {
     pickAndCollectId = existingPC.pick_and_collect_id;
   } else {
     pickAndCollectId = generatePickAndCollectId();
@@ -410,7 +410,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     }
 
     let row;
-    if (existingPC && (now - new Date(existingPC.created_at)) < 5 * 60 * 1000) {
+    if (existingPC && now - new Date(existingPC.created_at) < 5 * 60 * 1000) {
       await existingPC.update({
         picked_qty: pickedQty,
         coupon_code: couponCode,
@@ -489,7 +489,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     }
 
     let row;
-    if (existingPC && (now - new Date(existingPC.created_at)) < 5 * 60 * 1000) {
+    if (existingPC && now - new Date(existingPC.created_at) < 5 * 60 * 1000) {
       await existingPC.update({
         picked_qty: pickedQty,
         coupon_code: couponCode,
@@ -570,6 +570,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     type_name: "pick & collect",
     picked_qty: pickedQty,
     status: "pending",
+    payment_status: "success",
     coupon_code: couponCode,
     discount_amount: discountAmount,
     net_amount: netAmount,
@@ -606,6 +607,21 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       }).catch(console.error);
     }
   });
+
+  const user = await User.findOne({ where: { id: userId } });
+  if (user) {
+    const items = [
+      {
+        product: product.toJSON ? product.toJSON() : product,
+        quantity: pickedQty,
+      },
+    ];
+    await sendOrderPlacedEmail(
+      user.toJSON ? user.toJSON() : user,
+      row.toJSON ? row.toJSON() : row,
+      items
+    );
+  }
 
   return {
     status: 201,
@@ -776,7 +792,7 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
 
         // Only send if not already successfully handled (to prevent duplicates)
         if (!wasAlreadySuccess) {
-          await sendOrderConfirmationEmail(
+          await sendOrderPlacedEmail(
             record.User.toJSON ? record.User.toJSON() : record.User,
             record.toJSON ? record.toJSON() : record,
             items,
