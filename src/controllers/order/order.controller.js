@@ -16,7 +16,7 @@ const { deductStock } = require("../../services/products/stockService");
 const {
   sendOrderConfirmationEmail,
   sendOrderShippedEmail,
-  sendOrderCancelledEmail,
+  sendOrderCanceledEmail,
 } = require("../../services/notifications/emailService");
 
 exports.getAllOrders = async (req, res, next) => {
@@ -470,7 +470,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     // 1. Try Checkout table
     let checkout = await Checkout.findOne({
       where: { order_id: orderIdValue },
-      include: [{ model: User, attributes: ["platform"] }],
+      include: [{ model: User }],
     });
     if (checkout) {
       const oldStatus = checkout.status;
@@ -646,10 +646,10 @@ exports.updateOrderStatus = async (req, res, next) => {
           ) {
             await sendOrderShippedEmail(userObj, checkoutObj, cartItems);
           } else if (
-            status.toLowerCase() === "cancelled" &&
-            oldStatus.toLowerCase() !== "cancelled"
+            status.toLowerCase() === "canceled" &&
+            oldStatus.toLowerCase() !== "canceled"
           ) {
-            await sendOrderCancelledEmail(userObj, checkoutObj, cartItems);
+            await sendOrderCanceledEmail(userObj, checkoutObj, cartItems);
           }
         } catch (emailErr) {
           console.error(
@@ -669,7 +669,10 @@ exports.updateOrderStatus = async (req, res, next) => {
     // 2. Try PickAndCollect table
     let pickAndCollect = await PickAndCollect.findOne({
       where: { pick_and_collect_id: orderIdValue },
-      include: [{ model: User, attributes: ["platform"] }],
+      include: [
+        { model: User },
+        { model: Product, as: "product" }
+      ],
     });
     if (pickAndCollect) {
       const oldStatus = pickAndCollect.status;
@@ -849,10 +852,10 @@ exports.updateOrderStatus = async (req, res, next) => {
           ) {
             await sendOrderShippedEmail(userObj, pcObj, cartItems);
           } else if (
-            status.toLowerCase() === "cancelled" &&
-            oldStatus.toLowerCase() !== "cancelled"
+            status.toLowerCase() === "canceled" &&
+            oldStatus.toLowerCase() !== "canceled"
           ) {
-            await sendOrderCancelledEmail(userObj, pcObj, cartItems);
+            await sendOrderCanceledEmail(userObj, pcObj, cartItems);
           }
         } catch (emailErr) {
           console.error(

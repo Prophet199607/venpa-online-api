@@ -25,7 +25,7 @@ const { checkStockAvailability } = require("../services/products/stockService");
 const {
   sendOrderPlacedEmail,
   generateOrderInvoiceHtml,
-  sendOrderCancelledEmail,
+  sendOrderCanceledEmail,
   sendOrderConfirmationEmail,
 } = require("../services/notifications/emailService");
 
@@ -1062,7 +1062,7 @@ exports.updateCheckoutStatus = async (req, res, next) => {
       },
     });
 
-    if (status.toLowerCase() === "cancelled") {
+    if (status.toLowerCase() === "canceled") {
       const user = await User.findOne({ where: { id: checkout.user_id } });
       if (user) {
         let payload = checkout.payload;
@@ -1074,7 +1074,7 @@ exports.updateCheckoutStatus = async (req, res, next) => {
           }
         }
         const items = payload.items || [];
-        await sendOrderCancelledEmail(
+        await sendOrderCanceledEmail(
           typeof user.toJSON === "function" ? user.toJSON() : user,
           typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
           items,

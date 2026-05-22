@@ -80,7 +80,7 @@ function generateOrderInvoiceHtml(
   checkoutData,
   cartItems = [],
   logoUrl = "",
-  statusTitle = "Order Confirmed!"
+  statusTitle = "Order Confirmed!",
 ) {
   let paymentMethod = "N/A";
   let paymentBadgeColor = "#6B7280";
@@ -434,7 +434,7 @@ async function sendOrderShippedEmail(user, checkoutData, cartItems = []) {
     checkoutData,
     cartItems,
     logoUrl,
-    "Order Shipped!"
+    "Order Shipped!",
   );
 
   try {
@@ -474,7 +474,7 @@ async function sendOrderPlacedEmail(user, checkoutData, cartItems = []) {
     checkoutData,
     cartItems,
     logoUrl,
-    "Order Placed Successfully!"
+    "Order Placed Successfully!",
   );
 
   try {
@@ -498,10 +498,10 @@ async function sendOrderPlacedEmail(user, checkoutData, cartItems = []) {
 }
 exports.sendOrderPlacedEmail = sendOrderPlacedEmail;
 
-async function sendOrderCancelledEmail(user, checkoutData, cartItems = []) {
+async function sendOrderCanceledEmail(user, checkoutData, cartItems = []) {
   if (!user.email) {
     console.error(
-      "No email address found for user. Cannot send order cancelled email.",
+      "No email address found for user. Cannot send order canceled email.",
     );
     return;
   }
@@ -514,18 +514,18 @@ async function sendOrderCancelledEmail(user, checkoutData, cartItems = []) {
     checkoutData,
     cartItems,
     logoUrl,
-    "Order Cancelled"
+    "Order Canceled",
   );
 
   try {
     console.log(
-      `Attempting to send order cancelled email for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}...`,
+      `Attempting to send order canceled email for Order #${checkoutData.order_id || checkoutData.pick_and_collect_id} to ${user.email}...`,
     );
     const info = await transporter.sendMail({
       from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
       replyTo: "no-reply@venpaa.lk",
       to: user.email,
-      subject: `Order Cancelled #${checkoutData.order_id || checkoutData.pick_and_collect_id} — Venpaa Bookshop`,
+      subject: `Order Canceled #${checkoutData.order_id || checkoutData.pick_and_collect_id} — Venpaa Bookshop`,
       html: htmlContent,
     });
     console.log(`Email sent successfully to ${user.email}: ${info.messageId}`);
@@ -536,7 +536,7 @@ async function sendOrderCancelledEmail(user, checkoutData, cartItems = []) {
     );
   }
 }
-exports.sendOrderCancelledEmail = sendOrderCancelledEmail;
+exports.sendOrderCanceledEmail = sendOrderCanceledEmail;
 
 exports.generateOtpEmailHtml = (code) => {
   const brandColor = "#0d5b82";
