@@ -195,7 +195,7 @@ exports.list = async (req, res, next) => {
       const authorMatchedCodes = await sequelize.query(
         `SELECT DISTINCT pa.prod_code
          FROM product_authors pa
-         INNER JOIN authors a ON a.auth_code = pa.auth_code
+         INNER JOIN authors a ON a.id = pa.author_id
          WHERE a.auth_name LIKE :q OR a.auth_name_other_language LIKE :q`,
         {
           replacements: { q: `%${q}%` },
@@ -264,7 +264,7 @@ exports.search = async (req, res, next) => {
     const authorMatchedCodes = await sequelize.query(
       `SELECT DISTINCT pa.prod_code
        FROM product_authors pa
-       INNER JOIN authors a ON a.auth_code = pa.auth_code
+       INNER JOIN authors a ON a.id = pa.author_id
        WHERE a.auth_name LIKE :q OR a.auth_name_other_language LIKE :q`,
       {
         replacements: { q: `%${q}%` },
