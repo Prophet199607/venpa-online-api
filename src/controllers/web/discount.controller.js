@@ -120,17 +120,19 @@ exports.list = async (req, res, next) => {
  */
 exports.saveDiscount = async (req, res, next) => {
   const transaction = await sequelize.transaction();
+
   try {
     const data = req.body;
     const isArray = Array.isArray(data);
     const items = isArray ? data : [data];
 
-    if (items.length === 0) {
+    if (!items.length) {
       await transaction.rollback();
       return res.json({ success: true, message: "No items to save" });
     }
 
     const savedItems = [];
+    const invalidProdCodes = [];
 
     for (const itemData of items) {
       const {
@@ -144,7 +146,19 @@ exports.saveDiscount = async (req, res, next) => {
 
       if (!prod_code) continue;
 
-      // Update or Create in ProductDiscount table
+      // Check if product exists
+      const productExists = await Product.findOne({
+        where: { prod_code },
+        attributes: ["id"],
+        transaction,
+      });
+
+      if (!productExists) {
+        invalidProdCodes.push(prod_code);
+        continue;
+      }
+
+      // Create or update discount
       const [discountItem, created] = await ProductDiscount.findOrCreate({
         where: { prod_code },
         defaults: {
@@ -170,92 +184,75 @@ exports.saveDiscount = async (req, res, next) => {
         );
       }
 
-      // Sync to Product table
-      const isActive = (status ?? discountItem.status) === 1;
-      await Product.update(
-        {
-          discount: isActive ? discount_amount || 0 : 0,
-          dis_per: isActive ? discount_percentage || 0 : 0,
-          dis_start_date: isActive ? start_date : null,
-          dis_end_date: isActive ? end_date : null,
-        },
-        {
-          where: { prod_code },
-          transaction,
-        },
-      );
-
       savedItems.push(discountItem);
     }
 
     await transaction.commit();
 
-    res.json({
+    return res.json({
       success: true,
       message: isArray
-        ? `Successfully saved ${savedItems.length} discounts`
+        ? `Successfully saved ${savedItems.length} discount(s)`
         : "Discount saved successfully",
       data: isArray ? savedItems : savedItems[0],
+      invalid_prod_codes: invalidProdCodes.length
+        ? invalidProdCodes
+        : undefined,
     });
   } catch (e) {
-    if (transaction) await transaction.rollback();
+    await transaction.rollback();
     next(e);
   }
 };
 
 /**
- * Delete product discounts (single or bulk)
+ * Delete product discounts
  */
 exports.deleteDiscounts = async (req, res, next) => {
+  let transaction;
+
   try {
     let { ids } = req.body;
 
-    // Handle single ID case if passed as a number/string
+    // Normalize input
     if (ids && !Array.isArray(ids)) {
       ids = [ids];
     }
 
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    if (!ids || !ids.length) {
       return res.status(400).json({
         success: false,
         message: "An ID or array of 'ids' is required for deletion.",
       });
     }
 
-    const transaction = await sequelize.transaction();
-    // Get prod_codes before deleting to sync with Product table
+    transaction = await sequelize.transaction();
+
+    // Get discounts first
     const discounts = await ProductDiscount.findAll({
       where: { id: { [Op.in]: ids } },
       attributes: ["prod_code"],
       transaction,
     });
-    const prodCodes = discounts.map((d) => d.prod_code);
 
-    // Delete from ProductDiscount table
+    if (!discounts.length) {
+      await transaction.commit();
+      return res.json({
+        success: true,
+        message: "No matching discounts found.",
+        deleted_count: 0,
+      });
+    }
+
+    // Delete discounts
     const deletedCount = await ProductDiscount.destroy({
       where: { id: { [Op.in]: ids } },
       transaction,
     });
 
-    // Clear discount from Product table
-    if (prodCodes.length > 0) {
-      await Product.update(
-        {
-          discount: 0,
-          dis_per: 0,
-          dis_start_date: null,
-          dis_end_date: null,
-        },
-        {
-          where: { prod_code: { [Op.in]: prodCodes } },
-          transaction,
-        },
-      );
-    }
-
     await transaction.commit();
 
-    res.json({
+    return res.json({
       success: true,
       message: `${deletedCount} discount(s) deleted successfully.`,
       deleted_count: deletedCount,
