@@ -2713,7 +2713,7 @@
     "/api/v1/checkout/success": {
       "post": {
         "summary": "Confirm checkout success and update status",
-        "description": "Frontend calls this after a successful payment redirect or COD selection. Handles both Delivery (order_id) and Pick & Collect (pick_and_collect_id).",
+        "description": "Frontend calls this after a PayHere redirect, Mintpay redirect, or COD selection. For PayHere (type=2), the backend verifies the actual payment_status in the DB (set by /payhere/notify server callback) — it does NOT blindly trust the frontend call. Returns 202 if PayHere notify hasn't arrived yet (frontend should poll).",
         "tags": ["Checkout"],
         "security": [
           {
@@ -2736,11 +2736,11 @@
                   "type": {
                     "type": "integer",
                     "enum": [1, 2, 3],
-                    "description": "1 = COD (Delivery only), 2 = PayHere, 3 = Mintpay"
+                    "description": "1 = COD (Delivery only), 2 = PayHere (verified via DB), 3 = Mintpay (pass t=true/false)"
                   },
                   "t": {
                     "type": "boolean",
-                    "description": "True if payment was successful (required for type 3/Mintpay)"
+                    "description": "For Mintpay (type=3) only: pass true if payment succeeded, false if failed/cancelled"
                   }
                 }
               }
@@ -2749,23 +2749,53 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Payment confirmed successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
-                    "message": { "type": "string" },
-                    "order_id": { "type": "string" },
-                    "status": { "type": "string" }
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Payment successful" },
+                    "order_id": { "type": "string", "example": "1778423005903004" },
+                    "payment_status": { "type": "string", "example": "success" }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Payment still pending — PayHere notify callback has not yet arrived. Frontend should poll this endpoint again after a short delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "pending": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Payment is still being processed. Please check back shortly." },
+                    "order_id": { "type": "string", "example": "1778423005903004" },
+                    "payment_status": { "type": "string", "example": "pending" }
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Bad Request or Payment not verified"
+            "description": "Payment failed or cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string", "example": "Payment failed. Please try again." },
+                    "order_id": { "type": "string", "example": "1778423005903004" },
+                    "payment_status": { "type": "string", "enum": ["failed", "canceled", "chargedback"], "example": "failed" }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Order not found"
@@ -3359,7 +3389,7 @@
     "/api/v1/pick-and-collect/success": {
       "post": {
         "summary": "Verify Pick & Collect payment success",
-        "description": "Validates if a Pick & Collect payment was successful. For PayHere (type 2), it checks the backend record. For Mintpay (type 3), it validates the success flag.",
+        "description": "For PayHere (type=2), the backend verifies the actual payment_status in the DB (set by /payhere/notify server callback) — does NOT trust the frontend blindly. Returns 202 if PayHere notify hasn't arrived yet. For Mintpay (type=3), pass t=true/false from the redirect.",
         "tags": ["Pick & Collect"],
         "security": [
           {
@@ -3382,11 +3412,11 @@
                   "type": {
                     "type": "integer",
                     "enum": [2, 3],
-                    "description": "2 = PayHere, 3 = Mintpay"
+                    "description": "2 = PayHere (verified via DB), 3 = Mintpay (pass t=true/false)"
                   },
                   "t": {
                     "type": "boolean",
-                    "description": "True if payment was successful (required for Mintpay)"
+                    "description": "For Mintpay (type=3) only: pass true if payment succeeded, false if failed/cancelled"
                   }
                 }
               }
@@ -3395,22 +3425,52 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Payment confirmed successfully",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "success": { "type": "boolean" },
-                    "message": { "type": "string" },
-                    "order_id": { "type": "integer" }
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Payment successful" },
+                    "order_id": { "type": "string", "example": "1778423005903004" }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Payment still pending — PayHere notify callback has not yet arrived. Frontend should poll this endpoint again after a short delay.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "pending": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Payment is still being processed. Please check back shortly." },
+                    "order_id": { "type": "string", "example": "1778423005903004" },
+                    "payment_status": { "type": "string", "example": "pending" }
                   }
                 }
               }
             }
           },
           "400": {
-            "description": "Payment verification failed or invalid parameters"
+            "description": "Payment failed or cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": false },
+                    "message": { "type": "string", "example": "Payment failed. Please try again." },
+                    "order_id": { "type": "string", "example": "1778423005903004" },
+                    "payment_status": { "type": "string", "enum": ["failed", "canceled", "chargedback"], "example": "failed" }
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Order not found"

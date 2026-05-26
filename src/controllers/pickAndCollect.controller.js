@@ -750,9 +750,29 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
     let message = "";
 
     if (type === 2 || type === "2") {
-      // PayHere - Frontend only calls this when payment is success
-      success = true;
-      message = "Payment successful";
+      // PayHere - Verify actual payment status from DB (set by /payhere/notify server callback)
+      // Do NOT blindly trust the frontend; the notify callback is the source of truth.
+      const payhereStatus = record.payment_status;
+      if (payhereStatus === "success") {
+        success = true;
+        message = "Payment successful";
+      } else if (payhereStatus === "pending") {
+        // Notify callback hasn't arrived yet — return a pending response so frontend can poll
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          message: "Payment is still being processed. Please check back shortly.",
+          order_id: record.pick_and_collect_id,
+          payment_status: "pending",
+        });
+      } else {
+        // "failed", "canceled", "chargedback", or any other non-success status
+        success = false;
+        message =
+          payhereStatus === "canceled"
+            ? "Payment was cancelled"
+            : "Payment failed. Please try again.";
+      }
     } else if (type === 3 || type === "3") {
       // Mintpay - Frontend passes t (true/false)
       if (t === true || t === "true") {
@@ -823,6 +843,7 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
         success: false,
         message,
         order_id: record.pick_and_collect_id,
+        payment_status: record.payment_status,
       });
     }
   } catch (e) {
