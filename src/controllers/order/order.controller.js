@@ -12,7 +12,10 @@ const {
 const {
   NOTIFICATION_TYPES,
 } = require("../../services/notifications/notificationTypes");
-const { deductStock } = require("../../services/products/stockService");
+const {
+  deductStock,
+  addStock,
+} = require("../../services/products/stockService");
 const {
   sendOrderConfirmationEmail,
   sendOrderShippedEmail,
@@ -616,6 +619,84 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
+      // Restore stock only when transitioning TO canceled from confirmed/shipped
+      const isBeingCanceled =
+        status.toLowerCase() === "canceled" &&
+        oldStatus.toLowerCase() !== "canceled" &&
+        ["confirmed"].includes(oldStatus.toLowerCase());
+
+      if (isBeingCanceled) {
+        let savedPayload = checkout.payload || {};
+        if (typeof savedPayload === "string") {
+          try {
+            savedPayload = JSON.parse(savedPayload);
+          } catch (_) {}
+        }
+
+        let device = null;
+        if (checkout.user && checkout.user.platform) {
+          device = Number(checkout.user.platform);
+        } else if (savedPayload.device) {
+          device = Number(savedPayload.device);
+        }
+        const iid = device === 3 ? "WEB" : "APP";
+
+        const savedRowConfigs = savedPayload.confirmed_rows;
+
+        if (savedRowConfigs && savedRowConfigs.length > 0) {
+          console.log(
+            `[OrderUpdate] Triggering rowConfigs stock restoration for ${savedRowConfigs.length} rows (Checkout)`,
+          );
+          for (const row of savedRowConfigs) {
+            const {
+              prod_code: prodCode,
+              location,
+              quantity,
+              selling_price: rowPrice,
+            } = row;
+            if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0))
+              continue;
+            console.log(
+              `[OrderUpdate] Restoring ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
+            );
+            await addStock(
+              prodCode,
+              location,
+              quantity,
+              iid,
+              rowPrice ?? null,
+            ).catch((err) =>
+              console.error(
+                `[OrderUpdate] Stock restoration failed for ${prodCode}:`,
+                err,
+              ),
+            );
+          }
+        } else {
+          // Legacy single-location flow
+          const items = savedPayload.items || [];
+          const location = savedPayload.location || "001";
+          console.log(
+            `[OrderUpdate] Triggering legacy stock restoration for ${items.length} items at location ${location} (Checkout)`,
+          );
+          for (const item of items) {
+            const prodCode = item.product?.prod_code || item.prod_code;
+            if (prodCode && prodCode !== "N/A") {
+              console.log(
+                `[OrderUpdate] Restoring ${item.quantity} units of ${prodCode}`,
+              );
+              await addStock(prodCode, location, item.quantity, iid).catch(
+                (err) =>
+                  console.error(
+                    `[OrderUpdate] Stock restoration failed for ${prodCode}:`,
+                    err,
+                  ),
+              );
+            }
+          }
+        }
+      }
+
       await sendToUser(checkout.user_id, {
         title: "Order status updated",
         body: `Your order ${checkout.order_id} status is now ${status}.`,
@@ -669,10 +750,7 @@ exports.updateOrderStatus = async (req, res, next) => {
     // 2. Try PickAndCollect table
     let pickAndCollect = await PickAndCollect.findOne({
       where: { pick_and_collect_id: orderIdValue },
-      include: [
-        { model: User },
-        { model: Product, as: "product" }
-      ],
+      include: [{ model: User }, { model: Product, as: "product" }],
     });
     if (pickAndCollect) {
       const oldStatus = pickAndCollect.status;
@@ -809,6 +887,36 @@ exports.updateOrderStatus = async (req, res, next) => {
             ),
           );
         }
+      }
+
+      // Restore stock only when transitioning TO canceled from confirmed/shipped
+      const isBeingCanceled =
+        status.toLowerCase() === "canceled" &&
+        oldStatus.toLowerCase() !== "canceled" &&
+        ["confirmed"].includes(oldStatus.toLowerCase());
+
+      if (isBeingCanceled) {
+        let device = null;
+        if (pickAndCollect.user && pickAndCollect.user.platform) {
+          device = Number(pickAndCollect.user.platform);
+        }
+        const iid = device === 3 ? "WEB" : "APP";
+
+        const location = pickAndCollect.location;
+        console.log(
+          `[OrderUpdate] Triggering stock restoration for PickAndCollect at location ${location} (PickAndCollect)`,
+        );
+        await addStock(
+          pickAndCollect.prod_code,
+          location,
+          pickAndCollect.picked_qty,
+          iid,
+        ).catch((err) =>
+          console.error(
+            `[OrderUpdate] Stock restoration failed for ${pickAndCollect.prod_code}:`,
+            err,
+          ),
+        );
       }
 
       await sendToUser(pickAndCollect.user_id, {

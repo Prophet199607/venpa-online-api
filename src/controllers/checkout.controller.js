@@ -21,14 +21,16 @@ const {
 const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
-const { checkStockAvailability } = require("../services/products/stockService");
+const {
+  checkStockAvailability,
+  addStock,
+} = require("../services/products/stockService");
 const {
   sendOrderPlacedEmail,
   generateOrderInvoiceHtml,
   sendOrderCanceledEmail,
   sendOrderConfirmationEmail,
 } = require("../services/notifications/emailService");
-
 const { buildPriceLevelMap } = require("../services/products/priceService");
 
 function normalizeCheckoutType(value) {
@@ -1050,7 +1052,88 @@ exports.updateCheckoutStatus = async (req, res, next) => {
       return res.status(403).json({ message: "Not allowed" });
     }
 
+    const oldStatus = checkout.status;
+
     await checkout.update({ status, updated_at: new Date() });
+
+    // Restore stock only when transitioning TO canceled from confirmed/shipped
+    const isBeingCanceled =
+      status.toLowerCase() === "canceled" &&
+      oldStatus.toLowerCase() !== "canceled" &&
+      ["confirmed"].includes(oldStatus.toLowerCase());
+
+    if (isBeingCanceled) {
+      let savedPayload = checkout.payload || {};
+      if (typeof savedPayload === "string") {
+        try {
+          savedPayload = JSON.parse(savedPayload);
+        } catch (_) {}
+      }
+
+      let device = null;
+      const user = await User.findOne({ where: { id: checkout.user_id } });
+      if (user && user.platform) {
+        device = Number(user.platform);
+      } else if (savedPayload.device) {
+        device = Number(savedPayload.device);
+      }
+      const iid = device === 3 ? "WEB" : "APP";
+
+      const savedRowConfigs = savedPayload.confirmed_rows;
+
+      if (savedRowConfigs && savedRowConfigs.length > 0) {
+        console.log(
+          `[CheckoutUpdate] Triggering rowConfigs stock restoration for ${savedRowConfigs.length} rows`,
+        );
+        for (const row of savedRowConfigs) {
+          const {
+            prod_code: prodCode,
+            location,
+            quantity,
+            selling_price: rowPrice,
+          } = row;
+          if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0))
+            continue;
+          console.log(
+            `[CheckoutUpdate] Restoring ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
+          );
+          await addStock(
+            prodCode,
+            location,
+            quantity,
+            iid,
+            rowPrice ?? null,
+          ).catch((err) =>
+            console.error(
+              `[CheckoutUpdate] Stock restoration failed for ${prodCode}:`,
+              err,
+            ),
+          );
+        }
+      } else {
+        // Legacy single-location flow
+        const items = savedPayload.items || [];
+        const location = savedPayload.location || "001";
+        console.log(
+          `[CheckoutUpdate] Triggering legacy stock restoration for ${items.length} items at location ${location}`,
+        );
+        for (const item of items) {
+          const prodCode = item.product?.prod_code || item.prod_code;
+          if (prodCode && prodCode !== "N/A") {
+            console.log(
+              `[CheckoutUpdate] Restoring ${item.quantity} units of ${prodCode}`,
+            );
+            await addStock(prodCode, location, item.quantity, iid).catch(
+              (err) =>
+                console.error(
+                  `[CheckoutUpdate] Stock restoration failed for ${prodCode}:`,
+                  err,
+                ),
+            );
+          }
+        }
+      }
+    }
 
     await sendToUser(checkout.user_id, {
       title: "Order status updated",
@@ -1143,8 +1226,11 @@ exports.checkoutSuccess = async (req, res, next) => {
         return res.status(202).json({
           success: false,
           pending: true,
-          message: "Payment is still being processed. Please check back shortly.",
-          order_id: isPickAndCollect ? record.pick_and_collect_id : record.order_id,
+          message:
+            "Payment is still being processed. Please check back shortly.",
+          order_id: isPickAndCollect
+            ? record.pick_and_collect_id
+            : record.order_id,
           payment_status: "pending",
         });
       } else {

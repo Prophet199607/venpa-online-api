@@ -118,4 +118,80 @@ async function deductStock(prodCode, location, quantity, iid = null, sellingPric
   );
 }
 
-module.exports = { deductStock, checkStockAvailability };
+/**
+ * Restores/adds stock back to the source database (venpaa_new) by inserting a positive adjustment record.
+ *
+ * @param {string} prodCode
+ * @param {string} location
+ * @param {number} quantity
+ * @param {string} iid - identification for the source (Web/Mobile)
+ * @param {number|null} sellingPrice - override selling price (e.g. from a specific price level)
+ */
+async function addStock(prodCode, location, quantity, iid = null, sellingPrice = null) {
+  const amountToAdd = parseFloat(quantity);
+  if (isNaN(amountToAdd) || amountToAdd <= 0) return;
+
+  const normalizedProdCode = String(prodCode || "").trim();
+  const normalizedLocation = String(location || "").trim();
+
+  if (!normalizedProdCode || !normalizedLocation) {
+    console.warn(
+      `[AddStock] Invalid params: prodCode=${prodCode}, location=${location}`,
+    );
+    return;
+  }
+
+  // Retrieve the latest stock record for this product to carry over pricing
+  const referenceStock = await StockMaster.findOne({
+    where: { prod_code: normalizedProdCode },
+    order: [["id", "DESC"]],
+  });
+
+  const pPrice = referenceStock
+    ? parseFloat(referenceStock.purchase_price || 0)
+    : 0;
+  // Use the explicitly provided selling price (from price level) if available,
+  // otherwise fall back to the most-recent stock record's selling price.
+  const sPrice =
+    sellingPrice !== null && !isNaN(parseFloat(sellingPrice))
+      ? parseFloat(sellingPrice)
+      : referenceStock
+        ? parseFloat(referenceStock.selling_price || 0)
+        : 0;
+
+  const qtyToStore = amountToAdd; // Positive for adding stock
+  const amountToStore = Math.abs(sPrice * amountToAdd);
+
+  const now = new Date();
+
+  // Format transactionDate as "YYYY-MM-DD" (Current date only)
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const transactionDate = `${year}-${month}-${day}`;
+
+  // Use a common doc_no to identify where the cancellation came from
+  const sourceIndicator = iid === "WEB" ? "WEB" : "APP";
+  const docNo = `${sourceIndicator}_CANCEL`;
+
+  // Create a new record with positive quantity (addition)
+  await StockMaster.create({
+    location: normalizedLocation,
+    prod_code: normalizedProdCode,
+    transaction_date: transactionDate,
+    doc_no: docNo,
+    iid: sourceIndicator,
+    qty: qtyToStore,
+    purchase_price: pPrice,
+    selling_price: sPrice,
+    amount: amountToStore,
+    created_at: now,
+    updated_at: now,
+  });
+
+  console.log(
+    `[AddStock] Inserted addition record for ${normalizedProdCode} at ${normalizedLocation}: ${qtyToStore} (Doc: ${docNo})`,
+  );
+}
+
+module.exports = { deductStock, addStock, checkStockAvailability };
