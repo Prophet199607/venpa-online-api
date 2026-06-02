@@ -1,9 +1,11 @@
-const { Op } = require("sequelize");
+const { Op, fn, col, literal } = require("sequelize");
 const { User, Checkout, PickAndCollect, Product } = require("../../models");
 
 /**
  * GET /users
- * Returns all registered users (excluding sensitive fields).
+ * Returns all registered users with their order summary.
+ * Each user includes: total_orders, total_checkouts, total_pick_and_collects,
+ * last_order_at, and last_order_status.
  */
 exports.listUsers = async (req, res, next) => {
   try {
@@ -12,7 +14,72 @@ exports.listUsers = async (req, res, next) => {
       order: [["id", "ASC"]],
     });
 
-    res.json(users);
+    if (!users.length) return res.json([]);
+
+    const userIds = users.map((u) => u.id);
+
+    // ── Fetch all checkouts for these users in one query ──────────────────
+    const checkouts = await Checkout.findAll({
+      where: { user_id: { [Op.in]: userIds } },
+      attributes: ["user_id", "order_id", "status", "created_at"],
+      order: [["created_at", "DESC"]],
+    });
+
+    // ── Fetch all pick-and-collects for these users in one query ──────────
+    const pickAndCollects = await PickAndCollect.findAll({
+      where: { user_id: { [Op.in]: userIds } },
+      attributes: ["user_id", "pick_and_collect_id", "status", "created_at"],
+      order: [["created_at", "DESC"]],
+    });
+
+    // ── Build maps: userId → orders ───────────────────────────────────────
+    const checkoutMap = {};
+    checkouts.forEach((c) => {
+      const cj = c.toJSON ? c.toJSON() : c;
+      if (!checkoutMap[cj.user_id]) checkoutMap[cj.user_id] = [];
+      checkoutMap[cj.user_id].push(cj);
+    });
+
+    const pacMap = {};
+    pickAndCollects.forEach((p) => {
+      const pj = p.toJSON ? p.toJSON() : p;
+      if (!pacMap[pj.user_id]) pacMap[pj.user_id] = [];
+      pacMap[pj.user_id].push(pj);
+    });
+
+    // ── Merge user data with order summary ────────────────────────────────
+    const result = users.map((u) => {
+      const uj = u.toJSON ? u.toJSON() : u;
+
+      const userCheckouts    = checkoutMap[uj.id]    || [];
+      const userPacs         = pacMap[uj.id]         || [];
+      const totalCheckouts   = userCheckouts.length;
+      const totalPacs        = userPacs.length;
+      const totalOrders      = totalCheckouts + totalPacs;
+
+      // Find the most recent order across both types
+      const allOrders = [
+        ...userCheckouts.map((c) => ({ date: c.created_at, status: c.status })),
+        ...userPacs.map((p)      => ({ date: p.created_at, status: p.status })),
+      ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      const lastOrder = allOrders[0] || null;
+
+      return {
+        ...uj,
+        total_orders:             totalOrders,
+        total_checkouts:          totalCheckouts,
+        total_pick_and_collects:  totalPacs,
+        last_order_at:            lastOrder?.date   || null,
+        last_order_status:        lastOrder?.status || null,
+      };
+    });
+
+    res.json({
+      total_users: result.length,
+      users: result,
+      successful: true,
+    });
   } catch (e) {
     next(e);
   }
