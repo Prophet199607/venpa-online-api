@@ -4579,6 +4579,151 @@
           }
         }
       }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "summary": "Get all registered customer",
+        "description": "Returns all registered users in the system. Password field is excluded.",
+        "tags": ["Web Management"],
+        "responses": {
+          "200": {
+            "description": "A list of all registered customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "fname": { "type": "string", "nullable": true },
+                      "lname": { "type": "string", "nullable": true },
+                      "email": { "type": "string", "format": "email", "nullable": true },
+                      "phone": { "type": "string", "nullable": true },
+                      "country": { "type": "string", "nullable": true },
+                      "address": { "type": "string", "nullable": true },
+                      "city": { "type": "string", "nullable": true },
+                      "province": { "type": "string", "nullable": true },
+                      "postal_code": { "type": "string", "nullable": true },
+                      "auth_provider": { "type": "string", "example": "local" },
+                      "platform": { "type": "string", "nullable": true },
+                      "status": { "type": "integer", "example": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+ "/api/v1/customers/{id}/order-products": {
+      "get": {
+        "summary": "Get all products ordered by a customer",
+        "description": "Returns a flat list of all products the customer has ordered, grouped by order. Covers both checkout orders and pick-and-collect orders, sorted newest first.",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The customer's numeric ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer info with all ordered products grouped by order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "fname": { "type": "string", "nullable": true },
+                        "lname": { "type": "string", "nullable": true },
+                        "email": { "type": "string", "format": "email", "nullable": true },
+                        "phone": { "type": "string", "nullable": true },
+                        "country": { "type": "string", "nullable": true },
+                        "address": { "type": "string", "nullable": true },
+                        "city": { "type": "string", "nullable": true },
+                        "province": { "type": "string", "nullable": true },
+                        "postal_code": { "type": "string", "nullable": true },
+                        "auth_provider": { "type": "string", "example": "local" },
+                        "platform": { "type": "string", "nullable": true },
+                        "status": { "type": "integer", "example": 1 }
+                      }
+                    },
+                    "total_orders": {
+                      "type": "integer",
+                      "description": "Total number of orders (checkouts + pick-and-collects)"
+                    },
+                    "orders": {
+                      "type": "array",
+                      "description": "All orders sorted newest first. Each item can be a checkout or pick-and-collect.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "record_type": {
+                            "type": "string",
+                            "enum": ["checkout", "pick_and_collect"],
+                            "example": "checkout"
+                          },
+                          "order_id": { "type": "integer" },
+                          "type": { "type": "integer" },
+                          "type_name": { "type": "string", "nullable": true },
+                          "location": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Only present for pick_and_collect"
+                          },
+                          "location_name": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Only present for pick_and_collect"
+                          },
+                          "order_status": { "type": "string", "example": "pending" },
+                          "payment_status": { "type": "string", "nullable": true, "example": "success" },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "updated_at": { "type": "string", "format": "date-time" },
+                          "products": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "prod_code": { "type": "string", "nullable": true },
+                                "prod_name": { "type": "string", "nullable": true },
+                                "prod_image": { "type": "string", "nullable": true },
+                                "quantity": { "type": "number", "nullable": true },
+                                "selling_price": { "type": "number", "format": "float", "nullable": true },
+                                "marked_price": { "type": "number", "format": "float", "nullable": true },
+                                "discount": { "type": "number", "format": "float", "nullable": true },
+                                "dis_per": { "type": "number", "format": "float", "nullable": true },
+                                "department": { "type": "string", "nullable": true },
+                                "category": { "type": "string", "nullable": true },
+                                "sub_category": { "type": "string", "nullable": true },
+                                "status": { "type": "integer", "nullable": true }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
     }
   },
   "components": {
