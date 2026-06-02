@@ -18,32 +18,52 @@ exports.listUsers = async (req, res, next) => {
 
     const userIds = users.map((u) => u.id);
 
-    // ── Fetch all checkouts for these users in one query ──────────────────
+    // ── Fetch all checkouts ───────────────────────────────────────────────
     const checkouts = await Checkout.findAll({
       where: { user_id: { [Op.in]: userIds } },
-      attributes: ["user_id", "order_id", "status", "created_at"],
+      attributes: [
+        "user_id",
+        "order_id",
+        "status",
+        "payment_status",
+        "created_at",
+      ],
       order: [["created_at", "DESC"]],
     });
 
-    // ── Fetch all pick-and-collects for these users in one query ──────────
+    // ── Fetch all pick-and-collects ───────────────────────────────────────
     const pickAndCollects = await PickAndCollect.findAll({
       where: { user_id: { [Op.in]: userIds } },
-      attributes: ["user_id", "pick_and_collect_id", "status", "created_at"],
+      attributes: [
+        "user_id",
+        "pick_and_collect_id",
+        "status",
+        "payment_status",
+        "created_at",
+      ],
       order: [["created_at", "DESC"]],
     });
 
-    // ── Build maps: userId → orders ───────────────────────────────────────
+    // ── Build maps ────────────────────────────────────────────────────────
     const checkoutMap = {};
     checkouts.forEach((c) => {
       const cj = c.toJSON ? c.toJSON() : c;
-      if (!checkoutMap[cj.user_id]) checkoutMap[cj.user_id] = [];
+
+      if (!checkoutMap[cj.user_id]) {
+        checkoutMap[cj.user_id] = [];
+      }
+
       checkoutMap[cj.user_id].push(cj);
     });
 
     const pacMap = {};
     pickAndCollects.forEach((p) => {
       const pj = p.toJSON ? p.toJSON() : p;
-      if (!pacMap[pj.user_id]) pacMap[pj.user_id] = [];
+
+      if (!pacMap[pj.user_id]) {
+        pacMap[pj.user_id] = [];
+      }
+
       pacMap[pj.user_id].push(pj);
     });
 
@@ -51,27 +71,48 @@ exports.listUsers = async (req, res, next) => {
     const result = users.map((u) => {
       const uj = u.toJSON ? u.toJSON() : u;
 
-      const userCheckouts    = checkoutMap[uj.id]    || [];
-      const userPacs         = pacMap[uj.id]         || [];
-      const totalCheckouts   = userCheckouts.length;
-      const totalPacs        = userPacs.length;
-      const totalOrders      = totalCheckouts + totalPacs;
+      const userCheckouts = checkoutMap[uj.id] || [];
+      const userPacs = pacMap[uj.id] || [];
 
-      // Find the most recent order across both types
+      const totalCheckouts = userCheckouts.length;
+      const totalPacs = userPacs.length;
+      const totalOrders = totalCheckouts + totalPacs;
+
+      // Check if user has any successful payment
+      const hasSuccessPayment =
+        userCheckouts.some(
+          (c) =>
+            c.payment_status &&
+            c.payment_status.toLowerCase() === "success"
+        ) ||
+        userPacs.some(
+          (p) =>
+            p.payment_status &&
+            p.payment_status.toLowerCase() === "success"
+        );
+
+      // Find most recent order
       const allOrders = [
-        ...userCheckouts.map((c) => ({ date: c.created_at, status: c.status })),
-        ...userPacs.map((p)      => ({ date: p.created_at, status: p.status })),
+        ...userCheckouts.map((c) => ({
+          date: c.created_at,
+          status: c.status,
+        })),
+        ...userPacs.map((p) => ({
+          date: p.created_at,
+          status: p.status,
+        })),
       ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
       const lastOrder = allOrders[0] || null;
 
       return {
         ...uj,
-        total_orders:             totalOrders,
-        total_checkouts:          totalCheckouts,
-        total_pick_and_collects:  totalPacs,
-        last_order_at:            lastOrder?.date   || null,
-        last_order_status:        lastOrder?.status || null,
+        total_orders: totalOrders,
+        total_checkouts: totalCheckouts,
+        total_pick_and_collects: totalPacs,
+        last_order_at: lastOrder?.date || null,
+        last_order_status: lastOrder?.status || null,
+        has_success_payment: hasSuccessPayment,
       };
     });
 
