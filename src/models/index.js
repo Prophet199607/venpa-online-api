@@ -40,7 +40,7 @@ const WebsiteSectionProduct = require("./WebsiteSectionProduct");
 const ContactUs = require("./ContactUs");
 const GiftReceiverDetail = require("./GiftReceiverDetail");
 const WebsiteDetail = require("./WebsiteDetail");
-
+const FeatureAuthorPublisher = require("./FeatureAuthorPublisher");
 // Associations
 Department.hasMany(Category, {
   foreignKey: "dep_code",
@@ -168,7 +168,30 @@ Author.belongsToMany(Product, {
   as: "products",
   constraints: false,
 });
-
+Author.hasMany(FeatureAuthorPublisher, {
+  foreignKey: "code",
+  sourceKey: "auth_code",
+  as: "featureAuthors",
+  constraints: false,
+});
+FeatureAuthorPublisher.belongsTo(Author, {
+  foreignKey: "code",
+  targetKey: "auth_code",
+  as: "author",
+  constraints: false,
+});
+Publisher.hasMany(FeatureAuthorPublisher, {
+  foreignKey: "code",
+  sourceKey: "pub_code",
+  as: "featurePublishers",
+  constraints: false,
+});
+FeatureAuthorPublisher.belongsTo(Publisher, {
+  foreignKey: "code",
+  targetKey: "pub_code",
+  as: "publisher",
+  constraints: false,
+});
 // Cart Relations
 User.hasOne(Cart, { foreignKey: "user_id" });
 Cart.belongsTo(User, { foreignKey: "user_id" });
@@ -321,4 +344,5 @@ module.exports = {
   ContactUs,
   GiftReceiverDetail,
   WebsiteDetail,
+  FeatureAuthorPublisher,
 };
