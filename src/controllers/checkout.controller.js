@@ -1035,145 +1035,145 @@ exports.listCheckouts = async (req, res, next) => {
   }
 };
 
-exports.updateCheckoutStatus = async (req, res, next) => {
-  try {
-    const { order_id } = req.params;
-    const { status } = req.body || {};
+// exports.updateCheckoutStatus = async (req, res, next) => {
+//   try {
+//     const { order_id } = req.params;
+//     const { status } = req.body || {};
 
-    if (!status) {
-      return res.status(400).json({ message: "status is required" });
-    }
+//     if (!status) {
+//       return res.status(400).json({ message: "status is required" });
+//     }
 
-    const checkout = await Checkout.findOne({ where: { order_id } });
-    if (!checkout)
-      return res.status(404).json({ message: "Checkout not found" });
+//     const checkout = await Checkout.findOne({ where: { order_id } });
+//     if (!checkout)
+//       return res.status(404).json({ message: "Checkout not found" });
 
-    if (checkout.user_id !== req.user.id) {
-      return res.status(403).json({ message: "Not allowed" });
-    }
+//     if (checkout.user_id !== req.user.id) {
+//       return res.status(403).json({ message: "Not allowed" });
+//     }
 
-    const oldStatus = checkout.status;
+//     const oldStatus = checkout.status;
 
-    await checkout.update({ status, updated_at: new Date() });
+//     await checkout.update({ status, updated_at: new Date() });
 
-    // Restore stock only when transitioning TO canceled from confirmed/shipped
-    const isBeingCanceled =
-      status.toLowerCase() === "canceled" &&
-      oldStatus.toLowerCase() !== "canceled" &&
-      ["confirmed"].includes(oldStatus.toLowerCase());
+//     // Restore stock only when transitioning TO canceled from confirmed/shipped
+//     const isBeingCanceled =
+//       status.toLowerCase() === "canceled" &&
+//       oldStatus.toLowerCase() !== "canceled" &&
+//       ["confirmed"].includes(oldStatus.toLowerCase());
 
-    if (isBeingCanceled) {
-      let savedPayload = checkout.payload || {};
-      if (typeof savedPayload === "string") {
-        try {
-          savedPayload = JSON.parse(savedPayload);
-        } catch (_) {}
-      }
+//     if (isBeingCanceled) {
+//       let savedPayload = checkout.payload || {};
+//       if (typeof savedPayload === "string") {
+//         try {
+//           savedPayload = JSON.parse(savedPayload);
+//         } catch (_) {}
+//       }
 
-      let device = null;
-      const user = await User.findOne({ where: { id: checkout.user_id } });
-      if (user && user.platform) {
-        device = Number(user.platform);
-      } else if (savedPayload.device) {
-        device = Number(savedPayload.device);
-      }
-      const iid = device === 3 ? "WEB" : "APP";
+//       let device = null;
+//       const user = await User.findOne({ where: { id: checkout.user_id } });
+//       if (user && user.platform) {
+//         device = Number(user.platform);
+//       } else if (savedPayload.device) {
+//         device = Number(savedPayload.device);
+//       }
+//       const iid = device === 3 ? "WEB" : "APP";
 
-      const savedRowConfigs = savedPayload.confirmed_rows;
+//       const savedRowConfigs = savedPayload.confirmed_rows;
 
-      if (savedRowConfigs && savedRowConfigs.length > 0) {
-        console.log(
-          `[CheckoutUpdate] Triggering rowConfigs stock restoration for ${savedRowConfigs.length} rows`,
-        );
-        for (const row of savedRowConfigs) {
-          const {
-            prod_code: prodCode,
-            location,
-            quantity,
-            selling_price: rowPrice,
-          } = row;
-          if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0))
-            continue;
-          console.log(
-            `[CheckoutUpdate] Restoring ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
-          );
-          await addStock(
-            prodCode,
-            location,
-            quantity,
-            iid,
-            rowPrice ?? null,
-          ).catch((err) =>
-            console.error(
-              `[CheckoutUpdate] Stock restoration failed for ${prodCode}:`,
-              err,
-            ),
-          );
-        }
-      } else {
-        // Legacy single-location flow
-        const items = savedPayload.items || [];
-        const location = savedPayload.location || "001";
-        console.log(
-          `[CheckoutUpdate] Triggering legacy stock restoration for ${items.length} items at location ${location}`,
-        );
-        for (const item of items) {
-          const prodCode = item.product?.prod_code || item.prod_code;
-          if (prodCode && prodCode !== "N/A") {
-            console.log(
-              `[CheckoutUpdate] Restoring ${item.quantity} units of ${prodCode}`,
-            );
-            await addStock(prodCode, location, item.quantity, iid).catch(
-              (err) =>
-                console.error(
-                  `[CheckoutUpdate] Stock restoration failed for ${prodCode}:`,
-                  err,
-                ),
-            );
-          }
-        }
-      }
-    }
+//       if (savedRowConfigs && savedRowConfigs.length > 0) {
+//         console.log(
+//           `[CheckoutUpdate] Triggering rowConfigs stock restoration for ${savedRowConfigs.length} rows`,
+//         );
+//         for (const row of savedRowConfigs) {
+//           const {
+//             prod_code: prodCode,
+//             location,
+//             quantity,
+//             selling_price: rowPrice,
+//           } = row;
+//           if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0))
+//             continue;
+//           console.log(
+//             `[CheckoutUpdate] Restoring ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
+//           );
+//           await addStock(
+//             prodCode,
+//             location,
+//             quantity,
+//             iid,
+//             rowPrice ?? null,
+//           ).catch((err) =>
+//             console.error(
+//               `[CheckoutUpdate] Stock restoration failed for ${prodCode}:`,
+//               err,
+//             ),
+//           );
+//         }
+//       } else {
+//         // Legacy single-location flow
+//         const items = savedPayload.items || [];
+//         const location = savedPayload.location || "001";
+//         console.log(
+//           `[CheckoutUpdate] Triggering legacy stock restoration for ${items.length} items at location ${location}`,
+//         );
+//         for (const item of items) {
+//           const prodCode = item.product?.prod_code || item.prod_code;
+//           if (prodCode && prodCode !== "N/A") {
+//             console.log(
+//               `[CheckoutUpdate] Restoring ${item.quantity} units of ${prodCode}`,
+//             );
+//             await addStock(prodCode, location, item.quantity, iid).catch(
+//               (err) =>
+//                 console.error(
+//                   `[CheckoutUpdate] Stock restoration failed for ${prodCode}:`,
+//                   err,
+//                 ),
+//             );
+//           }
+//         }
+//       }
+//     }
 
-    await sendToUser(checkout.user_id, {
-      title: "Order status updated",
-      body: `Your order ${checkout.order_id} status is now ${status}.`,
-      data: {
-        type: "order_status",
-        order_id: String(checkout.order_id),
-        status,
-      },
-    });
+//     await sendToUser(checkout.user_id, {
+//       title: "Order status updated",
+//       body: `Your order ${checkout.order_id} status is now ${status}.`,
+//       data: {
+//         type: "order_status",
+//         order_id: String(checkout.order_id),
+//         status,
+//       },
+//     });
 
-    if (status.toLowerCase() === "canceled") {
-      const user = await User.findOne({ where: { id: checkout.user_id } });
-      if (user) {
-        let payload = checkout.payload;
-        if (typeof payload === "string") {
-          try {
-            payload = JSON.parse(payload);
-          } catch (e) {
-            payload = {};
-          }
-        }
-        const items = payload.items || [];
-        await sendOrderCanceledEmail(
-          typeof user.toJSON === "function" ? user.toJSON() : user,
-          typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
-          items,
-        );
-      }
-    }
+//     if (status.toLowerCase() === "canceled") {
+//       const user = await User.findOne({ where: { id: checkout.user_id } });
+//       if (user) {
+//         let payload = checkout.payload;
+//         if (typeof payload === "string") {
+//           try {
+//             payload = JSON.parse(payload);
+//           } catch (e) {
+//             payload = {};
+//           }
+//         }
+//         const items = payload.items || [];
+//         await sendOrderCanceledEmail(
+//           typeof user.toJSON === "function" ? user.toJSON() : user,
+//           typeof checkout.toJSON === "function" ? checkout.toJSON() : checkout,
+//           items,
+//         );
+//       }
+//     }
 
-    res.json({
-      message: "Checkout status updated",
-      order_id: checkout.order_id,
-      status,
-    });
-  } catch (e) {
-    next(e);
-  }
-};
+//     res.json({
+//       message: "Checkout status updated",
+//       order_id: checkout.order_id,
+//       status,
+//     });
+//   } catch (e) {
+//     next(e);
+//   }
+// };
 
 exports.checkoutSuccess = async (req, res, next) => {
   try {

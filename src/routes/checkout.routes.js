@@ -10,6 +10,6 @@ router.post("/apply-coupon", auth, couponApply.applyCouponToCart);
 router.post("/success", auth, c.checkoutSuccess);
 router.get("/:order_id/bill", auth, c.getCheckoutBill);
 router.get("/", auth, c.listCheckouts);
-router.put("/:order_id/status", auth, c.updateCheckoutStatus);
+// router.put("/:order_id/status", auth, c.updateCheckoutStatus);
 
 module.exports = router;
