@@ -56,6 +56,9 @@
     },
     {
       "name": "Payment"
+    },
+     {
+      "name": "Feature Author Publisher"
     }
   ],
   "paths": {
@@ -4579,7 +4582,440 @@
           }
         }
       }
+    },
+    "/api/v1/customers": {
+      "get": {
+        "summary": "Get all registered customer",
+        "description": "Returns all registered users in the system. Password field is excluded.",
+        "tags": ["Web Management"],
+        "responses": {
+          "200": {
+            "description": "A list of all registered customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "integer" },
+                      "fname": { "type": "string", "nullable": true },
+                      "lname": { "type": "string", "nullable": true },
+                      "email": { "type": "string", "format": "email", "nullable": true },
+                      "phone": { "type": "string", "nullable": true },
+                      "country": { "type": "string", "nullable": true },
+                      "address": { "type": "string", "nullable": true },
+                      "city": { "type": "string", "nullable": true },
+                      "province": { "type": "string", "nullable": true },
+                      "postal_code": { "type": "string", "nullable": true },
+                      "auth_provider": { "type": "string", "example": "local" },
+                      "platform": { "type": "string", "nullable": true },
+                      "status": { "type": "integer", "example": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+ "/api/v1/customers/{id}/order-products": {
+      "get": {
+        "summary": "Get all products ordered by a customer",
+        "description": "Returns a flat list of all products the customer has ordered, grouped by order. Covers both checkout orders and pick-and-collect orders, sorted newest first.",
+        "tags": ["Web Management"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "The customer's numeric ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer info with all ordered products grouped by order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "integer" },
+                        "fname": { "type": "string", "nullable": true },
+                        "lname": { "type": "string", "nullable": true },
+                        "email": { "type": "string", "format": "email", "nullable": true },
+                        "phone": { "type": "string", "nullable": true },
+                        "country": { "type": "string", "nullable": true },
+                        "address": { "type": "string", "nullable": true },
+                        "city": { "type": "string", "nullable": true },
+                        "province": { "type": "string", "nullable": true },
+                        "postal_code": { "type": "string", "nullable": true },
+                        "auth_provider": { "type": "string", "example": "local" },
+                        "platform": { "type": "string", "nullable": true },
+                        "status": { "type": "integer", "example": 1 }
+                      }
+                    },
+                    "total_orders": {
+                      "type": "integer",
+                      "description": "Total number of orders (checkouts + pick-and-collects)"
+                    },
+                    "orders": {
+                      "type": "array",
+                      "description": "All orders sorted newest first. Each item can be a checkout or pick-and-collect.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "record_type": {
+                            "type": "string",
+                            "enum": ["checkout", "pick_and_collect"],
+                            "example": "checkout"
+                          },
+                          "order_id": { "type": "integer" },
+                          "type": { "type": "integer" },
+                          "type_name": { "type": "string", "nullable": true },
+                          "location": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Only present for pick_and_collect"
+                          },
+                          "location_name": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "Only present for pick_and_collect"
+                          },
+                          "order_status": { "type": "string", "example": "pending" },
+                          "payment_status": { "type": "string", "nullable": true, "example": "success" },
+                          "created_at": { "type": "string", "format": "date-time" },
+                          "updated_at": { "type": "string", "format": "date-time" },
+                          "products": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "prod_code": { "type": "string", "nullable": true },
+                                "prod_name": { "type": "string", "nullable": true },
+                                "prod_image": { "type": "string", "nullable": true },
+                                "quantity": { "type": "number", "nullable": true },
+                                "selling_price": { "type": "number", "format": "float", "nullable": true },
+                                "marked_price": { "type": "number", "format": "float", "nullable": true },
+                                "discount": { "type": "number", "format": "float", "nullable": true },
+                                "dis_per": { "type": "number", "format": "float", "nullable": true },
+                                "department": { "type": "string", "nullable": true },
+                                "category": { "type": "string", "nullable": true },
+                                "sub_category": { "type": "string", "nullable": true },
+                                "status": { "type": "integer", "nullable": true }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+ "/api/v1/feature-authors-publishers/list": {
+  "get": {
+    "summary": "List specific authors / publishers",
+    "description": "Returns paginated records filtered by type (author or publisher).",
+    "tags": ["Feature Author Publisher"],
+    "parameters": [
+      {
+        "name": "type",
+        "in": "query",
+        "schema": { "type": "string", "enum": ["author", "publisher"] },
+        "description": "Filter by type: author or publisher"
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "default": 1 }
+      },
+      {
+        "name": "per_page",
+        "in": "query",
+        "schema": { "type": "integer", "default": 15 }
+      }
+    ],
+    "responses": {
+      "200": {
+        "description": "OK",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": true },
+                "data": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/FeatureAuthorPublisher" }
+                },
+                "pagination": {
+                  "type": "object",
+                  "properties": {
+                    "current_page": { "type": "integer", "example": 1 },
+                    "last_page": { "type": "integer", "example": 3 },
+                    "total": { "type": "integer", "example": 30 },
+                    "per_page": { "type": "integer", "example": 15 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
+  }
+},
+
+"/api/v1/feature-authors-publishers/create": {
+  "post": {
+    "summary": "Create a specific author or publisher record",
+    "description": "Pass type and code. Position is auto-incremented per type independently. Author or publisher data is joined on list via association.",
+    "tags": ["Feature Author Publisher"],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": ["type", "code"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["author", "publisher"],
+                "description": "Record type — author or publisher",
+                "example": "author"
+              },
+              "code": {
+                "type": "string",
+                "description": "auth_code if type=author, pub_code if type=publisher",
+                "example": "AUTH001"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Created successfully",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": true },
+                "message": { "type": "string", "example": "Feature author or publishercreated successfully." },
+                "data": { "$ref": "#/components/schemas/FeatureAuthorPublisher" }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "type or code is missing or invalid",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": false },
+                "message": { "type": "string", "example": "type is required: 'author' or 'publisher'." }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Author or publisher not found for the given code",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": false },
+                "message": { "type": "string", "example": "No author found with auth_code: AUTH001" }
+              }
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Duplicate — this code and type combination already exists",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": false },
+                "message": { "type": "string", "example": "This author (AUTH001) already exists." }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+},
+
+"/api/v1/feature-authors-publishers/position/{id}": {
+  "patch": {
+    "summary": "Update position of a specific record",
+    "description": "Updates position scoped to the record's own type. Only author records shift among authors; publisher records shift among publishers. Positions stay sequential (1, 2, 3 ...) within each type.",
+    "tags": ["Feature Author Publisher"],
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "integer" },
+        "description": "Record ID"
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": ["position"],
+            "properties": {
+              "position": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "New position within the same type group",
+                "example": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Position updated and records re-ordered within type",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": true },
+                "message": { "type": "string", "example": "Position updated successfully." },
+                "data": { "$ref": "#/components/schemas/FeatureAuthorPublisher" }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "position is required or must be a positive integer",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": false },
+                "message": { "type": "string", "example": "position must be a positive integer." }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Record not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": false },
+                "message": { "type": "string", "example": "Record not found." }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+},
+
+"/api/v1/feature-authors-publishers/delete": {
+  "delete": {
+    "summary": "Delete specific author or publisher records (single or bulk)",
+    "description": "Deletes one or more records by ID. After deletion, remaining records are automatically re-sequenced per type independently (positions reset to 1, 2, 3 ... within each type group).",
+    "tags": ["Feature Author Publisher"],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": ["ids"],
+            "properties": {
+              "ids": {
+                "oneOf": [
+                  { "type": "integer", "example": 1 },
+                  {
+                    "type": "array",
+                    "items": { "type": "integer" },
+                    "example": [1, 2, 3]
+                  }
+                ],
+                "description": "Single ID or array of IDs to delete"
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Deleted successfully and positions re-sequenced per type",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": true },
+                "message": { "type": "string", "example": "2 record(s) deleted. Positions re-sequenced." },
+                "deleted_count": { "type": "integer", "example": 2 }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "ids is required",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "success": { "type": "boolean", "example": false },
+                "message": { "type": "string", "example": "ids is required." }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
   },
   "components": {
     "securitySchemes": {
@@ -5053,6 +5489,49 @@
             },
             "nullable": true
           },
+          "FeatureAuthorPublisher": {
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer", "example": 1 },
+    "code": {
+      "type": "string",
+      "description": "auth_code if type=author, pub_code if type=publisher",
+      "example": "AUTH001"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["author", "publisher"],
+      "example": "author"
+    },
+    "position": { "type": "integer", "example": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "author": {
+      "nullable": true,
+      "type": "object",
+      "description": "Populated when type=author, null when type=publisher",
+      "properties": {
+        "id": { "type": "integer", "example": 10 },
+        "auth_code": { "type": "string", "example": "AUTH001" },
+        "auth_name": { "type": "string", "example": "John Doe" },
+        "auth_image": { "type": "string", "nullable": true, "example": "https://example.com/image.jpg" },
+        "status": { "type": "integer", "example": 1 }
+      }
+    },
+    "publisher": {
+      "nullable": true,
+      "type": "object",
+      "description": "Populated when type=publisher, null when type=author",
+      "properties": {
+        "id": { "type": "integer", "example": 5 },
+        "pub_code": { "type": "string", "example": "PUB001" },
+        "pub_name": { "type": "string", "example": "Penguin Books" },
+        "pub_image": { "type": "string", "nullable": true, "example": "https://example.com/pub.jpg" },
+        "status": { "type": "integer", "example": 1 }
+      }
+    }
+  }
+},
           "createdAt": { "type": "string", "format": "date-time" },
           "updatedAt": { "type": "string", "format": "date-time" }
         }
