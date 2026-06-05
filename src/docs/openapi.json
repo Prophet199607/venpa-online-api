@@ -4873,10 +4873,10 @@
   }
 },
 
-"/api/v1/feature-authors-publishers/position/{id}": {
-  "patch": {
-    "summary": "Update position of a specific record",
-    "description": "Updates position scoped to the record's own type. Only author records shift among authors; publisher records shift among publishers. Positions stay sequential (1, 2, 3 ...) within each type.",
+"/api/v1/feature-authors-publishers/update/{id}": {
+  "put": {
+    "summary": "Update a record (including position)",
+    "description": "Updates a record. If position is provided, it re-orders within the same type group (positions stay sequential 1, 2, 3...). If omitted, the record is fetched without changes.",
     "tags": ["Feature Author Publisher"],
     "parameters": [
       {
@@ -4888,17 +4888,16 @@
       }
     ],
     "requestBody": {
-      "required": true,
+      "required": false,
       "content": {
         "application/json": {
           "schema": {
             "type": "object",
-            "required": ["position"],
             "properties": {
               "position": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "New position within the same type group",
+                "description": "New position within the same type group (optional)",
                 "example": 2
               }
             }
@@ -4908,14 +4907,14 @@
     },
     "responses": {
       "200": {
-        "description": "Position updated and records re-ordered within type",
+        "description": "Record updated successfully",
         "content": {
           "application/json": {
             "schema": {
               "type": "object",
               "properties": {
                 "success": { "type": "boolean", "example": true },
-                "message": { "type": "string", "example": "Position updated successfully." },
+                "message": { "type": "string", "example": "Record updated successfully." },
                 "data": { "$ref": "#/components/schemas/FeatureAuthorPublisher" }
               }
             }
@@ -4923,7 +4922,7 @@
         }
       },
       "400": {
-        "description": "position is required or must be a positive integer",
+        "description": "position must be a positive integer",
         "content": {
           "application/json": {
             "schema": {

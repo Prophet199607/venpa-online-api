@@ -59,12 +59,10 @@ exports.list = async (req, res, next) => {
  *    OR { type: "publisher", code: "PUB001" }
  */
 exports.create = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
   try {
     const { type, code } = req.body;
 
     if (!type || !["author", "publisher"].includes(type)) {
-      await transaction.rollback();
       return res.status(400).json({
         success: false,
         message: "type is required: 'author' or 'publisher'.",
@@ -72,24 +70,21 @@ exports.create = async (req, res, next) => {
     }
 
     if (!code) {
-      await transaction.rollback();
       return res.status(400).json({ success: false, message: "code is required." });
     }
 
     // Validate code exists in the correct table
     if (type === "author") {
-      const author = await Author.findOne({ where: { auth_code: code }, transaction });
+      const author = await Author.findOne({ where: { auth_code: code } });
       if (!author) {
-        await transaction.rollback();
         return res.status(404).json({
           success: false,
           message: `No author found with auth_code: ${code}`,
         });
       }
     } else {
-      const publisher = await Publisher.findOne({ where: { pub_code: code }, transaction });
+      const publisher = await Publisher.findOne({ where: { pub_code: code } });
       if (!publisher) {
-        await transaction.rollback();
         return res.status(404).json({
           success: false,
           message: `No publisher found with pub_code: ${code}`,
@@ -97,111 +92,101 @@ exports.create = async (req, res, next) => {
       }
     }
 
-    // Check duplicate
-    const duplicate = await FeatureAuthorPublisher.findOne({
-      where: { code, type },
-      transaction,
-    });
-    if (duplicate) {
-      await transaction.rollback();
-      return res.status(409).json({
-        success: false,
-        message: `This ${type} (${code}) already exists.`,
+    const record = await sequelize.transaction(async (transaction) => {
+      // Check duplicate
+      const duplicate = await FeatureAuthorPublisher.findOne({
+        where: { code, type },
+        transaction,
       });
-    }
+      if (duplicate) {
+        throw Object.assign(new Error(`This ${type} (${code}) already exists.`), { status: 409 });
+      }
 
-    // Auto position per type
-    const maxRow = await FeatureAuthorPublisher.findOne({
-      attributes: [[sequelize.fn("MAX", sequelize.col("position")), "max_position"]],
-      where: { type },
-      raw: true,
-      transaction,
+      // Auto position per type
+      const maxRow = await FeatureAuthorPublisher.findOne({
+        attributes: [[sequelize.fn("MAX", sequelize.col("position")), "max_position"]],
+        where: { type },
+        raw: true,
+        transaction,
+      });
+      const nextPosition = (maxRow?.max_position ?? 0) + 1;
+
+      return FeatureAuthorPublisher.create(
+        { code, type, position: nextPosition },
+        { transaction }
+      );
     });
-    const nextPosition = (maxRow?.max_position ?? 0) + 1;
 
-    const record = await FeatureAuthorPublisher.create(
-      { code, type, position: nextPosition },
-      { transaction }
-    );
-
-    await transaction.commit();
     return res.json({
       success: true,
       message: `Feature ${type} created successfully.`,
       data: record,
     });
   } catch (e) {
-    await transaction.rollback();
+    if (e.status) {
+      return res.status(e.status).json({ success: false, message: e.message });
+    }
     next(e);
   }
 };
 
 /**
- * Update position — scoped to same type
+ * Update — can include position reordering
  */
-exports.updatePosition = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
+exports.update = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { position } = req.body;
 
-    if (position === undefined || position === null) {
-      await transaction.rollback();
-      return res.status(400).json({ success: false, message: "position is required." });
-    }
-
-    const newPosition = parseInt(position);
-    if (isNaN(newPosition) || newPosition < 1) {
-      await transaction.rollback();
-      return res.status(400).json({ success: false, message: "position must be a positive integer." });
-    }
-
-    const record = await FeatureAuthorPublisher.findByPk(id, { transaction });
+    const record = await FeatureAuthorPublisher.findByPk(id);
     if (!record) {
-      await transaction.rollback();
       return res.status(404).json({ success: false, message: "Record not found." });
     }
 
-    const { type } = record;
-    const oldPosition = record.position;
+    if (position !== undefined && position !== null) {
+      const newPosition = parseInt(position);
+      if (isNaN(newPosition) || newPosition < 1) {
+        return res.status(400).json({ success: false, message: "position must be a positive integer." });
+      }
 
-    if (oldPosition === newPosition) {
-      await transaction.commit();
-      return res.json({ success: true, message: "Position unchanged.", data: record });
+      await sequelize.transaction(async (transaction) => {
+        const { type } = record;
+        const oldPosition = record.position;
+
+        if (oldPosition !== newPosition) {
+          if (newPosition < oldPosition) {
+            await FeatureAuthorPublisher.increment("position", {
+              by: 1,
+              where: {
+                type,
+                id:       { [Op.ne]: id },
+                position: { [Op.gte]: newPosition, [Op.lt]: oldPosition },
+              },
+              transaction,
+            });
+          } else {
+            await FeatureAuthorPublisher.increment("position", {
+              by: -1,
+              where: {
+                type,
+                id:       { [Op.ne]: id },
+                position: { [Op.gt]: oldPosition, [Op.lte]: newPosition },
+              },
+              transaction,
+            });
+          }
+
+          await record.update({ position: newPosition }, { transaction });
+        }
+      });
     }
 
-    if (newPosition < oldPosition) {
-      await FeatureAuthorPublisher.increment("position", {
-        by: 1,
-        where: {
-          type,
-          id:       { [Op.ne]: id },
-          position: { [Op.gte]: newPosition, [Op.lt]: oldPosition },
-        },
-        transaction,
-      });
-    } else {
-      await FeatureAuthorPublisher.increment("position", {
-        by: -1,
-        where: {
-          type,
-          id:       { [Op.ne]: id },
-          position: { [Op.gt]: oldPosition, [Op.lte]: newPosition },
-        },
-        transaction,
-      });
-    }
-
-    await record.update({ position: newPosition }, { transaction });
-
-    await transaction.commit();
     return res.json({
       success: true,
-      message: "Position updated successfully.",
+      message: "Record updated successfully.",
       data: record,
     });
   } catch (e) {
-    await transaction.rollback();
     next(e);
   }
 };
@@ -210,55 +195,50 @@ exports.updatePosition = async (req, res, next) => {
  * Delete — re-sequences per type
  */
 exports.delete = async (req, res, next) => {
-  const transaction = await sequelize.transaction();
   try {
     let { ids } = req.body;
     if (ids && !Array.isArray(ids)) ids = [ids];
 
     if (!ids || !ids.length) {
-      await transaction.rollback();
       return res.status(400).json({ success: false, message: "ids is required." });
     }
 
-    const existing = await FeatureAuthorPublisher.findAll({
-      where: { id: { [Op.in]: ids } },
-      attributes: ["id", "type"],
-      transaction,
-    });
-
-    if (!existing.length) {
-      await transaction.commit();
-      return res.json({ success: true, message: "No matching records found.", deleted_count: 0 });
-    }
-
-    const affectedTypes = [...new Set(existing.map((r) => r.type))];
-
-    const deletedCount = await FeatureAuthorPublisher.destroy({
-      where: { id: { [Op.in]: ids } },
-      transaction,
-    });
-
-    // Re-sequence per type
-    for (const type of affectedTypes) {
-      const remaining = await FeatureAuthorPublisher.findAll({
-        where: { type },
-        order: [["position", "ASC"]],
-        attributes: ["id"],
+    await sequelize.transaction(async (transaction) => {
+      const existing = await FeatureAuthorPublisher.findAll({
+        where: { id: { [Op.in]: ids } },
+        attributes: ["id", "type"],
         transaction,
       });
-      for (let i = 0; i < remaining.length; i++) {
-        await remaining[i].update({ position: i + 1 }, { transaction });
-      }
-    }
 
-    await transaction.commit();
+      if (!existing.length) {
+        return;
+      }
+
+      const affectedTypes = [...new Set(existing.map((r) => r.type))];
+      const deletedCount = await FeatureAuthorPublisher.destroy({
+        where: { id: { [Op.in]: ids } },
+        transaction,
+      });
+
+      // Re-sequence per type
+      for (const type of affectedTypes) {
+        const remaining = await FeatureAuthorPublisher.findAll({
+          where: { type },
+          order: [["position", "ASC"]],
+          attributes: ["id"],
+          transaction,
+        });
+        for (let i = 0; i < remaining.length; i++) {
+          await remaining[i].update({ position: i + 1 }, { transaction });
+        }
+      }
+    });
+
     return res.json({
       success: true,
-      message: `${deletedCount} record(s) deleted. Positions re-sequenced.`,
-      deleted_count: deletedCount,
+      message: `Record(s) deleted. Positions re-sequenced.`,
     });
   } catch (e) {
-    await transaction.rollback();
     next(e);
   }
 };
