@@ -32,7 +32,6 @@ const User = sequelize.define(
     },
     platform: { type: DataTypes.STRING(20), allowNull: true },
     status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
-    cus_code: { type: DataTypes.STRING(20), allowNull: true },
   },
   {
     hooks: {

@@ -162,50 +162,7 @@ exports.updateProfile = async (req, res, next) => {
     delete user.password;
 
     const userResponse = user;
-// Sync updated profile to CRM_Customer
-try {
-  const updatedUser = req.user.toJSON();
-  const sourceSequelize = require("../config/sourceDb");
-  const { QueryTypes: QT } = require("sequelize");
-  const now = new Date();
 
-  const crmExisting = await sourceSequelize.query(
-    `SELECT Id_No, U_ID FROM CRM_Customer WHERE E_mail = :email OR Mobile = :phone LIMIT 1`,
-    {
-      replacements: {
-        email: updatedUser.email || null,
-        phone: updatedUser.phone || null,
-      },
-      type: QT.SELECT,
-    }
-  );
-
-  if (crmExisting.length > 0) {
-    await sourceSequelize.query(
-      `UPDATE CRM_Customer SET
-        Cus_Name  = :cusName,
-        Mobile    = :mobile,
-        E_mail    = :email,
-        ModDate   = :modDate
-      WHERE U_ID = :uId`,
-      {
-        replacements: {
-          uId:     crmExisting[0].U_ID,
-          cusName: `${updatedUser.fname || ""} ${updatedUser.lname || ""}`.trim() || updatedUser.email || updatedUser.phone || "Guest",
-          mobile:  updatedUser.phone || null,
-          email:   updatedUser.email || null,
-          modDate: now,
-        },
-        type: QT.UPDATE,
-      }
-    );
-    console.log("[CRM Sync] Profile update synced ✅");
-  } else {
-    console.log("[CRM Sync] No CRM record found for this user — skipping update");
-  }
-} catch (crmErr) {
-  console.error("[CRM Sync Error] Profile update:", crmErr.message);
-}
     res.json({
       message: "Profile updated",
       user: {
