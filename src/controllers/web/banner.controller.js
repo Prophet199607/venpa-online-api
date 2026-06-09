@@ -2,7 +2,7 @@ const { MediaAsset } = require("../../models");
 const { uploadToS3 } = require("../../utils/s3");
 
 /**
- * Handle base64 image strings and upload to S3. Return the key/URL.
+ * Handle base64 image strings and upload to S3. Return the key/URL....
  */
 async function processImage(imageValue, orientation, placement_key) {
   if (!imageValue) return null;
