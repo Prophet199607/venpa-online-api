@@ -428,7 +428,7 @@ exports.bestSelling = async (req, res, next) => {
     const limit = Math.min(Number(req.query.limit || 10), 50);
     const { price_range } = req.query;
 
-    /* Commented out old database-driven logic
+    /* Commented out old database-driven logicc
     const sourceDbName = process.env.MYSQL_SOURCE_DB;
     const priceWhereSql = getPriceRangeSql(price_range);
     const topSellingCodes = await sequelize.query(
