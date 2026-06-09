@@ -37,10 +37,25 @@ exports.list = async (req, res, next) => {
       distinct: true,
       col: "id",
     });
+ const imageBaseUrl = process.env.PRODUCT_IMAGE_BASE_URL?.replace(/\/$/, "");
+
+    const data = rows.map((row) => {
+      const item = row.toJSON();
+
+      if (item.author?.auth_image) {
+        item.author.auth_image = `${imageBaseUrl}/${item.author.auth_image}`;
+      }
+
+      if (item.publisher?.pub_image) {
+        item.publisher.pub_image = `${imageBaseUrl}/${item.publisher.pub_image}`;
+      }
+
+      return item;
+    });
 
     return res.json({
       success: true,
-      data: rows,
+      data,
       pagination: {
         current_page: page,
         last_page: Math.ceil(count / limit) || 0,
