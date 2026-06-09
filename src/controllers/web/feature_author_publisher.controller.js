@@ -21,13 +21,13 @@ exports.list = async (req, res, next) => {
         {
           model: Author,
           as: "author",
-          attributes: ["id", "auth_code", "auth_name", "auth_image","description", "status"],
+          attributes: ["id", "auth_code", "auth_name", "auth_image", "description", "status"],
           required: false,
         },
         {
           model: Publisher,
           as: "publisher",
-          attributes: ["id", "pub_code", "pub_name", "pub_image","description", "status"],
+          attributes: ["id", "pub_code", "pub_name", "pub_image", "description", "status"],
           required: false,
         },
       ],
