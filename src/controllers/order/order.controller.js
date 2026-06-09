@@ -697,6 +697,86 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
+      // Restore stock when transitioning TO returned from confirmed (COD only)
+      const isBeingReturned =
+        status.toLowerCase() === "returned" &&
+        oldStatus.toLowerCase() !== "returned" &&
+        Number(checkout.type) === 1 &&
+        ["confirmed"].includes(oldStatus.toLowerCase());
+
+      if (isBeingReturned) {
+        let savedPayload = checkout.payload || {};
+        if (typeof savedPayload === "string") {
+          try {
+            savedPayload = JSON.parse(savedPayload);
+          } catch (_) {}
+        }
+
+        let device = null;
+        if (checkout.user && checkout.user.platform) {
+          device = Number(checkout.user.platform);
+        } else if (savedPayload.device) {
+          device = Number(savedPayload.device);
+        }
+        const iid = device === 3 ? "WEB" : "APP";
+
+        const savedRowConfigs = savedPayload.confirmed_rows;
+
+        if (savedRowConfigs && savedRowConfigs.length > 0) {
+          console.log(
+            `[OrderUpdate] Triggering rowConfigs stock return for ${savedRowConfigs.length} rows (Checkout)`,
+          );
+          for (const row of savedRowConfigs) {
+            const {
+              prod_code: prodCode,
+              location,
+              quantity,
+              selling_price: rowPrice,
+            } = row;
+            if (!prodCode || prodCode === "N/A" || !location || !(quantity > 0))
+              continue;
+            console.log(
+              `[OrderUpdate] Returning ${quantity} of ${prodCode} @ ${location} (price: ${rowPrice ?? "auto"})`,
+            );
+            await addStock(
+              prodCode,
+              location,
+              quantity,
+              iid,
+              rowPrice ?? null,
+              "RETURN",
+            ).catch((err) =>
+              console.error(
+                `[OrderUpdate] Stock return failed for ${prodCode}:`,
+                err,
+              ),
+            );
+          }
+        } else {
+          // Legacy single-location flow
+          const items = savedPayload.items || [];
+          const location = savedPayload.location || "001";
+          console.log(
+            `[OrderUpdate] Triggering legacy stock return for ${items.length} items at location ${location} (Checkout)`,
+          );
+          for (const item of items) {
+            const prodCode = item.product?.prod_code || item.prod_code;
+            if (prodCode && prodCode !== "N/A") {
+              console.log(
+                `[OrderUpdate] Returning ${item.quantity} units of ${prodCode}`,
+              );
+              await addStock(prodCode, location, item.quantity, iid, null, "RETURN").catch(
+                (err) =>
+                  console.error(
+                    `[OrderUpdate] Stock return failed for ${prodCode}:`,
+                    err,
+                  ),
+              );
+            }
+          }
+        }
+      }
+
       await sendToUser(checkout.user_id, {
         title: "Order status updated",
         body: `Your order ${checkout.order_id} status is now ${status}.`,
@@ -914,6 +994,39 @@ exports.updateOrderStatus = async (req, res, next) => {
         ).catch((err) =>
           console.error(
             `[OrderUpdate] Stock restoration failed for ${pickAndCollect.prod_code}:`,
+            err,
+          ),
+        );
+      }
+
+      // Restore stock when transitioning TO returned from confirmed (COD only)
+      const isBeingReturned =
+        status.toLowerCase() === "returned" &&
+        oldStatus.toLowerCase() !== "returned" &&
+        Number(pickAndCollect.type) === 1 &&
+        ["confirmed"].includes(oldStatus.toLowerCase());
+
+      if (isBeingReturned) {
+        let device = null;
+        if (pickAndCollect.user && pickAndCollect.user.platform) {
+          device = Number(pickAndCollect.user.platform);
+        }
+        const iid = device === 3 ? "WEB" : "APP";
+
+        const location = pickAndCollect.location;
+        console.log(
+          `[OrderUpdate] Triggering stock return for PickAndCollect at location ${location} (PickAndCollect)`,
+        );
+        await addStock(
+          pickAndCollect.prod_code,
+          location,
+          pickAndCollect.picked_qty,
+          iid,
+          null,
+          "RETURN",
+        ).catch((err) =>
+          console.error(
+            `[OrderUpdate] Stock return failed for ${pickAndCollect.prod_code}:`,
             err,
           ),
         );

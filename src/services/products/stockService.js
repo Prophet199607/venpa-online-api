@@ -127,7 +127,7 @@ async function deductStock(prodCode, location, quantity, iid = null, sellingPric
  * @param {string} iid - identification for the source (Web/Mobile)
  * @param {number|null} sellingPrice - override selling price (e.g. from a specific price level)
  */
-async function addStock(prodCode, location, quantity, iid = null, sellingPrice = null) {
+async function addStock(prodCode, location, quantity, iid = null, sellingPrice = null, docType = "CANCEL") {
   const amountToAdd = parseFloat(quantity);
   if (isNaN(amountToAdd) || amountToAdd <= 0) return;
 
@@ -170,9 +170,9 @@ async function addStock(prodCode, location, quantity, iid = null, sellingPrice =
   const day = String(now.getDate()).padStart(2, "0");
   const transactionDate = `${year}-${month}-${day}`;
 
-  // Use a common doc_no to identify where the cancellation came from
+  // Use a common doc_no to identify where the addition came from
   const sourceIndicator = iid === "WEB" ? "WEB" : "APP";
-  const docNo = `${sourceIndicator}_CANCEL`;
+  const docNo = `${sourceIndicator}_${docType}`;
 
   // Create a new record with positive quantity (addition)
   await StockMaster.create({
@@ -190,7 +190,7 @@ async function addStock(prodCode, location, quantity, iid = null, sellingPrice =
   });
 
   console.log(
-    `[AddStock] Inserted addition record for ${normalizedProdCode} at ${normalizedLocation}: ${qtyToStore} (Doc: ${docNo})`,
+    `[AddStock] Inserted addition record for ${normalizedProdCode} at ${normalizedLocation}: ${qtyToStore} (Doc: ${docNo}, type: ${docType})`,
   );
 }
 
