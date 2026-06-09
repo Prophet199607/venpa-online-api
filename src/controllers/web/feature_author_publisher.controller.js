@@ -71,7 +71,7 @@ exports.list = async (req, res, next) => {
 /**
  * Create
  * Body: { type: "author", code: "AUTH001" }
- *    OR { type: "publisher", code: "PUB001" }
+ *    OR { type: "publisher", code: "PUB001"  }
  */
 exports.create = async (req, res, next) => {
   try {
