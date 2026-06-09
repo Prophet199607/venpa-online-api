@@ -6,7 +6,7 @@ const {
 
 /**
  * Handles contact us submissions.
- * Stores the message in the ContactUs table and emails the admin.
+ * Stores the message in the ContactUs table and emails the admin..
  */
 exports.createContactMessage = async (req, res, next) => {
   try {
