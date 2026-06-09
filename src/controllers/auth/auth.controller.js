@@ -1,3 +1,4 @@
+console.log("AUTH CONTROLLER LOADED ✅", __filename);
 const {
   User,
   PasswordReset,
@@ -6,14 +7,14 @@ const {
   DeviceToken,
 } = require("../../models");
 const { z } = require("zod");
-const { Op } = require("sequelize");
+const { Op,QueryTypes } = require("sequelize");
 const nodemailer = require("nodemailer");
 const { OAuth2Client } = require("google-auth-library");
 const {
   generateOtpEmailHtml,
 } = require("../../services/notifications/emailService");
 const { sendSms } = require("../../services/notifications/smsService");
-
+const sequelize = require("../../config/sourceDb");
 // Validation schemas
 const registerSchema = z
   .object({
@@ -78,12 +79,136 @@ async function updateUserLoginInfo(userId, platform) {
     await DeviceToken.update({ platform }, { where: { user_id: userId } });
   }
 }
+const { v4: uuidv4 } = require("uuid"); 
 
+async function syncToCRMCustomer(user) {
+  try {
+    const now = new Date();
+
+    console.log("[CRM Sync] Starting sync for user:", {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+    });
+
+    await sequelize.authenticate();
+    console.log("[CRM Sync] DB connection OK");
+
+    // Check if CRM record already exists by email or phone
+    const existing = await sequelize.query(
+      `SELECT Id_No, Cus_Code, U_ID FROM CRM_Customer 
+       WHERE E_mail = :email OR Mobile = :phone
+       LIMIT 1`,
+      {
+        replacements: {
+          email: user.email || null,
+          phone: user.phone || null,
+        },
+        type: QueryTypes.SELECT,
+      }
+    );
+
+    // ========================================
+    // UPDATE — record already exists
+    // ========================================
+    if (existing.length > 0) {
+      console.log("[CRM Sync] Record exists → UPDATE");
+
+      await sequelize.query(
+        `UPDATE CRM_Customer SET
+          Status        = :status,
+          Cus_Name      = :cusName,
+          Mobile        = :mobile,
+          E_mail        = :email,
+          ModDate       = :modDate,
+          Loca          = :loca,
+          Cust_Category = :custCategory
+        WHERE U_ID = :uId`,
+        {
+          replacements: {
+            uId:          existing[0].U_ID,
+            status:       user.status ?? 1,
+            cusName:      `${user.fname || ""} ${user.lname || ""}`.trim() || "Guest",
+            mobile:       user.phone || "N/A",
+            email:        user.email || "N/A",
+            modDate:      now,
+            loca:         "Online",
+            custCategory: "Loyalty Customer",
+          },
+          type: QueryTypes.UPDATE,
+        }
+      );
+
+      console.log("[CRM Sync] UPDATE done ✅");
+      return;
+    }
+
+    // ========================================
+    // INSERT — new record
+    // ========================================
+
+    // Generate Cus_Code: cs001, cs002...
+    const lastCode = await sequelize.query(
+      `SELECT Cus_Code FROM CRM_Customer 
+       WHERE Cus_Code REGEXP '^cs[0-9]+$' 
+       ORDER BY CAST(SUBSTRING(Cus_Code, 3) AS UNSIGNED) DESC 
+       LIMIT 1`, 
+      { type: QueryTypes.SELECT }
+    );
+
+    let nextNumber = 1;
+    if (lastCode.length > 0 && lastCode[0].Cus_Code) {
+      const lastNum = parseInt(lastCode[0].Cus_Code.replace("CS", ""), 10);
+      if (!isNaN(lastNum)) nextNumber = lastNum + 1;
+    }
+
+    const cusCode = "cs" + String(nextNumber).padStart(3, "0");
+    const uId     = uuidv4();
+
+    console.log("[CRM Sync] Generated Cus_Code:", cusCode, "| U_ID:", uId);
+
+    // Save cus_code and u_id to users table
+    await User.update(
+      { cus_code: cusCode },
+      { where: { id: user.id } }
+    );
+
+    // Insert into CRM_Customer — Id_No is auto-increment
+    await sequelize.query(
+      `INSERT INTO CRM_Customer
+        (Cus_Code, Status, Cus_Name, Mobile, E_mail, InsertDate, ModDate, Loca, Cust_Category, U_ID)
+      VALUES
+        (:cusCode, :status, :cusName, :mobile, :email, :insertDate, :modDate, :loca, :custCategory, :uId)`,
+      {
+        replacements: {
+          cusCode:      cusCode,
+          status:       user.status ?? 1,
+          cusName:      `${user.fname || ""} ${user.lname || ""}`.trim() || "Guest",
+          mobile:       user.phone || "N/A",
+          email:        user.email || "N/A",
+          insertDate:   now,
+          modDate:      now,
+          loca:         "Online",
+          custCategory: "Loyalty Customer",
+          uId:          uId,
+        },
+        type: QueryTypes.INSERT,
+      }
+    );
+
+    console.log("[CRM Sync] INSERT done ✅ | Cus_Code:", cusCode, "| U_ID:", uId);
+
+  } catch (err) {
+    console.error("[CRM Sync Error] Message:", err.message);
+    console.error("[CRM Sync Error] SQL:", err.sql);
+  }
+}
 // ========================================
 // SEND OTP
 // ========================================
 
 exports.sendOtp = async (req, res) => {
+   
   try {
     const { email, phone } = req.body || {};
 
@@ -391,6 +516,7 @@ exports.verifyOtp = async (req, res) => {
     const { platform } = req.body || {};
 
     await updateUserLoginInfo(user.id, platform);
+ await syncToCRMCustomer(user);
 
     const userResponse = user.toJSON();
 
@@ -540,7 +666,7 @@ exports.googleLogin = async (req, res) => {
     const { platform } = req.body || {};
 
     await updateUserLoginInfo(user.id, platform);
-
+await syncToCRMCustomer(user);
     const userResponse = user.toJSON();
 
     delete userResponse.password;

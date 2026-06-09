@@ -193,5 +193,75 @@ async function addStock(prodCode, location, quantity, iid = null, sellingPrice =
     `[AddStock] Inserted addition record for ${normalizedProdCode} at ${normalizedLocation}: ${qtyToStore} (Doc: ${docNo})`,
   );
 }
-
-module.exports = { deductStock, addStock, checkStockAvailability };
+/**
+ * Restores/adds stock back by inserting a positive adjustment record.
+ * Used specifically for order RETURNS — creates a distinct doc_no (APP_RETURN / WEB_RETURN)
+ * so return transactions are identifiable separately from cancellations in StockMaster.
+ *
+ * @param {string} prodCode
+ * @param {string} location
+ * @param {number} quantity
+ * @param {string} iid - identification for the source (Web/Mobile)
+ * @param {number|null} sellingPrice - override selling price
+ */
+async function addStockReturn(prodCode, location, quantity, iid = null, sellingPrice = null) {
+  println("addStockReturn called with:", { prodCode, location, quantity, iid, sellingPrice });
+  const amountToAdd = parseFloat(quantity);
+  if (isNaN(amountToAdd) || amountToAdd <= 0) return;
+ 
+  const normalizedProdCode = String(prodCode || "").trim();
+  const normalizedLocation = String(location || "").trim();
+ 
+  if (!normalizedProdCode || !normalizedLocation) {
+    console.warn(
+      `[AddStockReturn] Invalid params: prodCode=${prodCode}, location=${location}`,
+    );
+    return;
+  }
+ 
+  const referenceStock = await StockMaster.findOne({
+    where: { prod_code: normalizedProdCode },
+    order: [["id", "DESC"]],
+  });
+ 
+  const pPrice = referenceStock
+    ? parseFloat(referenceStock.purchase_price || 0)
+    : 0;
+  const sPrice =
+    sellingPrice !== null && !isNaN(parseFloat(sellingPrice))
+      ? parseFloat(sellingPrice)
+      : referenceStock
+        ? parseFloat(referenceStock.selling_price || 0)
+        : 0;
+ 
+  const qtyToStore = amountToAdd;
+  const amountToStore = Math.abs(sPrice * amountToAdd);
+ 
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const transactionDate = `${year}-${month}-${day}`;
+ 
+  const sourceIndicator = iid === "WEB" ? "WEB" : "APP";
+  const docNo = `${sourceIndicator}_RETURN`; // distinct from _CANCEL
+ 
+  await StockMaster.create({
+    location: normalizedLocation,
+    prod_code: normalizedProdCode,
+    transaction_date: transactionDate,
+    doc_no: docNo,
+    iid: sourceIndicator,
+    qty: qtyToStore,
+    purchase_price: pPrice,
+    selling_price: sPrice,
+    amount: amountToStore,
+    created_at: now,
+    updated_at: now,
+  });
+ 
+  console.log(
+    `[AddStockReturn] Inserted return record for ${normalizedProdCode} at ${normalizedLocation}: ${qtyToStore} (Doc: ${docNo})`,
+  );
+}
+module.exports = { deductStock, addStock, checkStockAvailability ,addStockReturn};
