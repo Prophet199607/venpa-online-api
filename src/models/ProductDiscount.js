@@ -9,7 +9,7 @@ const ProductDiscount = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
-    prod_code: { type: DataTypes.STRING(255), allowNull: false },
+    prod_code: { type: DataTypes.STRING(255), allowNull: false, unique: true },
     discount_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,

@@ -36,6 +36,7 @@ const NotificationLog = require("./NotificationLog");
 const Coupon = require("./Coupon");
 const CouponUsage = require("./CouponUsage");
 const ProductDiscount = require("./ProductDiscount");
+const ProductDiscountLog = require("./ProductDiscountLog");
 const WebsiteSectionProduct = require("./WebsiteSectionProduct");
 const ContactUs = require("./ContactUs");
 const GiftReceiverDetail = require("./GiftReceiverDetail");
@@ -122,6 +123,18 @@ ProductDiscount.belongsTo(Product, {
   foreignKey: "prod_code",
   targetKey: "prod_code",
   as: "product",
+  constraints: false,
+});
+
+// ProductDiscountLog associations
+ProductDiscountLog.belongsTo(ProductDiscount, {
+  foreignKey: "product_discount_id",
+  as: "discount",
+  constraints: false,
+});
+ProductDiscount.hasMany(ProductDiscountLog, {
+  foreignKey: "product_discount_id",
+  as: "logs",
   constraints: false,
 });
 
@@ -340,6 +353,7 @@ module.exports = {
   Coupon,
   CouponUsage,
   ProductDiscount,
+  ProductDiscountLog,
   WebsiteSectionProduct,
   ContactUs,
   GiftReceiverDetail,

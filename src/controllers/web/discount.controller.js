@@ -1,6 +1,7 @@
 const {
   Product,
   ProductDiscount,
+  ProductDiscountLog,
   ProductSubCategory,
   SubCategory,
   sequelize,
@@ -139,6 +140,8 @@ exports.saveDiscount = async (req, res, next) => {
     const isBatch = Array.isArray(req.body) || (req.body && Array.isArray(req.body.discounts));
     const savedItems = [];
     const invalidProdCodes = [];
+    const changedBy = req.body?.changed_by || null;
+    const ipAddress = req.ip || req.headers?.["x-forwarded-for"] || null;
 
     for (const itemData of items) {
       const {
@@ -148,9 +151,12 @@ exports.saveDiscount = async (req, res, next) => {
         start_date,
         end_date,
         status,
+        changed_by,
       } = itemData;
 
       if (!prod_code) continue;
+
+      const effectiveChangedBy = changed_by ?? changedBy;
 
       // Check if product exists
       const productExists = await Product.findOne({
@@ -164,20 +170,53 @@ exports.saveDiscount = async (req, res, next) => {
         continue;
       }
 
-      // Create or update discount
-      const [discountItem, created] = await ProductDiscount.findOrCreate({
+      // Clean up duplicate records for same prod_code (from before unique constraint)
+      const allExisting = await ProductDiscount.findAll({
         where: { prod_code },
-        defaults: {
-          discount_amount,
-          discount_percentage,
-          start_date,
-          end_date,
-          status: status ?? 1,
-        },
+        order: [["id", "ASC"]],
         transaction,
       });
 
+      // Keep the first record, remove duplicates
+      const [primaryRecord, ...duplicates] = allExisting;
+      if (duplicates.length > 0) {
+        await ProductDiscount.destroy({
+          where: { id: { [Op.in]: duplicates.map((d) => d.id) } },
+          transaction,
+        });
+
+        for (const dup of duplicates) {
+          await ProductDiscountLog.create(
+            {
+              product_discount_id: dup.id,
+              prod_code: dup.prod_code,
+              action: "duplicate_removed",
+              old_values: JSON.stringify(dup.get({ plain: true })),
+              changed_by: effectiveChangedBy,
+              ip_address: ipAddress,
+            },
+            { transaction },
+          );
+        }
+      }
+
+      // Upsert — create or update the single record
+      const [discountItem, created] = primaryRecord
+        ? [primaryRecord, false]
+        : await ProductDiscount.findOrCreate({
+            where: { prod_code },
+            defaults: {
+              discount_amount,
+              discount_percentage,
+              start_date,
+              end_date,
+              status: status ?? 1,
+            },
+            transaction,
+          });
+
       if (!created) {
+        const oldValues = discountItem.get({ plain: true });
         await discountItem.update(
           {
             discount_amount,
@@ -185,6 +224,32 @@ exports.saveDiscount = async (req, res, next) => {
             start_date,
             end_date,
             status: status ?? 1,
+          },
+          { transaction },
+        );
+
+        await ProductDiscountLog.create(
+          {
+            product_discount_id: discountItem.id,
+            prod_code,
+            action: "updated",
+            old_values: JSON.stringify(oldValues),
+            new_values: JSON.stringify(discountItem.get({ plain: true })),
+            changed_by: effectiveChangedBy,
+            ip_address: ipAddress,
+          },
+          { transaction },
+        );
+      } else {
+        await ProductDiscountLog.create(
+          {
+            product_discount_id: discountItem.id,
+            prod_code,
+            action: "created",
+            old_values: null,
+            new_values: JSON.stringify(discountItem.get({ plain: true })),
+            changed_by: effectiveChangedBy,
+            ip_address: ipAddress,
           },
           { transaction },
         );
@@ -220,7 +285,6 @@ exports.deleteDiscounts = async (req, res, next) => {
   try {
     let { ids } = req.body;
 
-    // Normalize input
     if (ids && !Array.isArray(ids)) {
       ids = [ids];
     }
@@ -234,10 +298,9 @@ exports.deleteDiscounts = async (req, res, next) => {
 
     transaction = await sequelize.transaction();
 
-    // Get discounts first
+    // Fetch full records before deleting (for audit log)
     const discounts = await ProductDiscount.findAll({
       where: { id: { [Op.in]: ids } },
-      attributes: ["prod_code"],
       transaction,
     });
 
@@ -250,11 +313,30 @@ exports.deleteDiscounts = async (req, res, next) => {
       });
     }
 
+    const changedBy = req.body?.changed_by || null;
+    const ipAddress = req.ip || req.headers?.["x-forwarded-for"] || null;
+
     // Delete discounts
     const deletedCount = await ProductDiscount.destroy({
       where: { id: { [Op.in]: ids } },
       transaction,
     });
+
+    // Log deletions
+    for (const discount of discounts) {
+      await ProductDiscountLog.create(
+        {
+          product_discount_id: discount.id,
+          prod_code: discount.prod_code,
+          action: "deleted",
+          old_values: JSON.stringify(discount.get({ plain: true })),
+          new_values: null,
+          changed_by: changedBy,
+          ip_address: ipAddress,
+        },
+        { transaction },
+      );
+    }
 
     await transaction.commit();
 
