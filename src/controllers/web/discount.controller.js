@@ -122,15 +122,21 @@ exports.saveDiscount = async (req, res, next) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const data = req.body;
-    const isArray = Array.isArray(data);
-    const items = isArray ? data : [data];
+    let items;
+    if (Array.isArray(req.body)) {
+      items = req.body;
+    } else if (req.body && req.body.discounts) {
+      items = Array.isArray(req.body.discounts) ? req.body.discounts : [req.body.discounts];
+    } else {
+      items = [req.body];
+    }
 
     if (!items.length) {
       await transaction.rollback();
       return res.json({ success: true, message: "No items to save" });
     }
 
+    const isBatch = Array.isArray(req.body) || (req.body && Array.isArray(req.body.discounts));
     const savedItems = [];
     const invalidProdCodes = [];
 
@@ -178,7 +184,7 @@ exports.saveDiscount = async (req, res, next) => {
             discount_percentage,
             start_date,
             end_date,
-            status: status ?? discountItem.status,
+            status: status ?? 1,
           },
           { transaction },
         );
@@ -191,10 +197,10 @@ exports.saveDiscount = async (req, res, next) => {
 
     return res.json({
       success: true,
-      message: isArray
+      message: isBatch
         ? `Successfully saved ${savedItems.length} discount(s)`
         : "Discount saved successfully",
-      data: isArray ? savedItems : savedItems[0],
+      data: isBatch ? savedItems : savedItems[0],
       invalid_prod_codes: invalidProdCodes.length
         ? invalidProdCodes
         : undefined,
