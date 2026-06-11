@@ -28,6 +28,7 @@ const { startSyncJobs } = require("./services/sync/syncJobs");
 const {
   startNotificationJobs,
 } = require("./services/notifications/notificationJobs");
+const { startDiscountJobs } = require("./services/discounts/discountJobs");
 
 const PORT = Number(process.env.PORT || 4000);
 
@@ -87,6 +88,11 @@ async function safeSyncModel(Model) {
     if (process.env.NOTIFY_ENABLED === "true") {
       startNotificationJobs();
       console.log("Notification jobs started!");
+    }
+
+    if (process.env.DISCOUNT_EXPIRY_ENABLED === "true") {
+      startDiscountJobs();
+      console.log("Discount expiry job started!");
     }
 
     app.listen(PORT, () => console.log(`Running on http://localhost:${PORT}`));
