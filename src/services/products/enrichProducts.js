@@ -13,6 +13,16 @@ const {
 } = require("../../models");
 const { buildPriceLevelMap } = require("./priceService");
 
+function withImageBaseUrl(value) {
+  if (!value) return value;
+  const raw = String(value).trim();
+  if (!raw || /^https?:\/\//i.test(raw)) return raw;
+  const base = String(process.env.PRODUCT_IMAGE_BASE_URL || "").trim();
+  if (!base) return raw;
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  return `${normalizedBase}${raw.replace(/^\/+/, "")}`;
+}
+
 function normalizeCode(value) {
   if (value === null || value === undefined) return null;
   const v = String(value).trim().toUpperCase();
@@ -34,14 +44,14 @@ async function buildPublisherMap(products) {
 
   const rows = await Publisher.findAll({
     where: { pub_code: { [Op.in]: codes } },
-    attributes: ["pub_code", "pub_name"],
+    attributes: ["pub_code", "pub_name", "pub_image"],
     raw: true,
   });
 
   const map = new Map();
   for (const row of rows) {
     const key = normalizeCode(row.pub_code);
-    if (key) map.set(key, row.pub_name || null);
+    if (key) map.set(key, { pub_name: row.pub_name || null, pub_image: row.pub_image || null });
   }
   return map;
 }
@@ -214,14 +224,14 @@ async function buildAuthorsByProductMap(products) {
     authorIds.length
       ? Author.findAll({
           where: { id: { [Op.in]: authorIds } },
-          attributes: ["id", "auth_code", "auth_name"],
+          attributes: ["id", "auth_code", "auth_name", "auth_image"],
           raw: true,
         })
       : Promise.resolve([]),
     authCodes.length
       ? Author.findAll({
           where: { auth_code: { [Op.in]: authCodes } },
-          attributes: ["auth_code", "auth_name"],
+          attributes: ["auth_code", "auth_name", "auth_image"],
           raw: true,
         })
       : Promise.resolve([]),
@@ -229,15 +239,21 @@ async function buildAuthorsByProductMap(products) {
 
   const authorNameById = new Map();
   const authorCodeById = new Map();
+  const authorImageById = new Map();
   for (const row of authorsByIdRows) {
     authorNameById.set(Number(row.id), row.auth_name || null);
     authorCodeById.set(Number(row.id), row.auth_code || null);
+    authorImageById.set(Number(row.id), row.auth_image || null);
   }
 
   const authorNameByCode = new Map();
+  const authorImageByCode = new Map();
   for (const row of authorsByCodeRows) {
     const key = normalizeCode(row.auth_code);
-    if (key) authorNameByCode.set(key, row.auth_name || null);
+    if (key) {
+      authorNameByCode.set(key, row.auth_name || null);
+      authorImageByCode.set(key, row.auth_image || null);
+    }
   }
 
   const authorsByProduct = new Map();
@@ -251,12 +267,19 @@ async function buildAuthorsByProductMap(products) {
     const nameFromId = link.author_id
       ? authorNameById.get(Number(link.author_id))
       : null;
+    const imageFromId = link.author_id
+      ? authorImageById.get(Number(link.author_id))
+      : null;
     const nameFromCode = normalizeCode(link.auth_code)
       ? authorNameByCode.get(normalizeCode(link.auth_code))
+      : null;
+    const imageFromCode = normalizeCode(link.auth_code)
+      ? authorImageByCode.get(normalizeCode(link.auth_code))
       : null;
     const authorCode =
       normalizeCode(link.auth_code) || normalizeCode(codeFromId);
     const authorName = nameFromId || nameFromCode || null;
+    const authorImage = imageFromId || imageFromCode || null;
 
     if (!authorCode && !authorName) continue;
 
@@ -267,6 +290,7 @@ async function buildAuthorsByProductMap(products) {
       existing.push({
         auth_code: authorCode || null,
         auth_name: authorName || null,
+        auth_image: authorImage || null,
       });
       authorsByProduct.set(productCode, existing);
     }
@@ -392,6 +416,7 @@ async function enrichProducts(items) {
         : [];
       const authorNames = authors.map((item) => item.auth_name).filter(Boolean);
       const authorCodes = authors.map((item) => item.auth_code).filter(Boolean);
+      const authorImages = authors.map((item) => withImageBaseUrl(item.auth_image)).filter(Boolean);
       const linkedSubCategories = normalizedProdCode
         ? subCategoriesByProduct.get(normalizedProdCode) || []
         : [];
@@ -439,7 +464,10 @@ async function enrichProducts(items) {
         sub_category_name: resolvedSubCategoryName,
         sub_categories: productSubCategories,
         publisher_name: normalizedPublisherCode
-          ? publisherMap.get(normalizedPublisherCode) || null
+          ? publisherMap.get(normalizedPublisherCode)?.pub_name || null
+          : null,
+        publisher_image: normalizedPublisherCode
+          ? withImageBaseUrl(publisherMap.get(normalizedPublisherCode)?.pub_image)
           : null,
         book_type_name: normalizedBookTypeCode
           ? bookTypeMap.get(normalizedBookTypeCode) || null
@@ -453,6 +481,8 @@ async function enrichProducts(items) {
         author_codes: authorCodes,
         author_name: authorNames[0] || null,
         author_names: authorNames,
+        author_image: authorImages[0] || null,
+        author_images: authorImages,
         selling_price: newPrice,
       };
     })

@@ -8,6 +8,16 @@ const {
 } = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
 
+function withImageBaseUrl(value) {
+  if (!value) return value;
+  const raw = String(value).trim();
+  if (!raw || /^https?:\/\//i.test(raw)) return raw;
+  const base = String(process.env.PRODUCT_IMAGE_BASE_URL || "").trim();
+  if (!base) return raw;
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  return `${normalizedBase}${raw.replace(/^\/+/, "")}`;
+}
+
 function productIncludes() {
   return [
     {
@@ -53,7 +63,12 @@ exports.list = async (req, res, next) => {
     }
 
     const items = await Author.findAll({ where, order: [["id", "DESC"]] });
-    res.json(items);
+    const result = items.map((item) => {
+      const json = item.toJSON();
+      if (json.auth_image) json.auth_image = withImageBaseUrl(json.auth_image);
+      return json;
+    });
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -65,7 +80,9 @@ exports.getById = async (req, res, next) => {
     const item = await findAuthorByValue(value);
 
     if (!item) return res.status(404).json({ message: "Author not found" });
-    res.json(item);
+    const result = item.toJSON();
+    if (result.auth_image) result.auth_image = withImageBaseUrl(result.auth_image);
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -105,8 +122,10 @@ exports.getBooks = async (req, res, next) => {
 
     const prodCodes = [...new Set(links.map((item) => item.prod_code).filter(Boolean))];
     if (!prodCodes.length) {
+      const authorData = author.toJSON();
+      if (authorData.auth_image) authorData.auth_image = withImageBaseUrl(authorData.auth_image);
       return res.json({
-        author,
+        author: authorData,
         books: [],
       });
     }
@@ -119,8 +138,10 @@ exports.getBooks = async (req, res, next) => {
     });
 
     const books = await enrichProducts(products);
+    const authorData = author.toJSON();
+    if (authorData.auth_image) authorData.auth_image = withImageBaseUrl(authorData.auth_image);
     return res.json({
-      author,
+      author: authorData,
       books,
     });
   } catch (e) {
