@@ -178,6 +178,9 @@ exports.updateProfile = async (req, res, next) => {
     };
 
     const authString = Buffer.from("onimta:2302").toString("base64");
+
+    console.log("[CRM] Sending payload:", JSON.stringify(crmPayload));
+
     const crmResponse = await axios.post(
       "https://crmapi.venpaa.lk/crm/customers/pos",
       crmPayload,
@@ -191,14 +194,19 @@ exports.updateProfile = async (req, res, next) => {
       },
     );
 
+    const crmData = crmResponse.data || {};
+    const crmHttpOk = crmResponse.status >= 200 && crmResponse.status < 300;
+    const crmBodyOk = crmData.success === true || crmData.success === undefined;
+
     // Only respond with success if both the local update and CRM sync succeeded
-    if (!crmResponse || crmResponse.status < 200 || crmResponse.status >= 300) {
+    if (!crmHttpOk || !crmBodyOk) {
       console.warn(
-        `[CRM] Sync failed — HTTP ${crmResponse?.status}:`,
-        JSON.stringify(crmResponse?.data ?? null),
+        `[CRM] Sync failed — HTTP ${crmResponse?.status}, body:`,
+        JSON.stringify(crmData),
       );
       return res.status(502).json({
         message: "Profile updated locally but failed to sync with CRM",
+        crm_error: crmData?.message || null,
       });
     }
 
