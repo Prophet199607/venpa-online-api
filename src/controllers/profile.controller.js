@@ -1,4 +1,3 @@
-const axios = require("axios");
 const { QueryTypes, Op } = require("sequelize");
 const { sequelize, EmailVerification, User } = require("../models");
 
@@ -158,44 +157,6 @@ exports.updateProfile = async (req, res, next) => {
       updates.postal_code = payload.postal_code;
 
     await req.user.update(updates);
-
-    const authString = Buffer.from("onimta:2302").toString("base64");
-    const crmPayload = {
-      card_no: "",
-      city: req.user.city || "",
-      cus_code: "",
-      cus_name:
-        `${req.user.fname || ""} ${req.user.lname || ""}`.trim() || "Unknown",
-      cust_group: "WEB",
-      cust_status: "1",
-      cust_type: "WEB",
-      dob: "",
-      email: req.user.email || "",
-      insert_user: "SYNC_ADMIN",
-      loca: "03",
-      mobile: req.user.phone || "",
-      nic_number: "",
-    };
-
-    try {
-      const crmResponse = await axios.post(
-        "https://crmapi.venpaa.lk/crm/customers/pos",
-        crmPayload,
-        {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Basic ${authString}`,
-          },
-        },
-      );
-      console.log("CRM sync success:", crmResponse.status);
-    } catch (err) {
-      const errorDetail = err.response?.data
-        ? JSON.stringify(err.response.data)
-        : err.message;
-      console.error("CRM sync failed:", errorDetail);
-    }
 
     const user = req.user.toJSON();
     delete user.password;
