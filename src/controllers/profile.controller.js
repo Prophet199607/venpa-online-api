@@ -1,3 +1,4 @@
+const axios = require("axios");
 const { QueryTypes, Op } = require("sequelize");
 const { sequelize, EmailVerification, User } = require("../models");
 
@@ -157,6 +158,33 @@ exports.updateProfile = async (req, res, next) => {
       updates.postal_code = payload.postal_code;
 
     await req.user.update(updates);
+
+    const authString = Buffer.from("onimta:123456").toString("base64");
+    const crmPayload = {
+      card_no: String(req.user.id || ""),
+      city: req.user.city || "",
+      cus_code: String(req.user.id || ""),
+      cus_name: `${req.user.fname || ""} ${req.user.lname || ""}`.trim(),
+      cust_group: "WEB",
+      cust_status: "1",
+      cust_type: "WEB",
+      dob: "",
+      email: req.user.email || "",
+      insert_user: "SYNC_ADMIN",
+      loca: "03",
+      mobile: req.user.phone || "",
+      nic_number: "",
+    };
+    axios
+      .post("https://crmapi.venpaa.lk/api/crm/customers/pos", crmPayload, {
+        headers: {
+          Authorization: `Basic ${authString}`,
+          "Content-Type": "application/json",
+        },
+      })
+      .catch((err) => {
+        console.error("CRM sync failed:", err.message);
+      });
 
     const user = req.user.toJSON();
     delete user.password;
