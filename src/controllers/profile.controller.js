@@ -187,12 +187,16 @@ exports.updateProfile = async (req, res, next) => {
           "Content-Type": "application/json",
           Authorization: `Basic ${authString}`,
         },
-        validateStatus: (status) => status >= 200 && status < 300,
+        validateStatus: () => true, // never throw — we check status manually below
       },
     );
 
     // Only respond with success if both the local update and CRM sync succeeded
     if (!crmResponse || crmResponse.status < 200 || crmResponse.status >= 300) {
+      console.warn(
+        `[CRM] Sync failed — HTTP ${crmResponse?.status}:`,
+        JSON.stringify(crmResponse?.data ?? null),
+      );
       return res.status(502).json({
         message: "Profile updated locally but failed to sync with CRM",
       });
