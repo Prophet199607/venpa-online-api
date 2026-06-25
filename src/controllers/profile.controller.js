@@ -159,7 +159,7 @@ exports.updateProfile = async (req, res, next) => {
 
     await req.user.update(updates);
 
-    const authString = Buffer.from("onimta:123456").toString("base64");
+    const authString = Buffer.from("onimta:2302").toString("base64");
     const crmPayload = {
       card_no: String(req.user.id || ""),
       city: req.user.city || "",
