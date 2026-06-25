@@ -161,10 +161,11 @@ exports.updateProfile = async (req, res, next) => {
 
     const authString = Buffer.from("onimta:2302").toString("base64");
     const crmPayload = {
-      card_no: String(req.user.id || ""),
+      card_no: "",
       city: req.user.city || "",
-      cus_code: String(req.user.id || ""),
-      cus_name: `${req.user.fname || ""} ${req.user.lname || ""}`.trim(),
+      cus_code: "",
+      cus_name:
+        `${req.user.fname || ""} ${req.user.lname || ""}`.trim() || "Unknown",
       cust_group: "WEB",
       cust_status: "1",
       cust_type: "WEB",
@@ -175,16 +176,26 @@ exports.updateProfile = async (req, res, next) => {
       mobile: req.user.phone || "",
       nic_number: "",
     };
-    axios
-      .post("https://crmapi.venpaa.lk/crm/customers/pos", crmPayload, {
-        headers: {
-          Authorization: `Basic ${authString}`,
-          "Content-Type": "application/json",
+
+    try {
+      const crmResponse = await axios.post(
+        "https://crmapi.venpaa.lk/crm/customers/pos",
+        crmPayload,
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Basic ${authString}`,
+          },
         },
-      })
-      .catch((err) => {
-        console.error("CRM sync failed:", err.message);
-      });
+      );
+      console.log("CRM sync success:", crmResponse.status);
+    } catch (err) {
+      const errorDetail = err.response?.data
+        ? JSON.stringify(err.response.data)
+        : err.message;
+      console.error("CRM sync failed:", errorDetail);
+    }
 
     const user = req.user.toJSON();
     delete user.password;
