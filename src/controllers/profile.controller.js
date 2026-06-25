@@ -176,7 +176,7 @@ exports.updateProfile = async (req, res, next) => {
       nic_number: "",
     };
     axios
-      .post("https://crmapi.venpaa.lk/api/crm/customers/pos", crmPayload, {
+      .post("https://crmapi.venpaa.lk/crm/customers/pos", crmPayload, {
         headers: {
           Authorization: `Basic ${authString}`,
           "Content-Type": "application/json",
