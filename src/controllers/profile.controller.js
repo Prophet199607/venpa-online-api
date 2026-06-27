@@ -216,7 +216,7 @@ exports.updateProfile = async (req, res, next) => {
 
     res.json({
       message: "Profile updated",
-      crm: crmResponse.data || null,
+      // crm: crmResponse.data || null,
       user: {
         id: userResponse.id,
         fname: userResponse.fname || "",
