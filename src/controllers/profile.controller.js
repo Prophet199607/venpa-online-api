@@ -1,4 +1,4 @@
-const axios = require("axios");
+// const axios = require("axios");
 const { QueryTypes, Op } = require("sequelize");
 const { sequelize, EmailVerification, User } = require("../models");
 
@@ -161,54 +161,54 @@ exports.updateProfile = async (req, res, next) => {
 
     const user = req.user.toJSON();
 
-    const crmPayload = {
-      card_no: "",
-      city: user.city || "",
-      cus_code: "",
-      cus_name: `${user.fname || ""} ${user.lname || ""}`.trim() || "Unknown",
-      cust_group: "WEB",
-      cust_status: "1",
-      cust_type: "WEB",
-      dob: "",
-      email: user.email || "",
-      insert_user: "SYNC_ADMIN",
-      loca: "03",
-      mobile: user.phone || "",
-      nic_number: "",
-    };
+    // const crmPayload = {
+    //   card_no: "",
+    //   city: user.city || "",
+    //   cus_code: "",
+    //   cus_name: `${user.fname || ""} ${user.lname || ""}`.trim() || "Unknown",
+    //   cust_group: "WEB",
+    //   cust_status: "1",
+    //   cust_type: "WEB",
+    //   dob: "",
+    //   email: user.email || "",
+    //   insert_user: "SYNC_ADMIN",
+    //   loca: "03",
+    //   mobile: user.phone || "",
+    //   nic_number: "",
+    // };
 
-    const authString = Buffer.from("onimta:2302").toString("base64");
+    // const authString = Buffer.from("onimta:2302").toString("base64");
 
-    console.log("[CRM] Sending payload:", JSON.stringify(crmPayload));
+    // console.log("[CRM] Sending payload:", JSON.stringify(crmPayload));
 
-    const crmResponse = await axios.post(
-      "https://crmapi.venpaa.lk/crm/customers/pos",
-      crmPayload,
-      {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Basic ${authString}`,
-        },
-        validateStatus: () => true, // never throw — we check status manually below
-      },
-    );
+    // const crmResponse = await axios.post(
+    //   "https://crmapi.venpaa.lk/crm/customers/pos",
+    //   crmPayload,
+    //   {
+    //     headers: {
+    //       Accept: "application/json",
+    //       "Content-Type": "application/json",
+    //       Authorization: `Basic ${authString}`,
+    //     },
+    //     validateStatus: () => true, // never throw — we check status manually below
+    //   },
+    // );
 
-    const crmData = crmResponse.data || {};
-    const crmHttpOk = crmResponse.status >= 200 && crmResponse.status < 300;
-    const crmBodyOk = crmData.success === true || crmData.success === undefined;
+    // const crmData = crmResponse.data || {};
+    // const crmHttpOk = crmResponse.status >= 200 && crmResponse.status < 300;
+    // const crmBodyOk = crmData.success === true || crmData.success === undefined;
 
-    // Only respond with success if both the local update and CRM sync succeeded
-    if (!crmHttpOk || !crmBodyOk) {
-      console.warn(
-        `[CRM] Sync failed — HTTP ${crmResponse?.status}, body:`,
-        JSON.stringify(crmData),
-      );
-      return res.status(502).json({
-        message: "Profile updated locally but failed to sync with CRM",
-        crm_error: crmData?.message || null,
-      });
-    }
+    // // Only respond with success if both the local update and CRM sync succeeded
+    // if (!crmHttpOk || !crmBodyOk) {
+    //   console.warn(
+    //     `[CRM] Sync failed — HTTP ${crmResponse?.status}, body:`,
+    //     JSON.stringify(crmData),
+    //   );
+    //   return res.status(502).json({
+    //     message: "Profile updated locally but failed to sync with CRM",
+    //     crm_error: crmData?.message || null,
+    //   });
+    // }
 
     delete user.password;
 
