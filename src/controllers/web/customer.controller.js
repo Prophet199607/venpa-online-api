@@ -127,6 +127,50 @@ exports.listUsers = async (req, res, next) => {
 };
 
 /**
+ * GET /users/by-date
+ * Returns users registered on a specific date.
+ * Query param: date (e.g., 2023-10-25)
+ */
+exports.getUsersByDate = async (req, res, next) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: "date query parameter is required (format: YYYY-MM-DD)" });
+    }
+
+    const startDate = new Date(date);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+
+    if (isNaN(startDate.getTime())) {
+      return res.status(400).json({ message: "Invalid date format" });
+    }
+
+    const users = await User.findAll({
+      where: {
+        created_at: {
+          [Op.gte]: startDate,
+          [Op.lt]: endDate,
+        },
+      },
+      attributes: { exclude: ["password"] },
+      order: [["id", "ASC"]],
+    });
+
+    res.json({
+      total_users: users.length,
+      users,
+      successful: true,
+    });
+  } catch (e) {
+    next(e);
+  }
+};
+
+/**
  * Safely parse payload — Sequelize JSON columns are usually already parsed,
  * but guard against cases where they arrive as a raw string.
  */
