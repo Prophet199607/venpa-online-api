@@ -246,7 +246,9 @@ exports.updateProfile = async (req, res, next) => {
           );
           return res.status(502).json({
             message: "Profile updated locally but failed to sync with CRM",
-            crm_error: crmData?.message || null,
+            post_error: crmResponse?.data || null,
+            put_error: putResponse?.data || null,
+            crm_error: crmData?.message || "Customer update failed",
           });
         }
       }
