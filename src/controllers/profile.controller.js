@@ -212,7 +212,6 @@ exports.updateProfile = async (req, res, next) => {
         const putPayload = {
           card_no: "",
           city: user.city || "",
-          cus_code: "",
           cus_name: `${user.fname || ""} ${user.lname || ""}`.trim(),
           dob: "",
           email: user.email || "",
