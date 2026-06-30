@@ -204,13 +204,51 @@ exports.updateProfile = async (req, res, next) => {
       // Only respond with success if both the local update and CRM sync succeeded
       if (!crmHttpOk || !crmBodyOk) {
         console.warn(
-          `[CRM] Sync failed — HTTP ${crmResponse?.status}, body:`,
+          `[CRM] POST failed — HTTP ${crmResponse?.status}, body:`,
           JSON.stringify(crmData),
+          `. Attempting PUT update...`
         );
-        return res.status(502).json({
-          message: "Profile updated locally but failed to sync with CRM",
-          crm_error: crmData?.message || null,
-        });
+
+        const putPayload = {
+          card_no: "",
+          city: user.city || "",
+          cus_code: "",
+          cus_name: `${user.fname || ""} ${user.lname || ""}`.trim(),
+          dob: "",
+          email: user.email || "",
+          insert_user: "SYNC_ADMIN",
+          mobile: user.phone || "",
+          nic_number: "",
+        };
+
+        const putResponse = await axios.put(
+          "https://crmapi.venpaa.lk/crm/customers/pos",
+          putPayload,
+          {
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              Authorization: `Basic ${authString}`,
+            },
+            validateStatus: () => true,
+          },
+        );
+
+        crmData = putResponse.data || {};
+        const putHttpOk = putResponse.status >= 200 && putResponse.status < 300;
+        const putBodyOk =
+          crmData.success === true || crmData.success === undefined;
+
+        if (!putHttpOk || !putBodyOk) {
+          console.warn(
+            `[CRM] PUT failed — HTTP ${putResponse?.status}, body:`,
+            JSON.stringify(crmData),
+          );
+          return res.status(502).json({
+            message: "Profile updated locally but failed to sync with CRM",
+            crm_error: crmData?.message || null,
+          });
+        }
       }
     } catch (crmErr) {
       console.error("[CRM] Sync error:", crmErr.message);
