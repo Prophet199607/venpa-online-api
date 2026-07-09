@@ -8,7 +8,9 @@ async function recordCodOrder({ order, user, device, orderId }) {
   const dateStr = `${year}-${month}-${day}`;
   const dateTimeStr = `${dateStr} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 
-  const iid = device === "3" || device === 3 ? "WEB" : "APP";
+  const isWeb = device === "3" || device === 3;
+  const iid = "CODO";
+  const platformType = isWeb ? "WEB" : "APP";
   const docNo = `${orderId}`;
 
   let customerName;
@@ -16,7 +18,10 @@ async function recordCodOrder({ order, user, device, orderId }) {
     if (user && user.phone) {
       const [crmRows] = await sequelizeSource.query(
         `SELECT Cus_Name FROM venpaa_web_crm.crm_customer WHERE PhoneNo = :phone OR Mobile = :phone LIMIT 1`,
-        { replacements: { phone: user.phone }, type: sequelizeSource.QueryTypes.SELECT },
+        {
+          replacements: { phone: user.phone },
+          type: sequelizeSource.QueryTypes.SELECT,
+        },
       );
       if (crmRows && crmRows.Cus_Name) {
         customerName = crmRows.Cus_Name;
@@ -99,9 +104,9 @@ async function recordCodOrder({ order, user, device, orderId }) {
 
   await sequelizeSource.query(
     `INSERT INTO cod_management
-      (customer, location, transaction_date, transaction_amount, doc_no, receipt_no, report_id, \`user\`, \`status\`, received_amount, refund_amount, courier_charges, created_at, updated_at)
+      (customer, location, transaction_date, transaction_amount, doc_no, receipt_no, report_id, \`user\`, \`status\`, received_amount, refund_amount, courier_charges, \`type\`, created_at, updated_at)
      VALUES
-      (:customer, :location, :transactionDate, :transactionAmount, :docNo, :receiptNo, :reportId, :user, :status, :receivedAmount, :refundAmount, :courierCharges, :createdAt, :updatedAt)`,
+      (:customer, :location, :transactionDate, :transactionAmount, :docNo, :receiptNo, :reportId, :user, :status, :receivedAmount, :refundAmount, :courierCharges, :type, :createdAt, :updatedAt)`,
     {
       replacements: {
         customer: customerName,
@@ -111,11 +116,12 @@ async function recordCodOrder({ order, user, device, orderId }) {
         docNo,
         receiptNo: String(orderId),
         reportId: String(orderId),
-        user: "admin",
+        user: "customer",
         status: "pending",
         receivedAmount: "0",
         refundAmount: "0",
         courierCharges: "0",
+        type: platformType,
         createdAt: dateTimeStr,
         updatedAt: dateTimeStr,
       },
@@ -129,13 +135,12 @@ async function recordCodOrder({ order, user, device, orderId }) {
 
   await sequelizeSource.query(
     `INSERT INTO payment_summaries
-      (acc_code, acc_type, iid, doc_no, ref_doc_no, transaction_amount, balance_amount, document_date, transaction_date, location, month_end, created_at, updated_at)
+      (acc_type, iid, doc_no, ref_doc_no, transaction_amount, balance_amount, document_date, transaction_date, location, month_end, created_at, updated_at)
      VALUES
-      (:accCode, :accType, :iid, :docNo, :refDocNo, :transactionAmount, :balanceAmount, :documentDate, :transactionDate, :location, :monthEnd, :createdAt, :updatedAt)`,
+      (:accType, :iid, :docNo, :refDocNo, :transactionAmount, :balanceAmount, :documentDate, :transactionDate, :location, :monthEnd, :createdAt, :updatedAt)`,
     {
       replacements: {
-        accCode: "1101",
-        accType: "COD",
+        accType: "OnlineCustomer",
         iid,
         docNo,
         refDocNo: `${orderId}`,
