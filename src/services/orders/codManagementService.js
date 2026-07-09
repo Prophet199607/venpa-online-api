@@ -8,11 +8,29 @@ async function recordCodOrder({ order, user, device, orderId }) {
   const dateStr = `${year}-${month}-${day}`;
   const dateTimeStr = `${dateStr} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
 
-  const iid = device === 3 ? "WEB" : "APP";
+  const iid = device === "3" || device === 3 ? "WEB" : "APP";
   const docNo = `${orderId}`;
-  const customerName = user
-    ? `${user.fname || ""} ${user.lname || ""}`.trim() || "N/A"
-    : "N/A";
+
+  let customerName;
+  try {
+    if (user && user.phone) {
+      const [crmRows] = await sequelizeSource.query(
+        `SELECT Cus_Name FROM venpaa_web_crm.crm_customer WHERE PhoneNo = :phone OR Mobile = :phone LIMIT 1`,
+        { replacements: { phone: user.phone }, type: sequelizeSource.QueryTypes.SELECT },
+      );
+      if (crmRows && crmRows.Cus_Name) {
+        customerName = crmRows.Cus_Name;
+      }
+    }
+  } catch (_) {
+    // CRM lookup failed, fall through to user name
+  }
+
+  if (!customerName) {
+    customerName = user
+      ? `${user.fname || ""} ${user.lname || ""}`.trim() || "N/A"
+      : "N/A";
+  }
 
   const isCheckout = typeof order.payload !== "undefined";
 

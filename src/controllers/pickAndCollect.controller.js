@@ -20,6 +20,7 @@ const {
   sendOrderPlacedEmail,
 } = require("../services/notifications/emailService");
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
+const { recordCodOrder } = require("../services/orders/codManagementService");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
@@ -621,6 +622,15 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       row.toJSON ? row.toJSON() : row,
       items
     );
+
+    if (type === 1) {
+      recordCodOrder({
+        order: row,
+        user,
+        device: user.platform,
+        orderId: pickAndCollectId,
+      }).catch(console.error);
+    }
   }
 
   return {
