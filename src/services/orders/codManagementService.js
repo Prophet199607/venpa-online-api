@@ -13,29 +13,9 @@ async function recordCodOrder({ order, user, device, orderId }) {
   const platformType = isWeb ? "WEB" : "APP";
   const docNo = `${orderId}`;
 
-  let customerName;
-  try {
-    if (user && user.phone) {
-      const [crmRows] = await sequelizeSource.query(
-        `SELECT Cus_Name FROM venpaa_web_crm.crm_customer WHERE PhoneNo = :phone OR Mobile = :phone LIMIT 1`,
-        {
-          replacements: { phone: user.phone },
-          type: sequelizeSource.QueryTypes.SELECT,
-        },
-      );
-      if (crmRows && crmRows.Cus_Name) {
-        customerName = crmRows.Cus_Name;
-      }
-    }
-  } catch (_) {
-    // CRM lookup failed, fall through to user name
-  }
-
-  if (!customerName) {
-    customerName = user
-      ? `${user.fname || ""} ${user.lname || ""}`.trim() || "N/A"
-      : "N/A";
-  }
+  let customerName = user
+    ? `${user.fname || ""} ${user.lname || ""}`.trim() || "N/A"
+    : "N/A";
 
   const isCheckout = typeof order.payload !== "undefined";
 
