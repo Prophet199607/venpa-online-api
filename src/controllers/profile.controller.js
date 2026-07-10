@@ -199,14 +199,21 @@ exports.updateProfile = async (req, res, next) => {
     const crmBodyOk = crmData.success === true || crmData.success === undefined;
 
     if (!crmHttpOk || !crmBodyOk) {
-      console.warn(
-        `[CRM] Sync failed — HTTP ${crmResponse?.status}, body:`,
-        JSON.stringify(crmData),
-      );
-      return res.status(502).json({
-        message: "Profile updated locally but failed to sync with CRM",
-        crm_error: crmData?.message || null,
-      });
+      const crmMessage = (crmData?.message || "").toLowerCase();
+      if (crmMessage.includes("already exists")) {
+        console.log(
+          `[CRM] Mobile already exists in CRM — continuing (HTTP ${crmResponse?.status})`,
+        );
+      } else {
+        console.warn(
+          `[CRM] Sync failed — HTTP ${crmResponse?.status}, body:`,
+          JSON.stringify(crmData),
+        );
+        return res.status(502).json({
+          message: "Profile updated locally but failed to sync with CRM",
+          crm_error: crmData?.message || null,
+        });
+      }
     }
 
     delete user.password;
