@@ -188,57 +188,6 @@ function parsePayload(raw) {
 }
 
 /**
- * PATCH /users/:id/payment-summaries/acc-code
- * Updates the acc_code in payment_summaries for a COD order.
- * Body: { orderId, accCode }
- * Verifies the order belongs to the user via checkouts or pick_and_collects.
- */
-exports.updateAccCode = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { orderId, accCode } = req.body;
-
-    if (!orderId || !accCode) {
-      return res.status(400).json({ message: "orderId and accCode are required" });
-    }
-
-    const user = await User.findOne({ where: { id } });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    const orderIdStr = String(orderId);
-
-    const checkout = await Checkout.findOne({
-      where: { order_id: orderId, user_id: id },
-    });
-    const pickAndCollect = await PickAndCollect.findOne({
-      where: { pick_and_collect_id: orderId, user_id: id },
-    });
-
-    if (!checkout && !pickAndCollect) {
-      return res.status(404).json({ message: "Order not found for this user" });
-    }
-
-    await sequelizeSource.query(
-      `UPDATE payment_summaries SET acc_code = :accCode, updated_at = :updatedAt WHERE doc_no = :docNo AND acc_code IS NULL`,
-      {
-        replacements: {
-          accCode,
-          docNo: orderIdStr,
-          updatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
-        },
-        type: sequelizeSource.QueryTypes.UPDATE,
-      },
-    );
-
-    res.json({ message: "acc_code updated successfully", successful: true });
-  } catch (e) {
-    next(e);
-  }
-};
-
-/**
  * GET /users/:id/order-products
  * Returns a flat list of all products the user has ordered,
  * grouped by order — covering both checkouts and pick-and-collects.

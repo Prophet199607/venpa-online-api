@@ -5876,78 +5876,7 @@
         }
       }
     },
-    "/api/v1/customers/{id}/payment-summaries/acc-code": {
-      "patch": {
-        "summary": "Update payment_summaries acc_code for a COD order",
-        "description": "Updates the acc_code in payment_summaries for a COD order. Verifies the order belongs to the user via checkouts or pick_and_collects before updating.",
-        "tags": [
-          "Web Management"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer"
-            },
-            "description": "The customer's numeric ID"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "orderId",
-                  "accCode"
-                ],
-                "properties": {
-                  "orderId": {
-                    "type": "integer",
-                    "description": "The order ID from checkouts or pick_and_collects"
-                  },
-                  "accCode": {
-                    "type": "string",
-                    "description": "The account code to set (e.g., 1101)"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "acc_code updated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "acc_code updated successfully"
-                    },
-                    "successful": {
-                      "type": "boolean",
-                      "example": true
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request - missing orderId or accCode"
-          },
-          "404": {
-            "description": "User or order not found"
-          }
-        }
-      }
-    },
+
     "/api/v1/customers/{id}/order-products": {
       "get": {
         "summary": "Get all products ordered by a customer",
