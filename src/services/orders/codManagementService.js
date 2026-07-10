@@ -100,14 +100,16 @@ async function recordCodOrder({ order, user, device, orderId }) {
         },
       );
       const crmData = crmResponse.data || {};
-      if (
-        crmResponse.status >= 200 &&
-        crmResponse.status < 300 &&
-        crmData.success
-      ) {
-        cusCode = crmData.data?.Cus_Code || crmData.Cus_Code || null;
+      if (crmResponse.status >= 200 && crmResponse.status < 300) {
+        cusCode =
+          crmData.data?.Cus_Code ||
+          crmData.Cus_Code ||
+          crmData.data?.cus_code ||
+          crmData.cus_code ||
+          null;
         console.log(
           `[CODManagement] CRM Cus_Code for mobile ${mobile}: ${cusCode}`,
+          cusCode ? "" : `(raw: ${JSON.stringify(crmData)})`,
         );
       } else {
         console.warn(
