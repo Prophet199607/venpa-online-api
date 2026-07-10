@@ -100,13 +100,12 @@ async function recordCodOrder({ order, user, device, orderId }) {
       crmDebug.attempted = true;
       crmDebug.mobile = mobile;
       const authString = Buffer.from("onimta:2302").toString("base64");
-      const crmResponse = await axios.post(
+      const crmResponse = await axios.get(
         "https://crmapi.venpaa.lk/crm/customers/pos",
-        { value: { mobile, loca: "03" } },
         {
+          params: { value: JSON.stringify({ mobile, loca: "03" }) },
           headers: {
             Accept: "application/json",
-            "Content-Type": "application/json",
             Authorization: `Basic ${authString}`,
           },
           validateStatus: () => true,
