@@ -721,15 +721,19 @@ exports.createCheckout = async (req, res, next) => {
       }).catch(console.error);
     }
 
-    recordCodOrder({
+    const codResult = await recordCodOrder({
       order: checkout,
       user,
       device: user?.platform,
       orderId,
-    }).catch(console.error);
+    }).catch((err) => {
+      console.error("[COD] recordCodOrder error:", err);
+      return { cusCode: null, error: err.message };
+    });
 
     return res.status(201).json({
       message: "Checkout created",
+      crm_cus_code: codResult?.cusCode || null,
       order_id: orderId,
       checkout: {
         order_id: checkout.order_id,

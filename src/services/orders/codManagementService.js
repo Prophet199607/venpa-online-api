@@ -202,6 +202,8 @@ async function recordCodOrder({ order, user, device, orderId }) {
   console.log(
     `[CODManagement] Inserted payment_summaries record for order ${orderId} with acc_code='${cusCode}'`,
   );
+
+  return { cusCode };
 }
 
 module.exports = { recordCodOrder };
