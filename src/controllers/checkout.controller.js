@@ -14,6 +14,7 @@ const {
   GiftReceiverDetail,
 } = require("../models");
 const { Op } = require("sequelize");
+const axios = require("axios");
 const {
   sendToTopic,
 } = require("../services/notifications/notificationService");
@@ -21,7 +22,10 @@ const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
 const { checkStockAvailability } = require("../services/products/stockService");
-const { recordCodOrder } = require("../services/orders/codManagementService");
+const {
+  recordCodOrder,
+  updatePaymentAccCode,
+} = require("../services/orders/codManagementService");
 const {
   sendOrderPlacedEmail,
   generateOrderInvoiceHtml,
@@ -1175,6 +1179,13 @@ exports.checkoutSuccess = async (req, res, next) => {
               total: String(totals.netTotalWithoutCod || totals.subTotal || 0),
             },
           }).catch(console.error);
+        }
+
+        // For COD orders, look up CRM Cus_Code and update payment_summaries.acc_code
+        if (type == 1 || type === "1") {
+          updatePaymentAccCode(user?.phone, record.order_id).catch(
+            console.error,
+          );
         }
       }
 
