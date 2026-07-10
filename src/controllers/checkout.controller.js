@@ -1128,6 +1128,16 @@ exports.checkoutSuccess = async (req, res, next) => {
 
       // Avoid duplicate actions if already processed by payment callbacks
       if (wasAlreadyPaid) {
+        // For COD orders, ensure acc_code is set in payment_summaries
+        if (!isPickAndCollect && (type == 1 || type === "1")) {
+          const user = await User.findOne({
+            where: { id: record.user_id },
+            attributes: ["phone"],
+          });
+          updatePaymentAccCode(user?.phone, record.order_id).catch(
+            console.error,
+          );
+        }
         return res.json({
           success: true,
           message: "Order already confirmed",
@@ -1181,12 +1191,6 @@ exports.checkoutSuccess = async (req, res, next) => {
           }).catch(console.error);
         }
 
-        // For COD orders, look up CRM Cus_Code and update payment_summaries.acc_code
-        if (type == 1 || type === "1") {
-          updatePaymentAccCode(user?.phone, record.order_id).catch(
-            console.error,
-          );
-        }
       }
 
       return res.json({
