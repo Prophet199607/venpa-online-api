@@ -119,7 +119,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
         `[CODManagement] CRM GET response status=${crmResponse.status} mobile=${mobile}:`,
         JSON.stringify(crmData),
       );
-      if (crmResponse.status >= 200 && crmResponse.status < 300 && crmData) {
+      if (crmData) {
         const item = Array.isArray(crmData)
           ? crmData[0]
           : Array.isArray(crmData.data)
@@ -130,12 +130,11 @@ async function recordCodOrder({ order, user, device, orderId }) {
           console.log(
             `[CODManagement] Found Cus_Code for mobile ${mobile}: ${cusCode}`,
           );
+        } else if (crmResponse.status >= 200 && crmResponse.status < 300) {
+          console.log(
+            `[CODManagement] No Cus_Code in CRM response for mobile ${mobile}`,
+          );
         }
-      } else {
-        console.warn(
-          `[CODManagement] CRM lookup failed for mobile ${mobile}: HTTP ${crmResponse.status}`,
-          JSON.stringify(crmData),
-        );
       }
     }
   } catch (err) {
