@@ -103,7 +103,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
       const crmResponse = await axios.get(
         "https://crmapi.venpaa.lk/crm/customers/pos",
         {
-          params: { value: JSON.stringify({ mobile, loca: "03" }) },
+          params: { value: mobile, loca: "03" },
           headers: {
             Accept: "application/json",
             Authorization: `Basic ${authString}`,
