@@ -14,7 +14,6 @@ const {
   GiftReceiverDetail,
 } = require("../models");
 const { Op } = require("sequelize");
-const axios = require("axios");
 const {
   sendToTopic,
 } = require("../services/notifications/notificationService");
@@ -22,10 +21,7 @@ const {
   NOTIFICATION_TYPES,
 } = require("../services/notifications/notificationTypes");
 const { checkStockAvailability } = require("../services/products/stockService");
-const {
-  recordCodOrder,
-  updatePaymentAccCode,
-} = require("../services/orders/codManagementService");
+const { recordCodOrder } = require("../services/orders/codManagementService");
 const {
   sendOrderPlacedEmail,
   generateOrderInvoiceHtml,
@@ -1128,16 +1124,6 @@ exports.checkoutSuccess = async (req, res, next) => {
 
       // Avoid duplicate actions if already processed by payment callbacks
       if (wasAlreadyPaid) {
-        // For COD orders, ensure acc_code is set in payment_summaries
-        if (!isPickAndCollect && (type == 1 || type === "1")) {
-          const user = await User.findOne({
-            where: { id: record.user_id },
-            attributes: ["phone"],
-          });
-          updatePaymentAccCode(user?.phone, record.order_id).catch(
-            console.error,
-          );
-        }
         return res.json({
           success: true,
           message: "Order already confirmed",

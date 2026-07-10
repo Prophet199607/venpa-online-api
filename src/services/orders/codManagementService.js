@@ -83,6 +83,66 @@ async function recordCodOrder({ order, user, device, orderId }) {
     return;
   }
 
+  let cusCode = null;
+  try {
+    let mobile = user?.phone || "";
+    if (mobile) {
+      let digits = String(mobile).replace(/\D/g, "");
+      if (digits.startsWith("0") && digits.length === 10) {
+        digits = "94" + digits.slice(1);
+      } else if (digits.length === 9) {
+        digits = "94" + digits;
+      }
+      mobile = digits;
+    }
+    if (mobile) {
+      const authString = Buffer.from("onimta:2302").toString("base64");
+      const crmResponse = await axios.get(
+        "https://crmapi.venpaa.lk/crm/customers/pos",
+        {
+          params: { mobile, loca: "03" },
+          headers: {
+            Accept: "application/json",
+            Authorization: `Basic ${authString}`,
+          },
+          validateStatus: () => true,
+        },
+      );
+      const crmData = crmResponse.data;
+      console.log(
+        `[CODManagement] CRM GET response status=${crmResponse.status} mobile=${mobile}:`,
+        JSON.stringify(crmData),
+      );
+      if (crmResponse.status >= 200 && crmResponse.status < 300 && crmData) {
+        const item = Array.isArray(crmData)
+          ? crmData[0]
+          : Array.isArray(crmData.data)
+            ? crmData.data[0]
+            : crmData.data || crmData;
+        cusCode = item?.Cus_Code || item?.cus_code || item?.CUS_CODE || null;
+        if (cusCode) {
+          console.log(
+            `[CODManagement] Found Cus_Code for mobile ${mobile}: ${cusCode}`,
+          );
+        } else {
+          console.log(
+            `[CODManagement] No Cus_Code in CRM response for mobile ${mobile}`,
+          );
+        }
+      } else {
+        console.warn(
+          `[CODManagement] CRM lookup failed for mobile ${mobile}: HTTP ${crmResponse.status}`,
+          JSON.stringify(crmData),
+        );
+      }
+    }
+  } catch (err) {
+    console.warn(
+      `[CODManagement] CRM lookup error for order ${orderId}:`,
+      err.message,
+    );
+  }
+
   await sequelizeSource.query(
     `INSERT INTO cod_management
       (customer, location, transaction_date, transaction_amount, doc_no, receipt_no, report_id, \`user\`, \`status\`, received_amount, refund_amount, courier_charges, \`type\`, created_at, updated_at)
@@ -116,9 +176,9 @@ async function recordCodOrder({ order, user, device, orderId }) {
 
   await sequelizeSource.query(
     `INSERT INTO payment_summaries
-      (acc_type, iid, doc_no, ref_doc_no, transaction_amount, balance_amount, document_date, transaction_date, location, month_end, created_at, updated_at)
+      (acc_type, iid, doc_no, ref_doc_no, transaction_amount, balance_amount, document_date, transaction_date, location, month_end, acc_code, created_at, updated_at)
      VALUES
-      (:accType, :iid, :docNo, :refDocNo, :transactionAmount, :balanceAmount, :documentDate, :transactionDate, :location, :monthEnd, :createdAt, :updatedAt)`,
+      (:accType, :iid, :docNo, :refDocNo, :transactionAmount, :balanceAmount, :documentDate, :transactionDate, :location, :monthEnd, :accCode, :createdAt, :updatedAt)`,
     {
       replacements: {
         accType: "OnlineCustomer",
@@ -131,6 +191,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
         transactionDate: dateStr,
         location,
         monthEnd: 0,
+        accCode: cusCode,
         createdAt: dateTimeStr,
         updatedAt: dateTimeStr,
       },
@@ -139,137 +200,8 @@ async function recordCodOrder({ order, user, device, orderId }) {
   );
 
   console.log(
-    `[CODManagement] Inserted payment_summaries record for order ${orderId}`,
+    `[CODManagement] Inserted payment_summaries record for order ${orderId} with acc_code='${cusCode}'`,
   );
 }
 
-async function updatePaymentAccCode(mobile, orderId) {
-  try {
-    console.log(
-      `[updatePaymentAccCode] Starting for order ${orderId}, raw mobile: "${mobile}"`,
-    );
-
-    let digits = String(mobile || "").replace(/\D/g, "");
-    console.log(`[updatePaymentAccCode] After stripping non-digits: "${digits}"`);
-
-    if (digits.startsWith("0") && digits.length === 10) {
-      digits = "94" + digits.slice(1);
-    } else if (digits.length === 9) {
-      digits = "94" + digits;
-    }
-    const normalizedMobile = digits;
-    console.log(`[updatePaymentAccCode] Normalized mobile: "${normalizedMobile}"`);
-
-    if (!normalizedMobile) {
-      console.warn(
-        `[updatePaymentAccCode] Skipping: no valid mobile for order ${orderId}`,
-      );
-      return;
-    }
-
-    const authString = Buffer.from("onimta:2302").toString("base64");
-    console.log(
-      `[updatePaymentAccCode] Calling CRM GET with params: ${JSON.stringify({ mobile: normalizedMobile, loca: "03" })}`,
-    );
-
-    const crmResponse = await axios.get(
-      "https://crmapi.venpaa.lk/crm/customers/pos",
-      {
-        params: { mobile: normalizedMobile, loca: "03" },
-        headers: {
-          Accept: "application/json",
-          Authorization: `Basic ${authString}`,
-        },
-        validateStatus: () => true,
-      },
-    );
-
-    console.log(
-      `[updatePaymentAccCode] CRM HTTP status: ${crmResponse.status}`,
-    );
-
-    const crmData = crmResponse.data;
-    console.log(
-      `[updatePaymentAccCode] CRM raw response body: ${JSON.stringify(crmData)}`,
-    );
-    console.log(
-      `[updatePaymentAccCode] typeof crmData: ${typeof crmData}, isArray: ${Array.isArray(crmData)}`,
-    );
-
-    let cusCode = null;
-
-    if (crmResponse.status >= 200 && crmResponse.status < 300 && crmData) {
-      let item;
-      if (Array.isArray(crmData)) {
-        item = crmData[0];
-        console.log(`[updatePaymentAccCode] Response is array, took first element`);
-      } else if (Array.isArray(crmData.data)) {
-        item = crmData.data[0];
-        console.log(`[updatePaymentAccCode] Response.data is array, took first element`);
-      } else if (crmData.data) {
-        item = crmData.data;
-        console.log(`[updatePaymentAccCode] Using crmData.data`);
-      } else {
-        item = crmData;
-        console.log(`[updatePaymentAccCode] Using crmData directly`);
-      }
-
-      console.log(`[updatePaymentAccCode] Extracted item: ${JSON.stringify(item)}`);
-
-      cusCode = item?.Cus_Code || item?.cus_code || item?.CUS_CODE || null;
-      console.log(
-        `[updatePaymentAccCode] Tried Cus_Code/cus_code/CUS_CODE on item, result: "${cusCode}"`,
-      );
-
-      // Also try on the top-level data if item didn't have it
-      if (!cusCode) {
-        cusCode = crmData.Cus_Code || crmData.cus_code || crmData.CUS_CODE || null;
-        console.log(
-          `[updatePaymentAccCode] Tried top-level crmData, result: "${cusCode}"`,
-        );
-      }
-    } else {
-      console.warn(
-        `[updatePaymentAccCode] CRM returned non-success: HTTP ${crmResponse.status}`,
-      );
-    }
-
-    if (!cusCode) {
-      console.warn(
-        `[updatePaymentAccCode] No Cus_Code found for mobile ${normalizedMobile} order ${orderId}`,
-      );
-      return;
-    }
-
-    console.log(
-      `[updatePaymentAccCode] About to UPDATE payment_summaries SET acc_code='${cusCode}' WHERE doc_no='${orderId}'`,
-    );
-
-    const updateResult = await sequelizeSource.query(
-      `UPDATE payment_summaries SET acc_code = :accCode, updated_at = :updatedAt WHERE doc_no = :docNo AND (acc_code IS NULL OR acc_code = '')`,
-      {
-        replacements: {
-          accCode: cusCode,
-          docNo: String(orderId),
-          updatedAt: new Date()
-            .toISOString()
-            .slice(0, 19)
-            .replace("T", " "),
-        },
-        type: sequelizeSource.QueryTypes.UPDATE,
-      },
-    );
-
-    console.log(
-      `[updatePaymentAccCode] UPDATE full result: ${JSON.stringify(updateResult)}`,
-    );
-  } catch (err) {
-    console.warn(
-      `[updatePaymentAccCode] Error for order ${orderId}:`,
-      err.message,
-      err.stack || "",
-    );
-  }
-}
-
-module.exports = { recordCodOrder, updatePaymentAccCode };
+module.exports = { recordCodOrder };
