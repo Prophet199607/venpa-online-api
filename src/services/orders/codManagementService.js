@@ -1,3 +1,4 @@
+const axios = require("axios");
 const sequelizeSource = require("../../config/sourceDb");
 
 async function recordCodOrder({ order, user, device, orderId }) {
@@ -82,6 +83,46 @@ async function recordCodOrder({ order, user, device, orderId }) {
     return;
   }
 
+  let cusCode = null;
+  try {
+    const mobile = user?.phone || "";
+    if (mobile) {
+      const authString = Buffer.from("onimta:2302").toString("base64");
+      const crmResponse = await axios.get(
+        "https://crmapi.venpaa.lk/crm/customers/pos",
+        {
+          params: { mobile, loca: "03" },
+          headers: {
+            Accept: "application/json",
+            Authorization: `Basic ${authString}`,
+          },
+          validateStatus: () => true,
+        },
+      );
+      const crmData = crmResponse.data || {};
+      if (
+        crmResponse.status >= 200 &&
+        crmResponse.status < 300 &&
+        crmData.success
+      ) {
+        cusCode = crmData.data?.Cus_Code || crmData.Cus_Code || null;
+        console.log(
+          `[CODManagement] CRM Cus_Code for mobile ${mobile}: ${cusCode}`,
+        );
+      } else {
+        console.warn(
+          `[CODManagement] CRM lookup failed for mobile ${mobile}: HTTP ${crmResponse.status}`,
+          JSON.stringify(crmData),
+        );
+      }
+    }
+  } catch (err) {
+    console.warn(
+      `[CODManagement] CRM lookup error for order ${orderId}:`,
+      err.message,
+    );
+  }
+
   await sequelizeSource.query(
     `INSERT INTO cod_management
       (customer, location, transaction_date, transaction_amount, doc_no, receipt_no, report_id, \`user\`, \`status\`, received_amount, refund_amount, courier_charges, \`type\`, created_at, updated_at)
@@ -115,9 +156,9 @@ async function recordCodOrder({ order, user, device, orderId }) {
 
   await sequelizeSource.query(
     `INSERT INTO payment_summaries
-      (acc_type, iid, doc_no, ref_doc_no, transaction_amount, balance_amount, document_date, transaction_date, location, month_end, created_at, updated_at)
+      (acc_type, iid, doc_no, ref_doc_no, transaction_amount, balance_amount, document_date, transaction_date, location, month_end, acc_code, created_at, updated_at)
      VALUES
-      (:accType, :iid, :docNo, :refDocNo, :transactionAmount, :balanceAmount, :documentDate, :transactionDate, :location, :monthEnd, :createdAt, :updatedAt)`,
+      (:accType, :iid, :docNo, :refDocNo, :transactionAmount, :balanceAmount, :documentDate, :transactionDate, :location, :monthEnd, :accCode, :createdAt, :updatedAt)`,
     {
       replacements: {
         accType: "OnlineCustomer",
@@ -130,6 +171,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
         transactionDate: dateStr,
         location,
         monthEnd: 0,
+        accCode: cusCode,
         createdAt: dateTimeStr,
         updatedAt: dateTimeStr,
       },
