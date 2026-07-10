@@ -84,6 +84,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
   }
 
   let cusCode = null;
+  let crmDebug = { attempted: false, status: null, data: null, error: null };
   try {
     let mobile = user?.phone || "";
     if (mobile) {
@@ -96,6 +97,8 @@ async function recordCodOrder({ order, user, device, orderId }) {
       mobile = digits;
     }
     if (mobile) {
+      crmDebug.attempted = true;
+      crmDebug.mobile = mobile;
       const authString = Buffer.from("onimta:2302").toString("base64");
       const crmResponse = await axios.get(
         "https://crmapi.venpaa.lk/crm/customers/pos",
@@ -108,7 +111,9 @@ async function recordCodOrder({ order, user, device, orderId }) {
           validateStatus: () => true,
         },
       );
+      crmDebug.status = crmResponse.status;
       const crmData = crmResponse.data;
+      crmDebug.data = crmData;
       console.log(
         `[CODManagement] CRM GET response status=${crmResponse.status} mobile=${mobile}:`,
         JSON.stringify(crmData),
@@ -124,10 +129,6 @@ async function recordCodOrder({ order, user, device, orderId }) {
           console.log(
             `[CODManagement] Found Cus_Code for mobile ${mobile}: ${cusCode}`,
           );
-        } else {
-          console.log(
-            `[CODManagement] No Cus_Code in CRM response for mobile ${mobile}`,
-          );
         }
       } else {
         console.warn(
@@ -137,6 +138,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
       }
     }
   } catch (err) {
+    crmDebug.error = err.message;
     console.warn(
       `[CODManagement] CRM lookup error for order ${orderId}:`,
       err.message,
@@ -203,7 +205,7 @@ async function recordCodOrder({ order, user, device, orderId }) {
     `[CODManagement] Inserted payment_summaries record for order ${orderId} with acc_code='${cusCode}'`,
   );
 
-  return { cusCode };
+  return { cusCode, crmDebug };
 }
 
 module.exports = { recordCodOrder };

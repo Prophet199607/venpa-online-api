@@ -728,12 +728,13 @@ exports.createCheckout = async (req, res, next) => {
       orderId,
     }).catch((err) => {
       console.error("[COD] recordCodOrder error:", err);
-      return { cusCode: null, error: err.message };
+      return { cusCode: null, crmDebug: null, error: err.message };
     });
 
     return res.status(201).json({
       message: "Checkout created",
       crm_cus_code: codResult?.cusCode || null,
+      crm_debug: codResult?.crmDebug || null,
       order_id: orderId,
       checkout: {
         order_id: checkout.order_id,
