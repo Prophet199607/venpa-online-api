@@ -20,7 +20,6 @@ const {
   sendOrderPlacedEmail,
 } = require("../services/notifications/emailService");
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
-const { recordCodOrder } = require("../services/orders/codManagementService");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
@@ -620,17 +619,8 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     await sendOrderPlacedEmail(
       user.toJSON ? user.toJSON() : user,
       row.toJSON ? row.toJSON() : row,
-      items
+      items,
     );
-
-    if (type === 1) {
-      recordCodOrder({
-        order: row,
-        user,
-        device: user.platform,
-        orderId: pickAndCollectId,
-      }).catch(console.error);
-    }
   }
 
   return {
@@ -771,7 +761,8 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
         return res.status(202).json({
           success: false,
           pending: true,
-          message: "Payment is still being processed. Please check back shortly.",
+          message:
+            "Payment is still being processed. Please check back shortly.",
           order_id: record.pick_and_collect_id,
           payment_status: "pending",
         });
