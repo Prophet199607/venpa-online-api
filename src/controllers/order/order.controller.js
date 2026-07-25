@@ -1,4 +1,5 @@
 const { Op } = require("sequelize");
+const sequelizeSource = require("../../config/sourceDb");
 const {
   Checkout,
   User,
@@ -777,6 +778,59 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
+      // Update cod_management & payment_summaries when shipping with an order_no
+      if (
+        status.toLowerCase() === "shipped" &&
+        oldStatus.toLowerCase() !== "shipped"
+      ) {
+        const { order_no } = req.body || {};
+        if (order_no) {
+          const orderIdStr = String(checkout.order_id);
+          try {
+            await sequelizeSource.query(
+              `UPDATE cod_management SET doc_no = :orderNo, receipt_no = :orderNo, report_id = :orderNo, updated_at = NOW()
+               WHERE (doc_no = :orderId OR receipt_no = :orderId)`,
+              {
+                replacements: {
+                  orderNo: String(order_no),
+                  orderId: orderIdStr,
+                },
+                type: sequelizeSource.QueryTypes.UPDATE,
+              },
+            );
+            console.log(
+              `[OrderUpdate] Updated cod_management for Checkout ${checkout.order_id} with order_no ${order_no}`,
+            );
+          } catch (err) {
+            console.error(
+              `[OrderUpdate] Failed to update cod_management for Checkout ${checkout.order_id}:`,
+              err,
+            );
+          }
+          try {
+            await sequelizeSource.query(
+              `UPDATE payment_summaries SET doc_no = :orderNo, ref_doc_no = :orderNo, updated_at = NOW()
+               WHERE (doc_no = :orderId OR ref_doc_no = :orderId)`,
+              {
+                replacements: {
+                  orderNo: String(order_no),
+                  orderId: orderIdStr,
+                },
+                type: sequelizeSource.QueryTypes.UPDATE,
+              },
+            );
+            console.log(
+              `[OrderUpdate] Updated payment_summaries for Checkout ${checkout.order_id} with order_no ${order_no}`,
+            );
+          } catch (err) {
+            console.error(
+              `[OrderUpdate] Failed to update payment_summaries for Checkout ${checkout.order_id}:`,
+              err,
+            );
+          }
+        }
+      }
+
       await sendToUser(checkout.user_id, {
         title: "Order status updated",
         body: `Your order ${checkout.order_id} status is now ${status}.`,
@@ -1030,6 +1084,59 @@ exports.updateOrderStatus = async (req, res, next) => {
             err,
           ),
         );
+      }
+
+      // Update cod_management & payment_summaries when shipping with an order_no
+      if (
+        status.toLowerCase() === "shipped" &&
+        oldStatus.toLowerCase() !== "shipped"
+      ) {
+        const { order_no } = req.body || {};
+        if (order_no) {
+          const orderIdStr = String(pickAndCollect.pick_and_collect_id);
+          try {
+            await sequelizeSource.query(
+              `UPDATE cod_management SET doc_no = :orderNo, receipt_no = :orderNo, report_id = :orderNo, updated_at = NOW()
+               WHERE (doc_no = :orderId OR receipt_no = :orderId)`,
+              {
+                replacements: {
+                  orderNo: String(order_no),
+                  orderId: orderIdStr,
+                },
+                type: sequelizeSource.QueryTypes.UPDATE,
+              },
+            );
+            console.log(
+              `[OrderUpdate] Updated cod_management for PickAndCollect ${pickAndCollect.pick_and_collect_id} with order_no ${order_no}`,
+            );
+          } catch (err) {
+            console.error(
+              `[OrderUpdate] Failed to update cod_management for PickAndCollect ${pickAndCollect.pick_and_collect_id}:`,
+              err,
+            );
+          }
+          try {
+            await sequelizeSource.query(
+              `UPDATE payment_summaries SET doc_no = :orderNo, ref_doc_no = :orderNo, updated_at = NOW()
+               WHERE (doc_no = :orderId OR ref_doc_no = :orderId)`,
+              {
+                replacements: {
+                  orderNo: String(order_no),
+                  orderId: orderIdStr,
+                },
+                type: sequelizeSource.QueryTypes.UPDATE,
+              },
+            );
+            console.log(
+              `[OrderUpdate] Updated payment_summaries for PickAndCollect ${pickAndCollect.pick_and_collect_id} with order_no ${order_no}`,
+            );
+          } catch (err) {
+            console.error(
+              `[OrderUpdate] Failed to update payment_summaries for PickAndCollect ${pickAndCollect.pick_and_collect_id}:`,
+              err,
+            );
+          }
+        }
       }
 
       await sendToUser(pickAndCollect.user_id, {
