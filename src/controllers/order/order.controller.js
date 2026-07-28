@@ -766,12 +766,18 @@ exports.updateOrderStatus = async (req, res, next) => {
               console.log(
                 `[OrderUpdate] Returning ${item.quantity} units of ${prodCode}`,
               );
-              await addStock(prodCode, location, item.quantity, iid, null, "RETURN").catch(
-                (err) =>
-                  console.error(
-                    `[OrderUpdate] Stock return failed for ${prodCode}:`,
-                    err,
-                  ),
+              await addStock(
+                prodCode,
+                location,
+                item.quantity,
+                iid,
+                null,
+                "RETURN",
+              ).catch((err) =>
+                console.error(
+                  `[OrderUpdate] Stock return failed for ${prodCode}:`,
+                  err,
+                ),
               );
             }
           }
@@ -788,7 +794,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           const orderIdStr = String(checkout.order_id);
           try {
             await sequelizeSource.query(
-              `UPDATE cod_management SET doc_no = :orderNo, receipt_no = :orderNo, report_id = :orderNo, updated_at = NOW()
+              `UPDATE cod_management SET doc_no = :orderNo, updated_at = NOW()
                WHERE (doc_no = :orderId OR receipt_no = :orderId)`,
               {
                 replacements: {
@@ -809,7 +815,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           }
           try {
             await sequelizeSource.query(
-              `UPDATE payment_summaries SET doc_no = :orderNo, ref_doc_no = :orderNo, updated_at = NOW()
+              `UPDATE payment_summaries SET ref_doc_no = :orderNo, updated_at = NOW()
                WHERE (doc_no = :orderId OR ref_doc_no = :orderId)`,
               {
                 replacements: {
@@ -1096,7 +1102,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           const orderIdStr = String(pickAndCollect.pick_and_collect_id);
           try {
             await sequelizeSource.query(
-              `UPDATE cod_management SET doc_no = :orderNo, receipt_no = :orderNo, report_id = :orderNo, updated_at = NOW()
+              `UPDATE cod_management SET doc_no = :orderNo, updated_at = NOW()
                WHERE (doc_no = :orderId OR receipt_no = :orderId)`,
               {
                 replacements: {
@@ -1117,7 +1123,7 @@ exports.updateOrderStatus = async (req, res, next) => {
           }
           try {
             await sequelizeSource.query(
-              `UPDATE payment_summaries SET doc_no = :orderNo, ref_doc_no = :orderNo, updated_at = NOW()
+              `UPDATE payment_summaries SET ref_doc_no = :orderNo, updated_at = NOW()
                WHERE (doc_no = :orderId OR ref_doc_no = :orderId)`,
               {
                 replacements: {
