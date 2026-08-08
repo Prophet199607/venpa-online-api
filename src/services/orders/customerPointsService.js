@@ -18,34 +18,47 @@ function normalizeMobile(mobile) {
 async function lookupCustCode(mobile) {
   const normalized = normalizeMobile(mobile);
   if (!normalized) return null;
-  try {
-    const response = await axios.get(`${CRM_BASE}/crm/customers/pos`, {
-      params: { value: normalized, loca: "03" },
-      headers: {
-        Accept: "application/json",
-        Authorization: `Basic ${AUTH_STRING}`,
-      },
-      validateStatus: () => true,
-    });
-    const crmData = response.data;
-    const item = Array.isArray(crmData)
-      ? crmData[0]
-      : Array.isArray(crmData.data)
-        ? crmData.data[0]
-        : crmData.data || crmData;
-    const code =
-      item?.Cus_Code || item?.cus_code || item?.CUS_CODE || null;
-    console.log(
-      `[CustomerPoints] CRM lookup for ${normalized}: HTTP ${response.status}, code=${code}`,
-    );
-    return code;
-  } catch (err) {
-    console.warn(
-      `[CustomerPoints] CRM lookup error for mobile ${mobile}:`,
-      err.message,
-    );
-    return null;
+
+  // CRM stores some customers under the local (0-prefixed) format while
+  // our users table uses the 94-prefixed E.164 format. Try both variants
+  // before giving up so the customer record can always be found.
+  const candidates = [normalized];
+  if (/^94\d{9}$/.test(normalized)) {
+    candidates.push(`0${normalized.slice(2)}`);
+  } else if (normalized.startsWith("0")) {
+    candidates.push(`94${normalized.slice(1)}`);
   }
+
+  for (const candidate of candidates) {
+    try {
+      const response = await axios.get(`${CRM_BASE}/crm/customers/pos`, {
+        params: { value: candidate, loca: "03" },
+        headers: {
+          Accept: "application/json",
+          Authorization: `Basic ${AUTH_STRING}`,
+        },
+        validateStatus: () => true,
+      });
+      const crmData = response.data;
+      const item = Array.isArray(crmData)
+        ? crmData[0]
+        : Array.isArray(crmData.data)
+          ? crmData.data[0]
+          : crmData.data || crmData;
+      const code =
+        (item && (item.Cus_Code || item.cus_code || item.CUS_CODE)) || null;
+      console.log(
+        `[CustomerPoints] Customer lookup for ${candidate}: HTTP ${response.status}, code=${code}`,
+      );
+      if (code) return code;
+    } catch (err) {
+      console.warn(
+        `[CustomerPoints] CRM lookup error for mobile ${mobile}:`,
+        err.message,
+      );
+    }
+  }
+  return null;
 }
 
 function toDate(date) {
@@ -85,12 +98,7 @@ function resolveAmount(order) {
       }
     }
     const totals = payload.totals || {};
-    amount = parseFloat(
-      totals.netTotalWithCod ||
-        totals.netTotalWithoutCod ||
-        totals.subTotal ||
-        0,
-    );
+    amount = parseFloat(totals.netTotalWithCod || totals.netTotalWithoutCod || 0);
   } else {
     amount = parseFloat(order.net_amount || 0);
   }
@@ -143,6 +151,7 @@ async function syncCustomerPoints({ order, user, orderId, action }) {
     billDate,
     billTime,
     custCode: resolvedCode,
+    loca: "03",
     postDate,
     receiptNo: String(orderId),
     user: "SYNC_ADMIN",
