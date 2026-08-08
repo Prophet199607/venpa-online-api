@@ -628,14 +628,19 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
-      // Restore stock only when transitioning TO canceled from confirmed/shipped
+      // Restore stock only when transitioning to canceled from confirmed/shipped
       const isBeingCanceled =
         status.toLowerCase() === "canceled" &&
         oldStatus.toLowerCase() !== "canceled" &&
         ["confirmed"].includes(oldStatus.toLowerCase());
 
-      if (isBeingConfirmed) {
-        // Call CRM customer-points/update on confirm (Checkout)
+      // Sync CRM customer points when transitioning TO delivery
+      const isBeingDelivered =
+        status.toLowerCase() === "delivery" &&
+        oldStatus.toLowerCase() !== "delivery";
+
+      if (isBeingDelivered) {
+        // Call CRM customer-points/update on delivery (Checkout)
         try {
           crmPointsResult = await syncCustomerPoints({
             order: checkout,
@@ -1115,8 +1120,13 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
-      if (isBeingConfirmed) {
-        // Call CRM customer-points/update on confirm (PickAndCollect)
+      // Sync CRM customer points when transitioning TO delivery
+      const isBeingDelivered =
+        status.toLowerCase() === "delivery" &&
+        oldStatus.toLowerCase() !== "delivery";
+
+      if (isBeingDelivered) {
+        // Call CRM customer-points/update on delivery (PickAndCollect)
         try {
           crmPointsResult = await syncCustomerPoints({
             order: pickAndCollect,
