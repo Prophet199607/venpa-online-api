@@ -355,7 +355,10 @@ async function buildStockMap(products) {
   if (!codes.length) return new Map();
 
   const rows = await StockMaster.findAll({
-    where: { prod_code: { [Op.in]: codes } },
+    where: {
+      prod_code: { [Op.in]: codes },
+      iid: { [Op.ne]: "CREATE" },
+    },
     attributes: [
       "prod_code",
       [fn("SUM", col("qty")), "current_available_stock"],

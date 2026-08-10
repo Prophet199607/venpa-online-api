@@ -589,6 +589,7 @@ exports.pickAndCollectLocations = async (req, res, next) => {
     const locations = await StockMaster.findAll({
       where: {
         prod_code: req.params.prod_code,
+        iid: { [Op.ne]: "CREATE" },
         location: {
           [Op.and]: [{ [Op.ne]: null }, { [Op.ne]: "" }],
         },
