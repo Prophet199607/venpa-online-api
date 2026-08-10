@@ -476,8 +476,6 @@ exports.updateOrderStatus = async (req, res, next) => {
 
     let crmPointsResult = null;
     let crmPointsError = null;
-    let crmRedeemResult = null;
-    let crmRedeemError = null;
 
     // 1. Try Checkout table
     let checkout = await Checkout.findOne({
@@ -733,28 +731,6 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
-      if (isBeingCanceled) {
-        // Call CRM customer-points/redeem on cancel (Checkout)
-        try {
-          crmRedeemResult = await syncCustomerPoints({
-            order: checkout,
-            user: checkout.user,
-            orderId: checkout.order_id,
-            action: "redeem",
-          });
-          console.log(
-            `[OrderUpdate] CRM points redeem for Checkout ${checkout.order_id}:`,
-            JSON.stringify(crmRedeemResult),
-          );
-        } catch (err) {
-          console.error(
-            `[OrderUpdate] CRM points redeem failed for Checkout ${checkout.order_id}:`,
-            err.message,
-          );
-          crmRedeemError = err.message;
-        }
-      }
-
       // Restore stock when transitioning TO returned from confirmed (COD only)
       const isBeingReturned =
         status.toLowerCase() === "returned" &&
@@ -838,28 +814,6 @@ exports.updateOrderStatus = async (req, res, next) => {
               );
             }
           }
-        }
-      }
-
-      if (isBeingReturned) {
-        // Call CRM customer-points/redeem on return (Checkout)
-        try {
-          crmRedeemResult = await syncCustomerPoints({
-            order: checkout,
-            user: checkout.user,
-            orderId: checkout.order_id,
-            action: "redeem",
-          });
-          console.log(
-            `[OrderUpdate] CRM points redeem for returned Checkout ${checkout.order_id}:`,
-            JSON.stringify(crmRedeemResult),
-          );
-        } catch (err) {
-          console.error(
-            `[OrderUpdate] CRM points redeem failed for returned Checkout ${checkout.order_id}:`,
-            err.message,
-          );
-          crmRedeemError = err.message;
         }
       }
 
@@ -968,11 +922,6 @@ exports.updateOrderStatus = async (req, res, next) => {
             attempted: !!crmPointsResult,
             result: crmPointsResult,
             error: crmPointsError,
-          },
-          redeem: {
-            attempted: !!crmRedeemResult,
-            result: crmRedeemResult,
-            error: crmRedeemError,
           },
         },
       });
@@ -1177,28 +1126,6 @@ exports.updateOrderStatus = async (req, res, next) => {
         );
       }
 
-      if (isBeingCanceled) {
-        // Call CRM customer-points/redeem on cancel (PickAndCollect)
-        try {
-          crmRedeemResult = await syncCustomerPoints({
-            order: pickAndCollect,
-            user: pickAndCollect.user,
-            orderId: pickAndCollect.pick_and_collect_id,
-            action: "redeem",
-          });
-          console.log(
-            `[OrderUpdate] CRM points redeem for PickAndCollect ${pickAndCollect.pick_and_collect_id}:`,
-            JSON.stringify(crmRedeemResult),
-          );
-        } catch (err) {
-          console.error(
-            `[OrderUpdate] CRM points redeem failed for PickAndCollect ${pickAndCollect.pick_and_collect_id}:`,
-            err.message,
-          );
-          crmRedeemError = err.message;
-        }
-      }
-
       // Restore stock when transitioning TO returned from confirmed (COD only)
       const isBeingReturned =
         status.toLowerCase() === "returned" &&
@@ -1230,28 +1157,6 @@ exports.updateOrderStatus = async (req, res, next) => {
             err,
           ),
         );
-      }
-
-      if (isBeingReturned) {
-        // Call CRM customer-points/redeem on return (PickAndCollect)
-        try {
-          crmRedeemResult = await syncCustomerPoints({
-            order: pickAndCollect,
-            user: pickAndCollect.user,
-            orderId: pickAndCollect.pick_and_collect_id,
-            action: "redeem",
-          });
-          console.log(
-            `[OrderUpdate] CRM points redeem for returned PickAndCollect ${pickAndCollect.pick_and_collect_id}:`,
-            JSON.stringify(crmRedeemResult),
-          );
-        } catch (err) {
-          console.error(
-            `[OrderUpdate] CRM points redeem failed for returned PickAndCollect ${pickAndCollect.pick_and_collect_id}:`,
-            err.message,
-          );
-          crmRedeemError = err.message;
-        }
       }
 
       // Update cod_management & payment_summaries when shipping with an order_no
@@ -1370,11 +1275,6 @@ exports.updateOrderStatus = async (req, res, next) => {
             attempted: !!crmPointsResult,
             result: crmPointsResult,
             error: crmPointsError,
-          },
-          redeem: {
-            attempted: !!crmRedeemResult,
-            result: crmRedeemResult,
-            error: crmRedeemError,
           },
         },
       });
