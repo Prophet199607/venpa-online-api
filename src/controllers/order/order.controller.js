@@ -25,6 +25,10 @@ const {
 const {
   syncCustomerPoints,
 } = require("../../services/orders/customerPointsService");
+const {
+  cancelCodOrder,
+} = require("../../services/orders/codManagementService");
+
 
 exports.getAllOrders = async (req, res, next) => {
   try {
@@ -731,7 +735,16 @@ exports.updateOrderStatus = async (req, res, next) => {
         }
       }
 
+      if (
+        status.toLowerCase() === "canceled" &&
+        oldStatus.toLowerCase() !== "canceled" &&
+        Number(checkout.type) === 1
+      ) {
+        await cancelCodOrder({ orderId: checkout.order_id });
+      }
+
       // Restore stock when transitioning TO returned from confirmed (COD only)
+
       const isBeingReturned =
         status.toLowerCase() === "returned" &&
         oldStatus.toLowerCase() !== "returned" &&
@@ -1126,7 +1139,18 @@ exports.updateOrderStatus = async (req, res, next) => {
         );
       }
 
+      if (
+        status.toLowerCase() === "canceled" &&
+        oldStatus.toLowerCase() !== "canceled" &&
+        Number(pickAndCollect.type) === 1
+      ) {
+        await cancelCodOrder({ orderId: pickAndCollect.pick_and_collect_id });
+      }
+
       // Restore stock when transitioning TO returned from confirmed (COD only)
+
+
+
       const isBeingReturned =
         status.toLowerCase() === "returned" &&
         oldStatus.toLowerCase() !== "returned" &&

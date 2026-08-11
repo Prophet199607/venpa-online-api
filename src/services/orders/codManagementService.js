@@ -207,4 +207,29 @@ async function recordCodOrder({ order, user, device, orderId }) {
   return { cusCode, crmDebug };
 }
 
-module.exports = { recordCodOrder };
+async function cancelCodOrder({ orderId }) {
+  try {
+    const orderIdStr = String(orderId);
+    await sequelizeSource.query(
+      `UPDATE cod_management 
+       SET status = 'canceled', updated_at = NOW()
+       WHERE (doc_no = :orderId OR receipt_no = :orderId OR report_id = :orderId)
+         AND status = 'pending'`,
+      {
+        replacements: { orderId: orderIdStr },
+        type: sequelizeSource.QueryTypes.UPDATE,
+      },
+    );
+    console.log(
+      `[CODManagement] Updated status to canceled for order ${orderId}`,
+    );
+  } catch (err) {
+    console.error(
+      `[CODManagement] Failed to update status to canceled for order ${orderId}:`,
+      err,
+    );
+  }
+}
+
+module.exports = { recordCodOrder, cancelCodOrder };
+
