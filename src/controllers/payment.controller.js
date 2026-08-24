@@ -3,6 +3,7 @@ const { Checkout, PickAndCollect, Cart, CartItem, User, Product } = require("../
 const { sendOrderPlacedEmail } = require("../services/notifications/emailService");
 const { sendToTopic } = require("../services/notifications/notificationService");
 const { NOTIFICATION_TYPES } = require("../services/notifications/notificationTypes");
+const mintpayService = require("../services/payments/mintpayService");
 
 /**
  * Finds a record in either Checkout or PickAndCollect by order_id
@@ -25,6 +26,62 @@ async function findOrderRecord(orderId) {
     isPickAndCollect = true;
   }
   return { record, isPickAndCollect };
+}
+
+/**
+ * Reads the purchase_id that was stored on the record when the Mintpay
+ * checkout session was created.
+ */
+function resolveStoredPurchaseId(record) {
+  let stored = record.payment_payload;
+  if (typeof stored === "string") {
+    try {
+      stored = JSON.parse(stored);
+    } catch (e) {
+      stored = {};
+    }
+  }
+  return stored?.purchase_id || stored?.purchaseId || null;
+}
+
+/**
+ * Verifies the real payment status directly with Mintpay using the stored
+ * purchase_id. Since MintPay only calls back via browser redirects (no IPN),
+ * redirects must never be trusted on their own.
+ *
+ * Returns { verified, status, rawStatus, purchaseId } where status is one of:
+ * "success" | "failed" | "canceled" | "pending" | "unknown"
+ */
+async function verifyWithMintpay(record) {
+  const purchaseId = resolveStoredPurchaseId(record);
+  if (!purchaseId) {
+    console.error(
+      `❌ Mintpay verify: no stored purchase_id for order ${record.pick_and_collect_id || record.order_id}`
+    );
+    return { verified: false, status: "unknown", rawStatus: null, purchaseId: null };
+  }
+
+  try {
+    const purchase = await mintpayService.getPurchase(purchaseId);
+    const statusValue =
+      purchase?.status ??
+      purchase?.payment_status ??
+      purchase?.state ??
+      purchase?.purchase_status ??
+      "";
+    return {
+      verified: true,
+      status: mintpayService.classifyStatus(statusValue),
+      rawStatus: statusValue,
+      purchaseId,
+    };
+  } catch (error) {
+    console.error(
+      `❌ Mintpay verification request failed for purchase ${purchaseId}:`,
+      error.message
+    );
+    return { verified: false, status: "unknown", rawStatus: null, purchaseId };
+  }
 }
 
 /**
@@ -220,44 +277,182 @@ exports.payhereCancel = async (req, res) => {
 exports.mintpaySuccess = async (req, res) => {
   console.log("--- Mintpay Success Callback ---");
   try {
-    const order_id = req.body.order_id || req.query.order_id || req.body.merchantOrderId;
-    if (order_id) {
-      const { record, isPickAndCollect } = await findOrderRecord(order_id);
-      if (record) {
-        await handleOrderSuccess(record, isPickAndCollect, { body: req.body, query: req.query });
-        console.log(`✅ Success handled for Mintpay callback: ${order_id}`);
-      }
+    const order_id =
+      req.body?.order_id || req.query?.order_id || req.body?.merchantOrderId;
+
+    if (!order_id) {
+      console.warn("⚠️ Mintpay success redirect without order_id — ignored.");
+      return res.status(400).json({
+        message: "Mintpay success redirect ignored: order_id missing",
+      });
     }
+
+    const { record, isPickAndCollect } = await findOrderRecord(order_id);
+    if (!record) {
+      console.warn(`⚠️ Mintpay success: no record found for order_id ${order_id}`);
+      return res.status(404).json({
+        message: "Mintpay success redirect ignored: order not found",
+      });
+    }
+
+    // SECURITY: Never trust the browser redirect alone — confirm the real
+    // payment status with Mintpay using the stored purchase_id first.
+    const verification = await verifyWithMintpay(record);
+
+    if (verification.status === "success") {
+      await handleOrderSuccess(record, isPickAndCollect, {
+        body: req.body,
+        query: req.query,
+        purchase_id: verification.purchaseId,
+        mintpay_status: verification.rawStatus,
+        verified_with_mintpay: true,
+      });
+      console.log(`✅ Mintpay payment verified & confirmed: ${order_id}`);
+      return res.status(200).json({
+        message: "Mintpay payment verified and confirmed",
+        order_id,
+        verified: true,
+      });
+    }
+
+    if (verification.status === "failed") {
+      await record.update({
+        payment_payload: { body: req.body, query: req.query },
+        payment_status: "failed",
+        updated_at: new Date(),
+      });
+      console.warn(`❌ Mintpay reports FAILED for order ${order_id} on success redirect.`);
+      return res.status(200).json({
+        message: "Mintpay reports this payment as failed",
+        order_id,
+        verified: true,
+        payment_status: "failed",
+      });
+    }
+
+    if (verification.status === "canceled") {
+      await record.update({
+        payment_payload: { body: req.body, query: req.query },
+        payment_status: "canceled",
+        updated_at: new Date(),
+      });
+      console.warn(`⚠️ Mintpay reports CANCELED for order ${order_id} on success redirect.`);
+      return res.status(200).json({
+        message: "Mintpay reports this payment as canceled",
+        order_id,
+        verified: true,
+        payment_status: "canceled",
+      });
+    }
+
+    // Pending or unverifiable → do NOT mark success. Leave the order pending
+    // so the frontend confirm/poll endpoint keeps returning 202.
+    if (!verification.verified) {
+      console.error(
+        `❌ Mintpay success could NOT be verified for order ${order_id}. Order left pending.`
+      );
+    } else {
+      console.log(`⏳ Mintpay still pending for order ${order_id}.`);
+    }
+    return res.status(200).json({
+      message: verification.verified
+        ? "Mintpay reports payment still pending"
+        : "Payment could not be verified with Mintpay; order remains pending",
+      order_id,
+      verified: false,
+      payment_status: "pending",
+    });
   } catch (error) {
     console.error("❌ Error updating order from Mintpay success:", error.message);
+    return res.status(500).json({
+      message: "Error processing Mintpay success callback",
+    });
   }
-
-  res.status(200).json({
-    message: "Mintpay success redirect received",
-    data: { body: req.body, query: req.query },
-  });
 };
 
 exports.mintpayFailed = async (req, res) => {
   console.log("--- Mintpay Failed Callback ---");
   try {
-    const order_id = req.body.order_id || req.query.order_id || req.body.merchantOrderId;
-    if (order_id) {
-      const { record } = await findOrderRecord(order_id);
-      if (record) {
-        await record.update({
-          payment_payload: { body: req.body, query: req.query },
-          payment_status: "failed",
-        });
-        console.log(`❌ Updated Mintpay payment_status to failed: ${order_id}`);
-      }
+    const order_id =
+      req.body?.order_id || req.query?.order_id || req.body?.merchantOrderId;
+
+    if (!order_id) {
+      console.warn("⚠️ Mintpay failed redirect without order_id — ignored.");
+      return res.status(400).json({
+        message: "Mintpay failed redirect ignored: order_id missing",
+      });
     }
+
+    const { record, isPickAndCollect } = await findOrderRecord(order_id);
+    if (!record) {
+      console.warn(`⚠️ Mintpay failed: no record found for order_id ${order_id}`);
+      return res.status(404).json({
+        message: "Mintpay failed redirect ignored: order not found",
+      });
+    }
+
+    // Already paid? Never downgrade based on a redirect alone.
+    if (record.payment_status === "success") {
+      console.log(`ℹ️ Order ${order_id} already paid; ignoring Mintpay fail redirect.`);
+      return res.status(200).json({
+        message: "Order already confirmed as paid; ignoring failed redirect",
+        order_id,
+        payment_status: "success",
+      });
+    }
+
+    // The user may actually have PAID despite landing on the fail URL.
+    const verification = await verifyWithMintpay(record);
+
+    if (verification.status === "success") {
+      await handleOrderSuccess(record, isPickAndCollect, {
+        body: req.body,
+        query: req.query,
+        purchase_id: verification.purchaseId,
+        mintpay_status: verification.rawStatus,
+        verified_with_mintpay: true,
+      });
+      console.log(`✅ Mintpay verified SUCCESS despite fail redirect: ${order_id}`);
+      return res.status(200).json({
+        message: "Mintpay confirms payment succeeded",
+        order_id,
+        verified: true,
+        payment_status: "success",
+      });
+    }
+
+    if (verification.status === "failed" || verification.status === "canceled") {
+      await record.update({
+        payment_payload: { body: req.body, query: req.query },
+        payment_status: verification.status,
+        updated_at: new Date(),
+      });
+      console.log(`⚠️ Mintpay confirmed ${verification.status.toUpperCase()}: ${order_id}`);
+      return res.status(200).json({
+        message: `Mintpay confirms payment was ${verification.status}`,
+        order_id,
+        verified: true,
+        payment_status: verification.status,
+      });
+    }
+
+    // Pending/unverifiable → do not trust the fail redirect; keep pending so
+    // the user can retry or the status can be confirmed later.
+    console.warn(
+      `⚠️ Mintpay fail redirect could not be confirmed as failed for ${order_id}. Order left pending.`
+    );
+    return res.status(200).json({
+      message: verification.verified
+        ? "Mintpay does not report failure; order remains pending"
+        : "Payment could not be verified with Mintpay; order remains pending",
+      order_id,
+      verified: false,
+      payment_status: "pending",
+    });
   } catch (error) {
     console.error("❌ Error updating order from Mintpay failed:", error.message);
+    return res.status(500).json({
+      message: "Error processing Mintpay failed callback",
+    });
   }
-
-  res.status(200).json({
-    message: "Mintpay failed redirect received",
-    data: { body: req.body, query: req.query },
-  });
 };

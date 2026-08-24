@@ -20,6 +20,7 @@ const {
   sendOrderPlacedEmail,
 } = require("../services/notifications/emailService");
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
+const mintpayService = require("../services/payments/mintpayService");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
@@ -297,7 +298,7 @@ async function validatePickAndCollectPayload(body) {
   };
 }
 
-async function createPickAndCollectResponse(userId, body, forcedType = null) {
+async function createPickAndCollectResponse(userId, body, forcedType = null, req = null) {
   const normalizedBody =
     forcedType === null
       ? body
@@ -479,7 +480,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
     };
   }
 
-  // Type 3: Mintpay — create record without hash
+  // Type 3: Mintpay — create pending record and Mintpay checkout session
   if (type === 3) {
     if (!Number.isFinite(netAmount) || netAmount <= 0) {
       return {
@@ -488,6 +489,52 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
       };
     }
 
+    const user = await User.findOne({
+      where: { id: userId },
+      attributes: ["id", "fname", "lname", "email", "phone", "address", "city"],
+    });
+
+    const amount = netAmount.toFixed(2);
+    const items = [
+      {
+        product: {
+          prod_code: prodCode,
+          prod_name: product?.prod_name || "Product",
+          selling_price: Number(
+            (netAmount / (pickedQty || 1)).toFixed(2),
+          ),
+        },
+        quantity: pickedQty,
+      },
+    ];
+
+    let mintpaySession;
+    try {
+      mintpaySession = await mintpayService.createPurchase({
+        req,
+        orderId: pickAndCollectId,
+        amount,
+        user,
+        body: normalizedBody,
+        items,
+      });
+    } catch (error) {
+      console.error("Mintpay P&C create purchase error:", error.message);
+      return {
+        status: 502,
+        body: { message: error.message || "Unable to create Mintpay checkout" },
+      };
+    }
+
+    if (mintpaySession.error) {
+      return { status: 500, body: { message: mintpaySession.error } };
+    }
+
+    const paymentPayload = {
+      purchase_id: mintpaySession.purchase_id,
+      redirect_url: mintpaySession.redirect_url,
+    };
+
     let row;
     if (existingPC && now - new Date(existingPC.created_at) < 5 * 60 * 1000) {
       await existingPC.update({
@@ -495,6 +542,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
         coupon_code: couponCode,
         discount_amount: discountAmount,
         net_amount: netAmount,
+        payment_payload: paymentPayload,
         updated_at: now,
       });
       row = existingPC;
@@ -513,6 +561,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
         coupon_code: couponCode,
         discount_amount: discountAmount,
         net_amount: netAmount,
+        payment_payload: paymentPayload,
         created_at: now,
         updated_at: now,
       });
@@ -555,7 +604,11 @@ async function createPickAndCollectResponse(userId, body, forcedType = null) {
         pick_and_collect: serialized,
         pick_and_collect_id: pickAndCollectId,
         order_id: pickAndCollectId,
-        amount: netAmount.toFixed(2),
+        amount,
+        currency: "LKR",
+        merchant_id: mintpaySession.merchant_id,
+        purchase_id: mintpaySession.purchase_id,
+        redirect_url: mintpaySession.redirect_url,
       },
     };
   }
@@ -657,7 +710,7 @@ exports.listMyPickAndCollects = async (req, res, next) => {
 
 exports.createPickAndCollect = async (req, res, next) => {
   try {
-    const result = await createPickAndCollectResponse(req.user.id, req.body);
+    const result = await createPickAndCollectResponse(req.user.id, req.body, null, req);
     return res.status(result.status).json(result.body);
   } catch (e) {
     next(e);
@@ -704,7 +757,7 @@ exports.createPickAndCollectPayHereHash = async (req, res, next) => {
       });
     }
 
-    const result = await createPickAndCollectResponse(req.user.id, req.body, 2);
+    const result = await createPickAndCollectResponse(req.user.id, req.body, 2, req);
     return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("PickAndCollect PayHere Hash Error:", e);
@@ -714,7 +767,7 @@ exports.createPickAndCollectPayHereHash = async (req, res, next) => {
 
 exports.createPickAndCollectMintpay = async (req, res, next) => {
   try {
-    const result = await createPickAndCollectResponse(req.user.id, req.body, 3);
+    const result = await createPickAndCollectResponse(req.user.id, req.body, 3, req);
     return res.status(result.status).json(result.body);
   } catch (e) {
     next(e);
@@ -775,13 +828,26 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
             : "Payment failed. Please try again.";
       }
     } else if (type === 3 || type === "3") {
-      // Mintpay - Frontend passes t (true/false)
-      if (t === true || t === "true") {
+      // Mintpay — verify payment_status from DB (set by /mintpay/notify or success callback)
+      const mintpayStatus = record.payment_status;
+      if (mintpayStatus === "success") {
         success = true;
         message = "Mintpay payment successful";
+      } else if (mintpayStatus === "pending") {
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          message:
+            "Payment is still being processed. Please check back shortly.",
+          order_id: record.pick_and_collect_id,
+          payment_status: "pending",
+        });
       } else {
         success = false;
-        message = "Mintpay payment failed or cancelled";
+        message =
+          mintpayStatus === "canceled"
+            ? "Payment was cancelled"
+            : "Mintpay payment failed or cancelled";
       }
     } else {
       return res

@@ -27,6 +27,7 @@ const {
   generateOrderInvoiceHtml,
 } = require("../services/notifications/emailService");
 const { buildPriceLevelMap } = require("../services/products/priceService");
+const mintpayService = require("../services/payments/mintpayService");
 
 function normalizeCheckoutType(value) {
   if (value === 1 || value === "1") return 1; // COD
@@ -98,7 +99,8 @@ async function validateCoupon(code, userId, subTotal, orderType = null) {
   }
 
   // Order type validation
-  if (orderType === 1 && !coupon.is_card_payment) {
+  // calculateTotals uses 1 for card/Mintpay and 2 for COD (see createCardPaymentResponse)
+  if ((orderType === 1 || orderType === 3) && !coupon.is_card_payment) {
     return { valid: false, message: "Coupon is not valid for Card Payments" };
   }
   if (orderType === 2 && !coupon.is_cod) {
@@ -552,7 +554,7 @@ exports.createCheckout = async (req, res, next) => {
     if (!type) {
       return res.status(400).json({
         message:
-          "type is required and must be 1 (card payment) or 2 (cash on delivery)",
+          "type is required and must be 1 (COD), 2 (PayHere) or 3 (Mintpay)",
       });
     }
 
@@ -592,20 +594,34 @@ exports.createCheckout = async (req, res, next) => {
     }
 
     if (type === 3) {
-      const result = await processMintpayResponse(req.user.id, req.body, true);
+      const result = await processMintpayResponse(
+        req.user.id,
+        req.body,
+        true,
+        req,
+      );
 
-      // Handle Gift Details for type 3 (if successful)
       if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
         const checkout = await Checkout.findOne({
           where: { order_id: result.body.checkout.order_id },
         });
         if (checkout) {
-          await GiftReceiverDetail.create({
-            order_id: checkout.order_id,
-            ...req.body.giftDetails,
-            created_at: new Date(),
-            updated_at: new Date(),
+          const existingGift = await GiftReceiverDetail.findOne({
+            where: { order_id: checkout.order_id },
           });
+          if (!existingGift) {
+            await GiftReceiverDetail.create({
+              order_id: checkout.order_id,
+              ...req.body.giftDetails,
+              created_at: new Date(),
+              updated_at: new Date(),
+            });
+          } else {
+            await existingGift.update({
+              ...req.body.giftDetails,
+              updated_at: new Date(),
+            });
+          }
         }
       }
 
@@ -751,13 +767,14 @@ exports.createCheckout = async (req, res, next) => {
   }
 };
 
-async function processMintpayResponse(userId, body, persist = true) {
+async function processMintpayResponse(userId, body, persist = true, req = null) {
   const cart = await getActiveCartWithProducts(userId);
   if (!cart) {
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  const totals = await calculateTotals(cart, body?.coupon_code, userId, 3);
+  // Mintpay is an online payment — use the same coupon rules as card (type 1)
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1);
   if (totals.subTotal <= 0) {
     return {
       status: 400,
@@ -765,14 +782,39 @@ async function processMintpayResponse(userId, body, persist = true) {
     };
   }
 
-  const orderId = generateOrderId();
-
-  // Consume coupon
-  if (totals.appliedCoupon && persist) {
-    await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+  let existingCheckout = null;
+  const now = new Date();
+  if (persist) {
+    existingCheckout = await Checkout.findOne({
+      where: {
+        user_id: userId,
+        status: "pending",
+        payment_status: "pending",
+        type: 3,
+      },
+      order: [["created_at", "DESC"]],
+    });
   }
 
-  // Stock Availability Check
+  let orderId;
+  if (
+    existingCheckout &&
+    now - new Date(existingCheckout.created_at) < 5 * 60 * 1000
+  ) {
+    orderId = existingCheckout.order_id;
+  } else {
+    orderId = body?.order_id || generateOrderId();
+  }
+
+  if (totals.appliedCoupon && persist) {
+    const couponAlreadyUsed = await CouponUsage.findOne({
+      where: { order_id: String(orderId) },
+    });
+    if (!couponAlreadyUsed) {
+      await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+    }
+  }
+
   const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
   const rawCartItems =
     cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
@@ -809,41 +851,81 @@ async function processMintpayResponse(userId, body, persist = true) {
   }
 
   const { type: _type, ...payload } = body || {};
+  const amount = totals.netTotalWithoutCod.toFixed(2);
+  const user = await User.findOne({
+    where: { id: userId },
+    attributes: ["id", "fname", "lname", "email", "phone", "address", "city"],
+  });
 
-  // NOTE: Email & backoffice notification are sent AFTER payment confirmation
-  // via mintpaySuccess (handleOrderSuccess). Do NOT send them here to avoid duplicates.
-  let checkout;
-  if (persist) {
-    checkout = await Checkout.create({
-      order_id: orderId,
-      user_id: userId,
-      type: 3, // Mintpay
-      type_name: "delivery",
-      payload: {
-        ...payload,
-        items,
-        prod_codes: items.map((i) => i.product.prod_code),
-        totals,
-        location: "001",
-      },
-      status: "pending",
-      payment_status: "pending",
-      created_at: new Date(),
-      updated_at: new Date(),
+  let mintpaySession;
+  try {
+    mintpaySession = await mintpayService.createPurchase({
+      req,
+      orderId,
+      amount,
+      user,
+      body,
+      items,
     });
+  } catch (error) {
+    console.error("Mintpay create purchase error:", error.message);
+    return {
+      status: 502,
+      body: { message: error.message || "Unable to create Mintpay checkout" },
+    };
+  }
+
+  if (mintpaySession.error) {
+    return { status: 500, body: { message: mintpaySession.error } };
+  }
+
+  // Email & backoffice notification are sent AFTER payment confirmation
+  // via mintpay notify / success (handleOrderSuccess).
+  let checkout;
+  const checkoutPayload = {
+    ...payload,
+    items,
+    prod_codes: items.map((i) => i.product.prod_code),
+    totals,
+    location: "001",
+  };
+  const paymentPayload = {
+    purchase_id: mintpaySession.purchase_id,
+    redirect_url: mintpaySession.redirect_url,
+  };
+
+  if (persist) {
+    if (
+      existingCheckout &&
+      now - new Date(existingCheckout.created_at) < 5 * 60 * 1000
+    ) {
+      await existingCheckout.update({
+        payload: checkoutPayload,
+        payment_payload: paymentPayload,
+        updated_at: new Date(),
+      });
+      checkout = existingCheckout;
+    } else {
+      checkout = await Checkout.create({
+        order_id: orderId,
+        user_id: userId,
+        type: 3,
+        type_name: "delivery",
+        payload: checkoutPayload,
+        payment_payload: paymentPayload,
+        status: "pending",
+        payment_status: "pending",
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
   } else {
     checkout = {
       order_id: orderId,
       type: 3,
       type_name: "delivery",
       status: "pending",
-      payload: {
-        ...payload,
-        items,
-        prod_codes: items.map((i) => i.product.prod_code),
-        totals,
-        location: "001",
-      },
+      payload: checkoutPayload,
       created_at: new Date(),
     };
   }
@@ -853,9 +935,13 @@ async function processMintpayResponse(userId, body, persist = true) {
     body: {
       message: persist
         ? "Mintpay checkout created"
-        : "Mintpay hash generated (not saved)",
+        : "Mintpay session created (not saved)",
       order_id: checkout.order_id,
-      amount: totals.netTotalWithoutCod.toFixed(2),
+      amount,
+      currency: "LKR",
+      merchant_id: mintpaySession.merchant_id,
+      purchase_id: mintpaySession.purchase_id,
+      redirect_url: mintpaySession.redirect_url,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
@@ -870,7 +956,12 @@ async function processMintpayResponse(userId, body, persist = true) {
 
 exports.createMintpayCheckout = async (req, res, next) => {
   try {
-    const result = await processMintpayResponse(req.user.id, req.body, false);
+    const result = await processMintpayResponse(
+      req.user.id,
+      req.body,
+      true,
+      req,
+    );
     return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("Mintpay Checkout Error:", e);
@@ -1109,13 +1200,28 @@ exports.checkoutSuccess = async (req, res, next) => {
             : "Payment failed. Please try again.";
       }
     } else if (type === 3 || type === "3") {
-      // Mintpay - Frontend passes t (true/false)
-      if (t === true || t === "true") {
+      // Mintpay — verify payment_status from DB (set by /mintpay/notify or success callback)
+      const mintpayStatus = record.payment_status;
+      if (mintpayStatus === "success") {
         success = true;
         message = "Mintpay payment successful";
+      } else if (mintpayStatus === "pending") {
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          message:
+            "Payment is still being processed. Please check back shortly.",
+          order_id: isPickAndCollect
+            ? record.pick_and_collect_id
+            : record.order_id,
+          payment_status: "pending",
+        });
       } else {
         success = false;
-        message = "Mintpay payment failed or cancelled";
+        message =
+          mintpayStatus === "canceled"
+            ? "Payment was cancelled"
+            : "Mintpay payment failed or cancelled";
       }
     }
 
