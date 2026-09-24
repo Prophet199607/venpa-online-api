@@ -33,6 +33,7 @@ const pickAndCollectRoutes = require("./routes/pickAndCollect.routes");
 const orderRoutes = require("./routes/order/order.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const contactRoutes = require("./routes/contact.routes");
+const stockRequestRoutes = require("./routes/stockRequest.routes");
 const userRoutes = require("./routes/web/customer.routes");
 const SpecificAuthorRoutes = require("./routes/web/feature_author_publisher.routes");
 
@@ -132,6 +133,7 @@ app.use("/api/v1/pick-and-collect", pickAndCollectRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/contact-us", contactRoutes);
+app.use("/api/v1/stock-requests", stockRequestRoutes);
 app.use("/api/v1/customers", userRoutes);
 app.use("/api/v1/feature-authors-publishers", SpecificAuthorRoutes);
 app.use(errorMiddleware);

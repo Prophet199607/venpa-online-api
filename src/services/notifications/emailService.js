@@ -11,6 +11,32 @@ function getTransporter() {
 }
 exports.getTransporter = getTransporter;
 
+function getSalesTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.STOCK_REQUEST_SMTP_HOST || "mail.mymailportal.lk",
+    port: Number(process.env.STOCK_REQUEST_SMTP_PORT || 465),
+    secure:
+      String(process.env.STOCK_REQUEST_SMTP_SECURE || "true")
+        .trim()
+        .toLowerCase() !== "false",
+    auth: {
+      user: process.env.STOCK_REQUEST_EMAIL,
+      pass: process.env.STOCK_REQUEST_EMAIL_PASS,
+    },
+  });
+}
+exports.getSalesTransporter = getSalesTransporter;
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+exports.escapeHtml = escapeHtml;
+
 function buildItemsRows(cartItems) {
   if (!cartItems || cartItems.length === 0) return "";
   const imageBaseUrl = process.env.PRODUCT_IMAGE_BASE_URL || "";
@@ -700,6 +726,175 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
             </td>
           </tr>
 
+<!-- Footer -->
+          <tr>
+            <td style="padding: 20px 24px; text-align: center;">
+              <p class="footer-text" style="margin: 0 0 4px; font-size: 12px; color: #9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
+              <p style="margin: 0; font-size: 11px; color: #D1D5DB;">This is an automated notification email.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+};
+
+/**
+ * Generates a branded HTML email notifying sales about a new stock request
+ * submitted for an out-of-stock product.
+ */
+exports.generateStockRequestAlertHtml = ({
+  name,
+  email,
+  phone_no,
+  message,
+  prod_code,
+  prod_name,
+}) => {
+  const brandColor = "#0d5b82";
+  const logoUrl = process.env.EMAIL_LOGO_URL;
+  const year = new Date().getFullYear();
+  const messageHtml = escapeHtml(message).replace(/\n/g, "<br/>");
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Stock Request</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    .email-card { background-color: #ffffff !important; }
+    .label-text { color: #6B7280 !important; }
+    .value-text { color: #111827 !important; }
+    .row-divider { border-bottom: 1px solid #E5E7EB !important; }
+    .message-box { background-color: #F9FAFB !important; border-color: #E5E7EB !important; }
+    .footer-text { color: #9CA3AF !important; }
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #111827 !important; }
+      .email-card { background-color: #1F2937 !important; }
+      .label-text { color: #9CA3AF !important; }
+      .value-text { color: #F9FAFB !important; }
+      .row-divider { border-bottom-color: #4B5563 !important; }
+      .message-box { background-color: #374151 !important; border-color: #4B5563 !important; }
+      .footer-text { color: #6B7280 !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:20px 0;background-color:#F3F4F6;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" class="email-card" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#3160c4 0%,${brandColor} 100%);padding:14px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="110">
+                    ${logoUrl ? `<img src="${logoUrl}" alt="Venpaa" width="110" style="display:block;max-width:110px;height:auto;" />` : ""}
+                  </td>
+                  <td style="padding-left:16px;text-align:right;">
+                    <h1 style="margin:0 0 2px;color:#ffffff;font-size:18px;font-weight:700;line-height:1.1;">New Stock Request</h1>
+                    <p style="margin:0;color:rgba(255,255,255,0.85);font-size:12px;">A customer requested an out-of-stock product.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Requested Product -->
+          <tr>
+            <td style="padding:20px 24px 0;">
+              <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Requested Product</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+                <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Product Code</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${escapeHtml(prod_code)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Product Name</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${escapeHtml(prod_name || "N/A")}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Customer Details -->
+          <tr>
+            <td style="padding:16px 24px 0;">
+              <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Customer Details</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+                <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Name</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${escapeHtml(name)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Email</td>
+                        <td style="text-align:right;">
+                          <a href="mailto:${escapeHtml(email)}" style="font-size:13px;font-weight:600;color:${brandColor};text-decoration:none;">${escapeHtml(email)}</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Phone No</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${escapeHtml(phone_no || "N/A")}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Message -->
+          ${
+            message
+              ? `
+          <tr>
+            <td style="padding:16px 24px 0;">
+              <h2 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111827;">Message</h2>
+              <div class="message-box" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;">
+                <p class="value-text" style="margin:0;font-size:13px;color:#374151;line-height:1.7;">${messageHtml}</p>
+              </div>
+            </td>
+          </tr>
+          `
+              : ""
+          }
+
           <!-- Footer -->
           <tr>
             <td style="padding:20px 24px;text-align:center;">
@@ -715,4 +910,175 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
 </body>
 </html>
   `;
+};
+
+exports.sendStockRequestAlertToSales = async ({
+  name,
+  email,
+  phone_no,
+  message,
+  prod_code,
+  prod_name,
+}) => {
+  const transporter = getSalesTransporter();
+  const salesEmail = process.env.STOCK_REQUEST_EMAIL;
+
+  const html = exports.generateStockRequestAlertHtml({
+    name,
+    email,
+    phone_no,
+    message,
+    prod_code,
+    prod_name,
+  });
+
+  console.log(
+    `[StockRequest] Sending stock request alert for ${prod_code} to ${salesEmail}...`,
+  );
+  const info = await transporter.sendMail({
+    from: `"Venpaa Bookshop" <${salesEmail}>`,
+    to: salesEmail,
+    subject: `Out of Stock Request: ${prod_code}${prod_name ? ` - ${prod_name}` : ""}`,
+    html,
+  });
+  console.log(
+    `[StockRequest] Sales alert email sent successfully: ${info.messageId}`,
+  );
+  return info;
+};
+
+/**
+ * Generates a branded HTML email telling a user their requested product is
+ * back in stock.
+ */
+exports.generateBackInStockHtml = ({ name, prod_code, prod_name }) => {
+  const brandColor = "#0d5b82";
+  const logoUrl = process.env.EMAIL_LOGO_URL;
+  const year = new Date().getFullYear();
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Back in Stock!</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    .email-card { background-color: #ffffff !important; }
+    .info-box { background-color: #F0F7FF !important; border: 1px solid #D1E4F7 !important; }
+    .value-text { color: #111827 !important; }
+    .label-text { color: #6B7280 !important; }
+    .footer-text { color: #9CA3AF !important; }
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #111827 !important; }
+      .email-card { background-color: #1F2937 !important; }
+      .info-box { background-color: #1E3A5F !important; border-color: #3160c4 !important; }
+      .value-text { color: #F9FAFB !important; }
+      .label-text { color: #9CA3AF !important; }
+      .footer-text { color: #6B7280 !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:20px 0;background-color:#F3F4F6;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" class="email-card" style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.06);max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#3160c4 0%,${brandColor} 100%);padding:14px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="110">
+                    ${logoUrl ? `<img src="${logoUrl}" alt="Venpaa" width="110" style="display:block;max-width:110px;height:auto;" />` : ""}
+                  </td>
+                  <td style="padding-left:16px;text-align:right;">
+                    <h1 style="margin:0 0 2px;color:#ffffff;font-size:18px;font-weight:700;line-height:1.1;">Back in Stock!</h1>
+                    <p style="margin:0;color:rgba(255,255,255,0.85);font-size:12px;">Good news, ${escapeHtml(name || "Customer")}.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:24px;">
+              <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.7;">
+                The item you requested is now back in stock. Visit our website or app to place your order before it sells out again.
+              </p>
+              <div class="info-box" style="background-color:#F0F7FF;border:1px solid #D1E4F7;border-radius:8px;padding:16px;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td class="label-text" style="font-size:12px;color:#6B7280;width:110px;">Product Name</td>
+                          <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${escapeHtml(prod_name || "N/A")}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:4px 0;">
+                      <table width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td class="label-text" style="font-size:12px;color:#6B7280;width:110px;">Product Code</td>
+                          <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${escapeHtml(prod_code)}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 24px;text-align:center;">
+              <p class="footer-text" style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
+              <p style="margin:0;font-size:11px;color:#D1D5DB;">This is an automated notification email, please do not reply.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+};
+
+exports.sendBackInStockEmail = async ({
+  name,
+  email,
+  prod_code,
+  prod_name,
+}) => {
+  if (!email) {
+    throw new Error("No email address provided for back in stock notification");
+  }
+
+  const transporter = getSalesTransporter();
+  const salesEmail = process.env.STOCK_REQUEST_EMAIL;
+
+  const html = exports.generateBackInStockHtml({ name, prod_code, prod_name });
+
+  console.log(
+    `[StockRequest] Sending back in stock email for ${prod_code} to ${email}...`,
+  );
+  const info = await transporter.sendMail({
+    from: `"Venpaa Bookshop" <${salesEmail}>`,
+    to: email,
+    subject: `${prod_name || "Your requested item"} is back in stock!`,
+    html,
+  });
+  console.log(
+    `[StockRequest] Back in stock email sent successfully to ${email}: ${info.messageId}`,
+  );
+  return info;
 };

@@ -6517,6 +6517,200 @@
           }
         }
       }
+    },
+    "/api/v1/stock-requests": {
+      "post": {
+        "summary": "Create a stock request for an out-of-stock product",
+        "description": "Stores a request (status = 0) for an out-of-stock product and emails the sales team (sales@venpaa.lk) with the product code/name and customer details.",
+        "tags": [
+          "Web Management"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "prod_code"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Customer name"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Customer email address"
+                  },
+                  "phone_no": {
+                    "type": "string",
+                    "description": "Customer phone number (optional)"
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Optional message from the customer"
+                  },
+                  "prod_code": {
+                    "type": "string",
+                    "description": "Product (book) code that is out of stock"
+                  },
+                  "prod_name": {
+                    "type": "string",
+                    "description": "Product name (auto-resolved from products table if omitted)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stock request recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "integer"
+                    },
+                    "prod_name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      },
+      "get": {
+        "summary": "List stock requests",
+        "description": "Lists stock requests with optional status (0 = pending, 1 = notified) and prod_code filters, newest first.",
+        "tags": [
+          "Web Management"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ],
+              "description": "0 = pending, 1 = notified"
+            }
+          },
+          {
+            "name": "prod_code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Partial product code to filter by"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "phone_no": {
+                            "type": "string"
+                          },
+                          "message": {
+                            "type": "string"
+                          },
+                          "prod_code": {
+                            "type": "string"
+                          },
+                          "prod_name": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "integer",
+                            "enum": [
+                              0,
+                              1
+                            ]
+                          },
+                          "notified_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

@@ -29,6 +29,9 @@ const {
   startNotificationJobs,
 } = require("./services/notifications/notificationJobs");
 const { startDiscountJobs } = require("./services/discounts/discountJobs");
+const {
+  startStockRequestJobs,
+} = require("./services/stockRequests/stockRequestJobs");
 
 const PORT = Number(process.env.PORT || 4000);
 
@@ -93,6 +96,11 @@ async function safeSyncModel(Model) {
     if (process.env.DISCOUNT_EXPIRY_ENABLED === "true") {
       startDiscountJobs();
       console.log("Discount expiry job started!");
+    }
+
+    if (process.env.STOCK_REQUEST_NOTIFY_ENABLED === "true") {
+      startStockRequestJobs();
+      console.log("Stock request jobs started!");
     }
 
     app.listen(PORT, () => console.log(`Running on http://localhost:${PORT}`));
