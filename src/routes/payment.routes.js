@@ -4,7 +4,9 @@ const paymentController = require("../controllers/payment.controller");
 
 // PayHere callback routes
 router.post("/payhere/notify", paymentController.payhereNotify);
+router.get("/payhere/return", paymentController.payhereReturn);
 router.post("/payhere/return", paymentController.payhereReturn);
+router.get("/payhere/cancel", paymentController.payhereCancel);
 router.post("/payhere/cancel", paymentController.payhereCancel);
 
 // Mintpay callback routes

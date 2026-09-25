@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const { Op } = require("sequelize");
 const {
   PickAndCollect,
@@ -21,6 +20,8 @@ const {
 } = require("../services/notifications/emailService");
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
 const mintpayService = require("../services/payments/mintpayService");
+const payhereService = require("../services/payments/payhereService");
+const paymentController = require("./payment.controller");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
@@ -52,37 +53,29 @@ function generatePickAndCollectId() {
     .padStart(3, "0")}`;
 }
 
-function buildPayHereHash(pickAndCollectId, amount) {
-  const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
-  const merchantSecret = String(
-    process.env.PAYHERE_MERCHANT_SECRET || "",
-  ).trim();
-  const currency =
-    String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
-
-  if (!merchantId || !merchantSecret) {
-    return { error: "PayHere merchant configuration is missing" };
-  }
-
-  const secretHash = crypto
-    .createHash("md5")
-    .update(merchantSecret)
-    .digest("hex")
-    .toUpperCase();
-
-  const hash = crypto
-    .createHash("md5")
-    .update(`${merchantId}${pickAndCollectId}${amount}${currency}${secretHash}`)
-    .digest("hex")
-    .toUpperCase();
-
+async function buildPickAndCollectPayHereParams({
+  pickAndCollectId,
+  amount,
+  productName,
+  userId,
+  body,
+  req,
+}) {
+  const user = await User.findOne({
+    where: { id: userId },
+    attributes: ["id", "fname", "lname", "email", "phone", "address", "city"],
+  });
+  const hashPayload = payhereService.buildCheckoutParams({
+    orderId: pickAndCollectId,
+    amount,
+    items: productName || "Pick & Collect",
+    customer: payhereService.buildCustomer(user, body),
+    req,
+  });
+  if (hashPayload.error) return hashPayload;
   return {
     pick_and_collect_id: pickAndCollectId,
-    order_id: pickAndCollectId,
-    amount,
-    currency,
-    merchant_id: merchantId,
-    hash,
+    ...hashPayload,
   };
 }
 
@@ -404,8 +397,15 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
       };
     }
 
-    const amount = amountValue.toFixed(2);
-    const hashPayload = buildPayHereHash(pickAndCollectId, amount);
+    const amount = payhereService.formatAmount(amountValue);
+    const hashPayload = await buildPickAndCollectPayHereParams({
+      pickAndCollectId,
+      amount,
+      productName: product?.prod_name,
+      userId,
+      body: normalizedBody,
+      req,
+    });
     if (hashPayload.error) {
       return { status: 500, body: { message: hashPayload.error } };
     }
@@ -739,8 +739,18 @@ exports.createPickAndCollectPayHereHash = async (req, res, next) => {
           .json({ message: "Record has invalid amount for payment" });
       }
 
-      const amount = amountValue.toFixed(2);
-      const hashPayload = buildPayHereHash(pickAndCollectId, amount);
+      const amount = payhereService.formatAmount(amountValue);
+      const product = await Product.findOne({
+        where: { prod_code: record.prod_code },
+      });
+      const hashPayload = await buildPickAndCollectPayHereParams({
+        pickAndCollectId,
+        amount,
+        productName: product?.prod_name,
+        userId: req.user.id,
+        body: req.body,
+        req,
+      });
 
       if (hashPayload.error) {
         return res.status(500).json({ message: hashPayload.error });
@@ -751,8 +761,8 @@ exports.createPickAndCollectPayHereHash = async (req, res, next) => {
         pick_and_collect_id: record.pick_and_collect_id,
         order_id: record.pick_and_collect_id,
         amount,
-        currency: "LKR",
-        merchant_id: process.env.PAYHERE_MERCHANT_ID,
+        currency: hashPayload.currency,
+        merchant_id: hashPayload.merchant_id,
         ...hashPayload,
       });
     }
@@ -803,14 +813,12 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
     let message = "";
 
     if (type === 2 || type === "2") {
-      // PayHere - Verify actual payment status from DB (set by /payhere/notify server callback)
-      // Do NOT blindly trust the frontend; the notify callback is the source of truth.
+      record = await paymentController.confirmPayHereOrder(record, true);
       const payhereStatus = record.payment_status;
       if (payhereStatus === "success") {
         success = true;
         message = "Payment successful";
       } else if (payhereStatus === "pending") {
-        // Notify callback hasn't arrived yet — return a pending response so frontend can poll
         return res.status(202).json({
           success: false,
           pending: true,
@@ -820,7 +828,6 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
           payment_status: "pending",
         });
       } else {
-        // "failed", "canceled", "chargedback", or any other non-success status
         success = false;
         message =
           payhereStatus === "canceled"
@@ -859,6 +866,15 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
       // Check if it was already success to avoid duplicate emails on refresh
       const wasAlreadySuccess = record.payment_status === "success";
 
+      if (wasAlreadySuccess) {
+        return res.json({
+          success: true,
+          message: "Order already confirmed",
+          order_id: record.pick_and_collect_id,
+          payment_status: "success",
+        });
+      }
+
       await record.update({
         payment_status: "success",
         updated_at: new Date(),
@@ -877,14 +893,11 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
           },
         ];
 
-        // Only send if not already successfully handled (to prevent duplicates)
-        if (!wasAlreadySuccess) {
-          await sendOrderPlacedEmail(
-            record.User.toJSON ? record.User.toJSON() : record.User,
-            record.toJSON ? record.toJSON() : record,
-            items,
-          );
-        }
+        await sendOrderPlacedEmail(
+          record.User.toJSON ? record.User.toJSON() : record.User,
+          record.toJSON ? record.toJSON() : record,
+          items,
+        );
 
         // Notify Backoffice
         sendToTopic("backoffice", {
@@ -904,6 +917,7 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
         success: true,
         message,
         order_id: record.pick_and_collect_id,
+        payment_status: "success",
       });
     } else {
       return res.status(400).json({

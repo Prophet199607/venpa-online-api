@@ -65,7 +65,7 @@
     "/api/v1/payment/payhere/notify": {
       "post": {
         "summary": "PayHere Notify URL",
-        "description": "Callback URL for PayHere to notify payment status (Server-to-Server).",
+        "description": "Public server-to-server PayHere IPN. PayHere POSTs application/x-www-form-urlencoded fields. The backend verifies md5sig = UPPER(md5(merchant_id + order_id + payhere_amount + payhere_currency + status_code + UPPER(md5(merchant_secret)))), checks amount against the stored order, then updates payment_status and payment_payload. status_code: 2 success, 0 pending, -1 canceled, -2 failed, -3 chargedback. Do not confirm payment from return_url or the mobile SDK callback.",
         "tags": [
           "Payment"
         ],
@@ -73,22 +73,115 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "required": [
+                  "merchant_id",
+                  "order_id",
+                  "payhere_amount",
+                  "payhere_currency",
+                  "status_code",
+                  "md5sig"
+                ],
+                "properties": {
+                  "merchant_id": {
+                    "type": "string"
+                  },
+                  "order_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  },
+                  "payhere_amount": {
+                    "type": "string",
+                    "example": "2500.00"
+                  },
+                  "payhere_currency": {
+                    "type": "string",
+                    "example": "LKR"
+                  },
+                  "status_code": {
+                    "type": "string",
+                    "enum": [
+                      "2",
+                      "0",
+                      "-1",
+                      "-2",
+                      "-3"
+                    ],
+                    "description": "2 = success, 0 = pending, -1 = canceled, -2 = failed, -3 = chargedback"
+                  },
+                  "md5sig": {
+                    "type": "string"
+                  },
+                  "method": {
+                    "type": "string"
+                  },
+                  "status_message": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Notification processed"
+          },
+          "400": {
+            "description": "Missing order data or invalid signature"
+          },
+          "404": {
+            "description": "Order not found"
+          },
+          "500": {
+            "description": "Notification processing failed"
           }
         }
       }
     },
     "/api/v1/payment/payhere/return": {
+      "get": {
+        "summary": "PayHere Return URL",
+        "description": "Browser/SDK return acknowledgement after payment. PayHere does not send payment status here. Frontend must poll POST /api/v1/checkout/success or /api/v1/pick-and-collect/success until payment_status is success or failed.",
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "order_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return redirect received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "summary": "PayHere Return URL",
-        "description": "URL where users are redirected after successful payment.",
+        "description": "Browser/SDK return acknowledgement after payment. PayHere does not send payment status here. Frontend must poll the success endpoint.",
         "tags": [
           "Payment"
         ],
@@ -96,22 +189,83 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Return redirect received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
     },
     "/api/v1/payment/payhere/cancel": {
+      "get": {
+        "summary": "PayHere Cancel URL",
+        "description": "Browser/SDK cancel acknowledgement. It is not the payment source of truth; notify IPN and Retrieval API are.",
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "order_id",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancel redirect received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "summary": "PayHere Cancel URL",
-        "description": "URL where users are redirected if they cancel the payment.",
+        "description": "Browser/SDK cancel acknowledgement. It is not the payment source of truth; notify IPN and Retrieval API are.",
         "tags": [
           "Payment"
         ],
@@ -119,14 +273,38 @@
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "type": "object"
+                "type": "object",
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "Cancel redirect received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -3409,7 +3587,7 @@
     "/api/v1/checkout/success": {
       "post": {
         "summary": "Confirm checkout success and update status",
-        "description": "Frontend calls this after a PayHere redirect, Mintpay redirect, or COD selection. For PayHere (type=2), the backend verifies the actual payment_status in the DB (set by /payhere/notify server callback) — it does NOT blindly trust the frontend call. Returns 202 if PayHere notify hasn't arrived yet (frontend should poll).",
+        "description": "Frontend calls this after PayHere SDK/onCompleted, a browser return, Mintpay redirect, or COD. For PayHere (type=2) the backend never trusts the app: it uses the notify IPN first, then PayHere Retrieval API as a fallback. Returns 202 until payment_status is success or failed. Poll this endpoint; do not treat HTTP 202 or wrapper successful=true as a paid order. Load /checkout only after success=true.",
         "tags": [
           "Checkout"
         ],
@@ -3441,11 +3619,11 @@
                       2,
                       3
                     ],
-                    "description": "1 = COD (Delivery only), 2 = PayHere (verified via DB), 3 = Mintpay (pass t=true/false)"
+                    "description": "1 = COD (Delivery only), 2 = PayHere (verified via notify then Retrieval API), 3 = Mintpay"
                   },
                   "t": {
                     "type": "boolean",
-                    "description": "For Mintpay (type=3) only: pass true if payment succeeded, false if failed/cancelled"
+                    "description": "Unused for PayHere. For Mintpay (type=3) only: informational; backend verifies with Mintpay, not this flag."
                   }
                 }
               }
@@ -3454,61 +3632,21 @@
         },
         "responses": {
           "200": {
-            "description": "Payment confirmed successfully",
+            "description": "Payment confirmed. Load GET /api/v1/checkout only after this.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Payment successful"
-                    },
-                    "order_id": {
-                      "type": "string",
-                      "example": "1778423005903004"
-                    },
-                    "payment_status": {
-                      "type": "string",
-                      "example": "success"
-                    }
-                  }
+                  "$ref": "#/components/schemas/PayHereConfirmSuccess"
                 }
               }
             }
           },
           "202": {
-            "description": "Payment still pending — PayHere notify callback has not yet arrived. Frontend should poll this endpoint again after a short delay.",
+            "description": "Still pending after DB + live PayHere Retrieval API. Poll again after ~2s. HTTP 202 is not a paid order.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
-                    },
-                    "pending": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Payment is still being processed. Please check back shortly."
-                    },
-                    "order_id": {
-                      "type": "string",
-                      "example": "1778423005903004"
-                    },
-                    "payment_status": {
-                      "type": "string",
-                      "example": "pending"
-                    }
-                  }
+                  "$ref": "#/components/schemas/PayHereConfirmPending"
                 }
               }
             }
@@ -3518,30 +3656,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Payment failed. Please try again."
-                    },
-                    "order_id": {
-                      "type": "string",
-                      "example": "1778423005903004"
-                    },
-                    "payment_status": {
-                      "type": "string",
-                      "enum": [
-                        "failed",
-                        "canceled",
-                        "chargedback"
-                      ],
-                      "example": "failed"
-                    }
-                  }
+                  "$ref": "#/components/schemas/PayHereConfirmFailed"
                 }
               }
             }
@@ -3806,7 +3921,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Returns paid orders only (payment_status=success). Pending PayHere orders are omitted until POST /checkout/success returns success=true."
       },
       "post": {
         "summary": "Create checkout or start card payment flow",
@@ -3832,9 +3948,10 @@
                     "type": "integer",
                     "enum": [
                       1,
-                      2
+                      2,
+                      3
                     ],
-                    "description": "1 = card payment and returns PayHere hash flow, 2 = cash on delivery and creates normal checkout"
+                    "description": "1 = COD, 2 = PayHere (returns live SDK fields), 3 = Mintpay"
                   },
                   "coupon_code": {
                     "type": "string",
@@ -3895,145 +4012,136 @@
         },
         "responses": {
           "201": {
-            "description": "Created",
+            "description": "Pending PayHere order created. Use returned SDK fields (not a PayHere checkout form URL).",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PayHereCheckoutParams"
                     },
-                    "order_id": {
-                      "type": "integer"
-                    },
-                    "amount": {
-                      "type": "string",
-                      "example": "2500.00"
-                    },
-                    "currency": {
-                      "type": "string",
-                      "example": "LKR"
-                    },
-                    "merchant_id": {
-                      "type": "string"
-                    },
-                    "hash": {
-                      "type": "string"
-                    },
-                    "checkout": {
+                    {
                       "type": "object",
                       "properties": {
-                        "order_id": {
-                          "type": "integer"
-                        },
-                        "type": {
-                          "type": "integer",
-                          "enum": [
-                            1,
-                            2
-                          ],
-                          "description": "1 = card payment, 2 = cash on delivery"
-                        },
-                        "type_name": {
+                        "message": {
                           "type": "string"
                         },
-                        "status": {
-                          "type": "string"
-                        },
-                        "payload": {
+                        "checkout": {
                           "type": "object",
-                          "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
                           "properties": {
-                            "items": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "product": {
+                            "order_id": {
+                              "type": "integer"
+                            },
+                            "type": {
+                              "type": "integer",
+                              "enum": [
+                                1,
+                                2,
+                                3
+                              ],
+                              "description": "1 = COD, 2 = PayHere, 3 = Mintpay"
+                            },
+                            "type_name": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "payload": {
+                              "type": "object",
+                              "description": "Checkout payload. Contains items array with captured product snapshots (name, price, quantity).",
+                              "properties": {
+                                "items": {
+                                  "type": "array",
+                                  "items": {
                                     "type": "object",
                                     "properties": {
-                                      "prod_code": {
-                                        "type": "string"
+                                      "product": {
+                                        "type": "object",
+                                        "properties": {
+                                          "prod_code": {
+                                            "type": "string"
+                                          },
+                                          "prod_name": {
+                                            "type": "string"
+                                          },
+                                          "selling_price": {
+                                            "type": "number"
+                                          }
+                                        }
                                       },
-                                      "prod_name": {
-                                        "type": "string"
-                                      },
-                                      "selling_price": {
-                                        "type": "number"
+                                      "quantity": {
+                                        "type": "integer"
                                       }
                                     }
-                                  },
-                                  "quantity": {
-                                    "type": "integer"
                                   }
-                                }
-                              }
-                            },
-                            "prod_codes": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              }
-                            },
-                            "totals": {
-                              "type": "object",
-                              "properties": {
-                                "originalSubTotal": {
-                                  "type": "number"
                                 },
-                                "productDiscountTotal": {
-                                  "type": "number"
+                                "prod_codes": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
                                 },
-                                "subTotal": {
-                                  "type": "number"
-                                },
-                                "totalWeight": {
-                                  "type": "number"
-                                },
-                                "codCharge": {
-                                  "type": "number"
-                                },
-                                "courierCharge": {
-                                  "type": "number"
-                                },
-                                "discountAmount": {
-                                  "type": "number"
-                                },
-                                "appliedCoupon": {
+                                "totals": {
                                   "type": "object",
                                   "properties": {
-                                    "code": {
-                                      "type": "string"
-                                    },
-                                    "discount_type": {
-                                      "type": "string"
-                                    },
-                                    "discount_value": {
+                                    "originalSubTotal": {
                                       "type": "number"
                                     },
-                                    "amount": {
+                                    "productDiscountTotal": {
+                                      "type": "number"
+                                    },
+                                    "subTotal": {
+                                      "type": "number"
+                                    },
+                                    "totalWeight": {
+                                      "type": "number"
+                                    },
+                                    "codCharge": {
+                                      "type": "number"
+                                    },
+                                    "courierCharge": {
+                                      "type": "number"
+                                    },
+                                    "discountAmount": {
+                                      "type": "number"
+                                    },
+                                    "appliedCoupon": {
+                                      "type": "object",
+                                      "properties": {
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "discount_type": {
+                                          "type": "string"
+                                        },
+                                        "discount_value": {
+                                          "type": "number"
+                                        },
+                                        "amount": {
+                                          "type": "number"
+                                        }
+                                      }
+                                    },
+                                    "netTotalWithCod": {
+                                      "type": "number"
+                                    },
+                                    "netTotalWithoutCod": {
                                       "type": "number"
                                     }
                                   }
-                                },
-                                "netTotalWithCod": {
-                                  "type": "number"
-                                },
-                                "netTotalWithoutCod": {
-                                  "type": "number"
                                 }
                               }
+                            },
+                            "created_at": {
+                              "type": "string",
+                              "format": "date-time"
                             }
                           }
-                        },
-                        "created_at": {
-                          "type": "string",
-                          "format": "date-time"
                         }
                       }
                     }
-                  }
+                  ]
                 }
               }
             }
@@ -4083,7 +4191,7 @@
     },
     "/api/v1/checkout/payhere-hash": {
       "post": {
-        "summary": "Generate PayHere hash and create pending card order",
+        "summary": "Create pending PayHere order and return live SDK fields",
         "tags": [
           "Checkout"
         ],
@@ -4102,9 +4210,9 @@
                   "type": {
                     "type": "integer",
                     "enum": [
-                      1
+                      2
                     ],
-                    "description": "Optional. Card payments always use type 1."
+                    "description": "PayHere card payments use type 2."
                   },
                   "coupon_code": {
                     "type": "string",
@@ -4117,41 +4225,32 @@
         },
         "responses": {
           "201": {
-            "description": "Created",
+            "description": "Pending order created. Pass merchant_id, notify_url, hash, amount, and customer fields to the PayHere SDK.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PayHereCheckoutParams"
                     },
-                    "order_id": {
-                      "type": "integer"
-                    },
-                    "amount": {
-                      "type": "string",
-                      "example": "2500.00"
-                    },
-                    "currency": {
-                      "type": "string",
-                      "example": "LKR"
-                    },
-                    "merchant_id": {
-                      "type": "string"
-                    },
-                    "hash": {
-                      "type": "string"
-                    },
-                    "checkout": {
-                      "type": "object"
+                    {
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string"
+                        },
+                        "checkout": {
+                          "type": "object"
+                        }
+                      }
                     }
-                  }
+                  ]
                 }
               }
             }
           }
-        }
+        },
+        "description": "Creates a pending card order and returns signed PayHere fields from .env for the live Android/iOS/JS SDK. Does not return sandbox or payhere.lk/pay/checkout URLs. After SDK onCompleted, poll POST /api/v1/checkout/success."
       }
     },
     "/api/v1/checkout/mintpay-checkout": {
@@ -4306,7 +4405,7 @@
     "/api/v1/pick-and-collect/success": {
       "post": {
         "summary": "Verify Pick & Collect payment success",
-        "description": "For PayHere (type=2), the backend verifies the actual payment_status in the DB (set by /payhere/notify server callback) — does NOT trust the frontend blindly. Returns 202 if PayHere notify hasn't arrived yet. For Mintpay (type=3), pass t=true/false from the redirect.",
+        "description": "For PayHere (type=2), the backend verifies payment_status from notify and, if still pending, PayHere Retrieval API. Returns 202 until confirmed. Poll; do not treat pending as paid.",
         "tags": [
           "Pick & Collect"
         ],
@@ -4337,11 +4436,11 @@
                       2,
                       3
                     ],
-                    "description": "2 = PayHere (verified via DB), 3 = Mintpay (pass t=true/false)"
+                    "description": "2 = PayHere (notify + live Retrieval API), 3 = Mintpay"
                   },
                   "t": {
                     "type": "boolean",
-                    "description": "For Mintpay (type=3) only: pass true if payment succeeded, false if failed/cancelled"
+                    "description": "Unused for PayHere. Mintpay is verified server-side, not from this flag."
                   }
                 }
               }
@@ -4350,57 +4449,21 @@
         },
         "responses": {
           "200": {
-            "description": "Payment confirmed successfully",
+            "description": "Pick & Collect payment confirmed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Payment successful"
-                    },
-                    "order_id": {
-                      "type": "string",
-                      "example": "1778423005903004"
-                    }
-                  }
+                  "$ref": "#/components/schemas/PayHereConfirmSuccess"
                 }
               }
             }
           },
           "202": {
-            "description": "Payment still pending — PayHere notify callback has not yet arrived. Frontend should poll this endpoint again after a short delay.",
+            "description": "Still pending after DB + live PayHere Retrieval API. Poll again after ~2s. HTTP 202 is not a paid order.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
-                    },
-                    "pending": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Payment is still being processed. Please check back shortly."
-                    },
-                    "order_id": {
-                      "type": "string",
-                      "example": "1778423005903004"
-                    },
-                    "payment_status": {
-                      "type": "string",
-                      "example": "pending"
-                    }
-                  }
+                  "$ref": "#/components/schemas/PayHereConfirmPending"
                 }
               }
             }
@@ -4410,30 +4473,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Payment failed. Please try again."
-                    },
-                    "order_id": {
-                      "type": "string",
-                      "example": "1778423005903004"
-                    },
-                    "payment_status": {
-                      "type": "string",
-                      "enum": [
-                        "failed",
-                        "canceled",
-                        "chargedback"
-                      ],
-                      "example": "failed"
-                    }
-                  }
+                  "$ref": "#/components/schemas/PayHereConfirmFailed"
                 }
               }
             }
@@ -5454,10 +5494,10 @@
                   "type": {
                     "type": "integer",
                     "enum": [
-                      1,
-                      2
+                      2,
+                      3
                     ],
-                    "description": "1 = PayHere, 2 = cash on delivery"
+                    "description": "2 = PayHere, 3 = Mintpay"
                   },
                   "coupon_code": {
                     "type": "string",
@@ -5486,67 +5526,57 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "successful": {
-                      "type": "boolean"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PayHereCheckoutParams"
                     },
-                    "message": {
-                      "type": "string"
-                    },
-                    "pick_and_collect_id": {
-                      "type": "integer"
-                    },
-                    "order_id": {
-                      "type": "integer"
-                    },
-                    "amount": {
-                      "type": "string",
-                      "example": "1500.00"
-                    },
-                    "currency": {
-                      "type": "string",
-                      "example": "LKR"
-                    },
-                    "merchant_id": {
-                      "type": "string"
-                    },
-                    "hash": {
-                      "type": "string"
-                    },
-                    "pick_and_collect": {
+                    {
                       "type": "object",
                       "properties": {
+                        "successful": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
                         "pick_and_collect_id": {
-                          "type": "integer"
-                        },
-                        "location": {
                           "type": "string"
                         },
-                        "location_name": {
-                          "type": "string"
-                        },
-                        "type": {
-                          "type": "integer"
-                        },
-                        "type_name": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
-                        },
-                        "coupon_code": {
-                          "type": "string"
-                        },
-                        "discount_amount": {
-                          "type": "number"
-                        },
-                        "net_amount": {
-                          "type": "number"
+                        "pick_and_collect": {
+                          "type": "object",
+                          "properties": {
+                            "pick_and_collect_id": {
+                              "type": "integer"
+                            },
+                            "location": {
+                              "type": "string"
+                            },
+                            "location_name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "integer"
+                            },
+                            "type_name": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            },
+                            "coupon_code": {
+                              "type": "string"
+                            },
+                            "discount_amount": {
+                              "type": "number"
+                            },
+                            "net_amount": {
+                              "type": "number"
+                            }
+                          }
                         }
                       }
                     }
-                  }
+                  ]
                 }
               }
             }
@@ -5666,7 +5696,7 @@
     },
     "/api/v1/pick-and-collect/payhere-hash": {
       "post": {
-        "summary": "Generate PayHere hash and create pending pick and collect record",
+        "summary": "Create pending PayHere pick-and-collect order and return live SDK fields",
         "tags": [
           "Pick & Collect"
         ],
@@ -5730,58 +5760,48 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "successful": {
-                      "type": "boolean"
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PayHereCheckoutParams"
                     },
-                    "message": {
-                      "type": "string"
-                    },
-                    "pick_and_collect_id": {
-                      "type": "integer"
-                    },
-                    "order_id": {
-                      "type": "integer"
-                    },
-                    "amount": {
-                      "type": "string",
-                      "example": "1500.00"
-                    },
-                    "currency": {
-                      "type": "string",
-                      "example": "LKR"
-                    },
-                    "merchant_id": {
-                      "type": "string"
-                    },
-                    "hash": {
-                      "type": "string"
-                    },
-                    "pick_and_collect": {
+                    {
                       "type": "object",
                       "properties": {
+                        "successful": {
+                          "type": "boolean"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
                         "pick_and_collect_id": {
-                          "type": "integer"
-                        },
-                        "location": {
                           "type": "string"
                         },
-                        "location_name": {
-                          "type": "string"
-                        },
-                        "type": {
-                          "type": "integer"
-                        },
-                        "type_name": {
-                          "type": "string"
-                        },
-                        "status": {
-                          "type": "string"
+                        "pick_and_collect": {
+                          "type": "object",
+                          "properties": {
+                            "pick_and_collect_id": {
+                              "type": "integer"
+                            },
+                            "location": {
+                              "type": "string"
+                            },
+                            "location_name": {
+                              "type": "string"
+                            },
+                            "type": {
+                              "type": "integer"
+                            },
+                            "type_name": {
+                              "type": "string"
+                            },
+                            "status": {
+                              "type": "string"
+                            }
+                          }
                         }
                       }
                     }
-                  }
+                  ]
                 }
               }
             }
@@ -5795,7 +5815,8 @@
           "404": {
             "description": "Not found"
           }
-        }
+        },
+        "description": "Same as checkout PayHere hash: live SDK fields from .env only. No sandbox or checkout form URL."
       }
     },
     "/api/v1/customers": {
@@ -5876,7 +5897,6 @@
         }
       }
     },
-
     "/api/v1/customers/{id}/order-products": {
       "get": {
         "summary": "Get all products ordered by a customer",
@@ -6722,6 +6742,150 @@
       }
     },
     "schemas": {
+      "PayHereCheckoutParams": {
+        "type": "object",
+        "description": "Live PayHere fields generated on the backend from .env. Use these with the PayHere Android/iOS or JavaScript SDK (merchant_id, notify_url, hash, amount, customer). Do not hardcode notify/return/cancel URLs or merchant_secret on the client. This API does not return sandbox hosts or checkout form URLs; web/JS SDK payments do not POST to payhere.lk/pay/checkout.",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "return_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Backend-configured return URL from PAYHERE_RETURN_URL or API_PUBLIC_URL. Required by the PayHere SDK."
+          },
+          "cancel_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Backend-configured cancel URL from PAYHERE_CANCEL_URL or API_PUBLIC_URL."
+          },
+          "notify_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Public IPN URL. Must be passed to the PayHere SDK. Source of payment confirmation."
+          },
+          "order_id": {
+            "type": "string",
+            "example": "1790320099041241"
+          },
+          "items": {
+            "type": "string",
+            "description": "Short item summary required by the PayHere Checkout API."
+          },
+          "currency": {
+            "type": "string",
+            "example": "LKR"
+          },
+          "amount": {
+            "type": "string",
+            "example": "2500.00",
+            "description": "Amount formatted to 2 decimal places. Must match the hash."
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string",
+            "example": "Sri Lanka"
+          },
+          "hash": {
+            "type": "string",
+            "description": "UPPER(md5(merchant_id + order_id + amount + currency + UPPER(md5(merchant_secret))))."
+          }
+        }
+      },
+      "PayHereConfirmSuccess": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Payment successful"
+          },
+          "order_id": {
+            "type": "string",
+            "example": "1790320099041241"
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "success"
+            ],
+            "example": "success"
+          }
+        }
+      },
+      "PayHereConfirmPending": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false,
+            "description": "Payment is not confirmed yet. Do not treat the API wrapper successful=true as paid."
+          },
+          "pending": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Payment is still being processed. Please check back shortly."
+          },
+          "order_id": {
+            "type": "string",
+            "example": "1790320099041241"
+          },
+          "payment_status": {
+            "type": "string",
+            "example": "pending"
+          }
+        }
+      },
+      "PayHereConfirmFailed": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "message": {
+            "type": "string",
+            "example": "Payment failed. Please try again."
+          },
+          "order_id": {
+            "type": "string",
+            "example": "1790320099041241"
+          },
+          "payment_status": {
+            "type": "string",
+            "enum": [
+              "failed",
+              "canceled",
+              "chargedback",
+              "refunded"
+            ],
+            "example": "failed"
+          }
+        }
+      },
       "Department": {
         "type": "object",
         "properties": {

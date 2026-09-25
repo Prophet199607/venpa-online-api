@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const {
   Checkout,
   PickAndCollect,
@@ -28,6 +27,8 @@ const {
 } = require("../services/notifications/emailService");
 const { buildPriceLevelMap } = require("../services/products/priceService");
 const mintpayService = require("../services/payments/mintpayService");
+const payhereService = require("../services/payments/payhereService");
+const paymentController = require("./payment.controller");
 
 function normalizeCheckoutType(value) {
   if (value === 1 || value === "1") return 1; // COD
@@ -338,40 +339,7 @@ async function consumeCoupon(userId, couponId, orderId) {
 }
 exports.consumeCoupon = consumeCoupon;
 
-function buildPayHereHash(orderId, amount) {
-  const merchantId = String(process.env.PAYHERE_MERCHANT_ID || "").trim();
-  const merchantSecret = String(
-    process.env.PAYHERE_MERCHANT_SECRET || "",
-  ).trim();
-  const currency =
-    String(process.env.PAYHERE_CURRENCY || "LKR").trim() || "LKR";
-
-  if (!merchantId || !merchantSecret) {
-    return { error: "PayHere merchant configuration is missing" };
-  }
-
-  const secretHash = crypto
-    .createHash("md5")
-    .update(merchantSecret)
-    .digest("hex")
-    .toUpperCase();
-
-  const hash = crypto
-    .createHash("md5")
-    .update(`${merchantId}${orderId}${amount}${currency}${secretHash}`)
-    .digest("hex")
-    .toUpperCase();
-
-  return {
-    order_id: orderId,
-    amount,
-    currency,
-    merchant_id: merchantId,
-    hash,
-  };
-}
-
-async function createCardPaymentResponse(userId, body, persist = true) {
+async function createCardPaymentResponse(userId, body, persist = true, req = null) {
   const cart = await getActiveCartWithProducts(userId);
   if (!cart) {
     return { status: 404, body: { message: "Active cart not found" } };
@@ -422,12 +390,7 @@ async function createCardPaymentResponse(userId, body, persist = true) {
 
   const amountValue = totals.netTotalWithoutCod;
   const { type: _type, ...payload } = body || {};
-  const amount = amountValue.toFixed(2);
-  const hashPayload = buildPayHereHash(orderId, amount);
-
-  if (hashPayload.error) {
-    return { status: 500, body: { message: hashPayload.error } };
-  }
+  const amount = payhereService.formatAmount(amountValue);
 
   // Stock Availability Check (before payment)
   const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
@@ -463,6 +426,25 @@ async function createCardPaymentResponse(userId, body, persist = true) {
         missingItems: stockCheck.missingItems,
       },
     };
+  }
+
+  const user = await User.findOne({
+    where: { id: userId },
+    attributes: ["id", "fname", "lname", "email", "phone", "address", "city"],
+  });
+  const hashPayload = payhereService.buildCheckoutParams({
+    orderId,
+    amount,
+    items: items
+      .map((item) => item.product?.prod_name)
+      .filter(Boolean)
+      .slice(0, 5)
+      .join(", "),
+    customer: payhereService.buildCustomer(user, body),
+    req,
+  });
+  if (hashPayload.error) {
+    return { status: 500, body: { message: hashPayload.error } };
   }
 
   // NOTE: Email & backoffice notification are sent AFTER payment confirmation
@@ -529,8 +511,8 @@ async function createCardPaymentResponse(userId, body, persist = true) {
         : "PayHere hash generated (not saved)",
       order_id: orderId,
       amount,
-      currency: "LKR",
-      merchant_id: process.env.PAYHERE_MERCHANT_ID,
+      currency: hashPayload.currency,
+      merchant_id: hashPayload.merchant_id,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
@@ -563,6 +545,7 @@ exports.createCheckout = async (req, res, next) => {
         req.user.id,
         req.body,
         true,
+        req,
       );
 
       // Handle Gift Details for type 2 (if successful)
@@ -1000,8 +983,33 @@ exports.createPayHereHash = async (req, res, next) => {
           .json({ message: "Order has invalid amount for payment" });
       }
 
-      const amount = amountValue.toFixed(2);
-      const hashPayload = buildPayHereHash(order_id, amount);
+      const amount = payhereService.formatAmount(amountValue);
+      const user = await User.findOne({
+        where: { id: req.user.id },
+        attributes: [
+          "id",
+          "fname",
+          "lname",
+          "email",
+          "phone",
+          "address",
+          "city",
+        ],
+      });
+      const itemNames = Array.isArray(payload.items)
+        ? payload.items
+            .map((item) => item.product?.prod_name)
+            .filter(Boolean)
+            .slice(0, 5)
+            .join(", ")
+        : "";
+      const hashPayload = payhereService.buildCheckoutParams({
+        orderId: order_id,
+        amount,
+        items: itemNames,
+        customer: payhereService.buildCustomer(user, req.body),
+        req,
+      });
 
       if (hashPayload.error) {
         return res.status(500).json({ message: hashPayload.error });
@@ -1009,10 +1017,6 @@ exports.createPayHereHash = async (req, res, next) => {
 
       return res.json({
         message: "PayHere hash generated for existing order",
-        order_id: checkout.order_id,
-        amount,
-        currency: "LKR",
-        merchant_id: process.env.PAYHERE_MERCHANT_ID,
         ...hashPayload,
       });
     }
@@ -1020,7 +1024,12 @@ exports.createPayHereHash = async (req, res, next) => {
     // Default flow: Create order AND generate hash.
     // persist=true ensures the order_id is stored in DB BEFORE being sent to PayHere,
     // so when PayHere calls back with the same order_id it can be found.
-    const result = await createCardPaymentResponse(req.user.id, req.body, true);
+    const result = await createCardPaymentResponse(
+      req.user.id,
+      req.body,
+      true,
+      req,
+    );
     return res.status(result.status).json(result.body);
   } catch (e) {
     console.error("PayHere Hash Error:", e);
@@ -1145,12 +1154,14 @@ exports.checkoutSuccess = async (req, res, next) => {
 
     const { Checkout, PickAndCollect, Cart, CartItem } = require("../models");
 
-    let record = await Checkout.findOne({ where: { order_id } });
+    let record = await Checkout.findOne({
+      where: { order_id, user_id: req.user.id },
+    });
     let isPickAndCollect = false;
 
     if (!record) {
       record = await PickAndCollect.findOne({
-        where: { pick_and_collect_id: order_id },
+        where: { pick_and_collect_id: order_id, user_id: req.user.id },
       });
       isPickAndCollect = true;
     }
@@ -1173,14 +1184,16 @@ exports.checkoutSuccess = async (req, res, next) => {
         message = "COD order confirmed successfully";
       }
     } else if (type === 2 || type === "2") {
-      // PayHere - Verify actual payment status from DB (set by /payhere/notify server callback)
-      // Do NOT blindly trust the frontend; the notify callback is the source of truth.
+      // PayHere: notify is source of truth; Retrieval API is the fallback when IPN lags.
+      record = await paymentController.confirmPayHereOrder(
+        record,
+        isPickAndCollect,
+      );
       const payhereStatus = record.payment_status;
       if (payhereStatus === "success") {
         success = true;
         message = "Payment successful";
       } else if (payhereStatus === "pending") {
-        // Notify callback hasn't arrived yet — return a pending response so frontend can poll
         return res.status(202).json({
           success: false,
           pending: true,
@@ -1192,7 +1205,6 @@ exports.checkoutSuccess = async (req, res, next) => {
           payment_status: "pending",
         });
       } else {
-        // "failed", "canceled", "chargedback", or any other non-success status
         success = false;
         message =
           payhereStatus === "canceled"
