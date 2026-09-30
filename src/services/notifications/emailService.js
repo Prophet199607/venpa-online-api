@@ -770,19 +770,27 @@ exports.generateStockRequestAlertHtml = ({
   <style>
     body { margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
     .email-card { background-color: #ffffff !important; }
+    .section-title { color: #111827 !important; }
     .label-text { color: #6B7280 !important; }
     .value-text { color: #111827 !important; }
+    .link-text { color: ${brandColor} !important; }
+    .panel { border-color: #E5E7EB !important; }
     .row-divider { border-bottom: 1px solid #E5E7EB !important; }
     .message-box { background-color: #F9FAFB !important; border-color: #E5E7EB !important; }
     .footer-text { color: #9CA3AF !important; }
+    .footer-sub-text { color: #9CA3AF !important; }
     @media (prefers-color-scheme: dark) {
       body { background-color: #111827 !important; }
       .email-card { background-color: #1F2937 !important; }
+      .section-title { color: #F3F4F6 !important; }
       .label-text { color: #9CA3AF !important; }
       .value-text { color: #F9FAFB !important; }
+      .link-text { color: #60a5fa !important; }
+      .panel { border-color: #4B5563 !important; }
       .row-divider { border-bottom-color: #4B5563 !important; }
       .message-box { background-color: #374151 !important; border-color: #4B5563 !important; }
-      .footer-text { color: #6B7280 !important; }
+      .footer-text { color: #9CA3AF !important; }
+      .footer-sub-text { color: #9CA3AF !important; }
     }
   </style>
 </head>
@@ -812,8 +820,8 @@ exports.generateStockRequestAlertHtml = ({
           <!-- Requested Product -->
           <tr>
             <td style="padding:20px 24px 0;">
-              <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Requested Product</h2>
-              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+              <h2 class="section-title" style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Requested Product</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" class="panel" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
                 <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
                   <td style="padding:10px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
@@ -841,8 +849,8 @@ exports.generateStockRequestAlertHtml = ({
           <!-- Customer Details -->
           <tr>
             <td style="padding:16px 24px 0;">
-              <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Customer Details</h2>
-              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+              <h2 class="section-title" style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Customer Details</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" class="panel" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
                 <tr class="row-divider" style="border-bottom:1px solid #E5E7EB;">
                   <td style="padding:10px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
@@ -859,7 +867,7 @@ exports.generateStockRequestAlertHtml = ({
                       <tr>
                         <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Email</td>
                         <td style="text-align:right;">
-                          <a href="mailto:${escapeHtml(email)}" style="font-size:13px;font-weight:600;color:${brandColor};text-decoration:none;">${escapeHtml(email)}</a>
+                          <a href="mailto:${escapeHtml(email)}" class="link-text" style="font-size:13px;font-weight:600;color:${brandColor};text-decoration:none;">${escapeHtml(email)}</a>
                         </td>
                       </tr>
                     </table>
@@ -885,7 +893,7 @@ exports.generateStockRequestAlertHtml = ({
               ? `
           <tr>
             <td style="padding:16px 24px 0;">
-              <h2 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111827;">Message</h2>
+              <h2 class="section-title" style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111827;">Message</h2>
               <div class="message-box" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;">
                 <p class="value-text" style="margin:0;font-size:13px;color:#374151;line-height:1.7;">${messageHtml}</p>
               </div>
@@ -899,7 +907,7 @@ exports.generateStockRequestAlertHtml = ({
           <tr>
             <td style="padding:20px 24px;text-align:center;">
               <p class="footer-text" style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
-              <p style="margin:0;font-size:11px;color:#D1D5DB;">This is an automated notification email.</p>
+              <p class="footer-sub-text" style="margin:0;font-size:11px;color:#9CA3AF;">This is an automated notification email.</p>
             </td>
           </tr>
 
@@ -969,14 +977,19 @@ exports.generateBackInStockHtml = ({ name, prod_code, prod_name }) => {
     .info-box { background-color: #F0F7FF !important; border: 1px solid #D1E4F7 !important; }
     .value-text { color: #111827 !important; }
     .label-text { color: #6B7280 !important; }
+    .body-text { color: #374151 !important; }
     .footer-text { color: #9CA3AF !important; }
+    .footer-sub-text { color: #9CA3AF !important; }
     @media (prefers-color-scheme: dark) {
       body { background-color: #111827 !important; }
       .email-card { background-color: #1F2937 !important; }
       .info-box { background-color: #1E3A5F !important; border-color: #3160c4 !important; }
+      .info-box .label-text { color: #D1D5DB !important; }
       .value-text { color: #F9FAFB !important; }
       .label-text { color: #9CA3AF !important; }
-      .footer-text { color: #6B7280 !important; }
+      .body-text { color: #D1D5DB !important; }
+      .footer-text { color: #9CA3AF !important; }
+      .footer-sub-text { color: #9CA3AF !important; }
     }
   </style>
 </head>
@@ -1006,7 +1019,7 @@ exports.generateBackInStockHtml = ({ name, prod_code, prod_name }) => {
           <!-- Body -->
           <tr>
             <td style="padding:24px;">
-              <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.7;">
+              <p class="body-text" style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.7;">
                 The item you requested is now back in stock. Visit our website or app to place your order before it sells out again.
               </p>
               <div class="info-box" style="background-color:#F0F7FF;border:1px solid #D1E4F7;border-radius:8px;padding:16px;">
@@ -1040,7 +1053,7 @@ exports.generateBackInStockHtml = ({ name, prod_code, prod_name }) => {
           <tr>
             <td style="padding:20px 24px;text-align:center;">
               <p class="footer-text" style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
-              <p style="margin:0;font-size:11px;color:#D1D5DB;">This is an automated notification email, please do not reply.</p>
+              <p class="footer-sub-text" style="margin:0;font-size:11px;color:#9CA3AF;">This is an automated notification email, please do not reply.</p>
             </td>
           </tr>
 
