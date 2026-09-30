@@ -77,8 +77,12 @@ exports.create = async (req, res, next) => {
  */
 exports.list = async (req, res, next) => {
   try {
-    const page = Math.max(Number(req.query.page || 1), 1);
-    const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 100);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 20, 1),
+      100,
+    );
+    const offset = (page - 1) * limit;
     const where = {};
 
     if (req.query.status === "0" || req.query.status === "1") {
@@ -92,10 +96,18 @@ exports.list = async (req, res, next) => {
       where,
       order: [["id", "DESC"]],
       limit,
-      offset: (page - 1) * limit,
+      offset,
     });
 
-    return res.json({ data: rows, total: count, page, limit });
+    return res.json({
+      data: rows,
+      pagination: {
+        current_page: page,
+        last_page: Math.ceil(count / limit) || 0,
+        total: count,
+        per_page: limit,
+      },
+    });
   } catch (e) {
     next(e);
   }
