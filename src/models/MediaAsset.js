@@ -18,6 +18,7 @@ const MediaAsset = sequelize.define(
       allowNull: true,
     },
     link: { type: DataTypes.STRING(255), allowNull: true },
+    language: { type: DataTypes.STRING(10), allowNull: true },
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
     created_at: { type: DataTypes.DATE },
     updated_at: { type: DataTypes.DATE },

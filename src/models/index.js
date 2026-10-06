@@ -315,6 +315,20 @@ GiftReceiverDetail.belongsTo(Checkout, {
   constraints: false,
 });
 
+// MediaAsset - Language association
+MediaAsset.belongsTo(Language, {
+  foreignKey: "language",
+  targetKey: "lang_code",
+  as: "languageDetails",
+  constraints: false,
+});
+Language.hasMany(MediaAsset, {
+  foreignKey: "language",
+  sourceKey: "lang_code",
+  as: "mediaAssets",
+  constraints: false,
+});
+
 module.exports = {
   sequelize,
   Department,

@@ -1,4 +1,4 @@
-const { MediaAsset } = require("../../models");
+const { MediaAsset, Language } = require("../../models");
 const { uploadToS3 } = require("../../utils/s3");
 
 /**
@@ -11,7 +11,7 @@ async function processImage(imageValue, orientation, placement_key) {
     if (base64Data) {
       const padding = (base64Data.match(/=+$/) || [""])[0].length;
       const sizeInBytes = Math.ceil((base64Data.length * 3) / 4) - padding;
-      
+
       if (sizeInBytes > 5 * 1024 * 1024) {
         const error = new Error("Image size exceeds 5MB limit");
         error.status = 400;
@@ -27,6 +27,29 @@ async function processImage(imageValue, orientation, placement_key) {
   return imageValue;
 }
 
+/**
+ * Append full image URLs and language info to a plain JSON object.
+ */
+function formatItem(json) {
+  const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
+  if (json.image && !json.image.startsWith("http")) {
+    json.image = `${baseUrl}${json.image}`;
+  }
+  if (json.mobile_image && !json.mobile_image.startsWith("http")) {
+    json.mobile_image = `${baseUrl}${json.mobile_image}`;
+  }
+  // Flatten language details
+  if (json.languageDetails) {
+    json.language_code = json.languageDetails.lang_code || null;
+    json.language_name = json.languageDetails.lang_name || null;
+    delete json.languageDetails;
+  } else {
+    json.language_code = json.language || null;
+    json.language_name = null;
+  }
+  return json;
+}
+
 exports.listBanners = async (req, res, next) => {
   try {
     const { orientation, placement_key, is_active } = req.query;
@@ -40,20 +63,20 @@ exports.listBanners = async (req, res, next) => {
 
     const items = await MediaAsset.findAll({
       where,
+      include: [
+        {
+          model: Language,
+          as: "languageDetails",
+          attributes: ["lang_code", "lang_name"],
+          required: false,
+        },
+      ],
       order: [["position", "ASC"]],
     });
 
-    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
-
     const formattedItems = items.map((item) => {
       const json = item.toJSON ? item.toJSON() : item;
-      if (json.image && !json.image.startsWith("http")) {
-        json.image = `${baseUrl}${json.image}`;
-      }
-      if (json.mobile_image && !json.mobile_image.startsWith("http")) {
-        json.mobile_image = `${baseUrl}${json.mobile_image}`;
-      }
-      return json;
+      return formatItem(json);
     });
 
     res.json(formattedItems);
@@ -71,6 +94,7 @@ exports.createBanner = async (req, res, next) => {
       orientation,
       placement_key,
       link,
+      language,
       position,
       is_active,
     } = req.body;
@@ -97,22 +121,27 @@ exports.createBanner = async (req, res, next) => {
       orientation,
       placement_key,
       link,
+      language: language || null,
       position: position || 0,
       is_active: is_active ?? true,
       created_at: new Date(),
       updated_at: new Date(),
     });
 
-    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
-    const json = item.toJSON ? item.toJSON() : item;
-    if (json.image && !json.image.startsWith("http")) {
-      json.image = `${baseUrl}${json.image}`;
-    }
-    if (json.mobile_image && !json.mobile_image.startsWith("http")) {
-      json.mobile_image = `${baseUrl}${json.mobile_image}`;
-    }
+    // Re-fetch with language join to return consistent shape
+    const created = await MediaAsset.findByPk(item.id, {
+      include: [
+        {
+          model: Language,
+          as: "languageDetails",
+          attributes: ["lang_code", "lang_name"],
+          required: false,
+        },
+      ],
+    });
 
-    res.status(201).json(json);
+    const json = created.toJSON ? created.toJSON() : created;
+    res.status(201).json(formatItem(json));
   } catch (e) {
     next(e);
   }
@@ -147,21 +176,30 @@ exports.updateBanner = async (req, res, next) => {
       );
     }
 
+    // Allow explicitly clearing language by passing null/empty string
+    if ("language" in updateData) {
+      updateData.language = updateData.language || null;
+    }
+
     await item.update({
       ...updateData,
       updated_at: new Date(),
     });
 
-    const baseUrl = process.env.PRODUCT_IMAGE_BASE_URL;
-    const json = item.toJSON ? item.toJSON() : item;
-    if (json.image && !json.image.startsWith("http")) {
-      json.image = `${baseUrl}${json.image}`;
-    }
-    if (json.mobile_image && !json.mobile_image.startsWith("http")) {
-      json.mobile_image = `${baseUrl}${json.mobile_image}`;
-    }
+    // Re-fetch with language join to return consistent shape
+    const updated = await MediaAsset.findByPk(item.id, {
+      include: [
+        {
+          model: Language,
+          as: "languageDetails",
+          attributes: ["lang_code", "lang_name"],
+          required: false,
+        },
+      ],
+    });
 
-    res.json(json);
+    const json = updated.toJSON ? updated.toJSON() : updated;
+    res.json(formatItem(json));
   } catch (e) {
     next(e);
   }
