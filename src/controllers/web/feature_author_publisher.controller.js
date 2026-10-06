@@ -1,4 +1,10 @@
-const { FeatureAuthorPublisher, Author, Publisher, sequelize } = require("../../models");
+const {
+  FeatureAuthorPublisher,
+  Author,
+  Publisher,
+  Language,
+  sequelize,
+} = require("../../models");
 const { Op } = require("sequelize");
 
 /**
@@ -7,10 +13,10 @@ const { Op } = require("sequelize");
 exports.list = async (req, res, next) => {
   try {
     const { type } = req.query;
-    const page     = Math.max(1, parseInt(req.query.page)     || 1);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
     const per_page = Math.max(1, parseInt(req.query.per_page) || 15);
-    const limit    = Math.min(per_page, 200);
-    const offset   = (page - 1) * limit;
+    const limit = Math.min(per_page, 200);
+    const offset = (page - 1) * limit;
 
     const where = {};
     if (type) where.type = type;
@@ -21,13 +27,29 @@ exports.list = async (req, res, next) => {
         {
           model: Author,
           as: "author",
-          attributes: ["id", "auth_code", "auth_name", "auth_image", "description", "status"],
+          attributes: [
+            "id",
+            "auth_code",
+            "auth_name",
+            "auth_image",
+            "description",
+            "language",
+            "status",
+          ],
           required: false,
         },
         {
           model: Publisher,
           as: "publisher",
-          attributes: ["id", "pub_code", "pub_name", "pub_image", "description", "status"],
+          attributes: [
+            "id",
+            "pub_code",
+            "pub_name",
+            "pub_image",
+            "description",
+            "language",
+            "status",
+          ],
           required: false,
         },
       ],
@@ -37,7 +59,29 @@ exports.list = async (req, res, next) => {
       distinct: true,
       col: "id",
     });
- const imageBaseUrl = process.env.PRODUCT_IMAGE_BASE_URL?.replace(/\/$/, "");
+    const imageBaseUrl = process.env.PRODUCT_IMAGE_BASE_URL?.replace(/\/$/, "");
+
+    const languageCodes = new Set();
+    for (const row of rows) {
+      if (row.author?.language)
+        languageCodes.add(String(row.author.language).trim().toUpperCase());
+      if (row.publisher?.language)
+        languageCodes.add(String(row.publisher.language).trim().toUpperCase());
+    }
+    let languageNameByCode = new Map();
+    if (languageCodes.size) {
+      const langRows = await Language.findAll({
+        where: { lang_code: { [Op.in]: [...languageCodes] } },
+        attributes: ["lang_code", "lang_name"],
+        raw: true,
+      });
+      languageNameByCode = new Map(
+        langRows.map((r) => [
+          String(r.lang_code).trim().toUpperCase(),
+          r.lang_name,
+        ]),
+      );
+    }
 
     const data = rows.map((row) => {
       const item = row.toJSON();
@@ -48,6 +92,24 @@ exports.list = async (req, res, next) => {
 
       if (item.publisher?.pub_image) {
         item.publisher.pub_image = `${imageBaseUrl}/${item.publisher.pub_image}`;
+      }
+
+      if (item.author) {
+        const key = item.author.language
+          ? String(item.author.language).trim().toUpperCase()
+          : null;
+        item.author.language_name = key
+          ? languageNameByCode.get(key) || null
+          : null;
+      }
+
+      if (item.publisher) {
+        const key = item.publisher.language
+          ? String(item.publisher.language).trim().toUpperCase()
+          : null;
+        item.publisher.language_name = key
+          ? languageNameByCode.get(key) || null
+          : null;
       }
 
       return item;
@@ -85,7 +147,9 @@ exports.create = async (req, res, next) => {
     }
 
     if (!code) {
-      return res.status(400).json({ success: false, message: "code is required." });
+      return res
+        .status(400)
+        .json({ success: false, message: "code is required." });
     }
 
     // Validate code exists in the correct table
@@ -114,12 +178,17 @@ exports.create = async (req, res, next) => {
         transaction,
       });
       if (duplicate) {
-        throw Object.assign(new Error(`This ${type} (${code}) already exists.`), { status: 409 });
+        throw Object.assign(
+          new Error(`This ${type} (${code}) already exists.`),
+          { status: 409 },
+        );
       }
 
       // Auto position per type
       const maxRow = await FeatureAuthorPublisher.findOne({
-        attributes: [[sequelize.fn("MAX", sequelize.col("position")), "max_position"]],
+        attributes: [
+          [sequelize.fn("MAX", sequelize.col("position")), "max_position"],
+        ],
         where: { type },
         raw: true,
         transaction,
@@ -128,7 +197,7 @@ exports.create = async (req, res, next) => {
 
       return FeatureAuthorPublisher.create(
         { code, type, position: nextPosition },
-        { transaction }
+        { transaction },
       );
     });
 
@@ -155,13 +224,20 @@ exports.update = async (req, res, next) => {
 
     const record = await FeatureAuthorPublisher.findByPk(id);
     if (!record) {
-      return res.status(404).json({ success: false, message: "Record not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Record not found." });
     }
 
     if (position !== undefined && position !== null) {
       const newPosition = parseInt(position);
       if (isNaN(newPosition) || newPosition < 1) {
-        return res.status(400).json({ success: false, message: "position must be a positive integer." });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: "position must be a positive integer.",
+          });
       }
 
       await sequelize.transaction(async (transaction) => {
@@ -174,7 +250,7 @@ exports.update = async (req, res, next) => {
               by: 1,
               where: {
                 type,
-                id:       { [Op.ne]: id },
+                id: { [Op.ne]: id },
                 position: { [Op.gte]: newPosition, [Op.lt]: oldPosition },
               },
               transaction,
@@ -184,7 +260,7 @@ exports.update = async (req, res, next) => {
               by: -1,
               where: {
                 type,
-                id:       { [Op.ne]: id },
+                id: { [Op.ne]: id },
                 position: { [Op.gt]: oldPosition, [Op.lte]: newPosition },
               },
               transaction,
@@ -215,7 +291,9 @@ exports.delete = async (req, res, next) => {
     if (ids && !Array.isArray(ids)) ids = [ids];
 
     if (!ids || !ids.length) {
-      return res.status(400).json({ success: false, message: "ids is required." });
+      return res
+        .status(400)
+        .json({ success: false, message: "ids is required." });
     }
 
     await sequelize.transaction(async (transaction) => {

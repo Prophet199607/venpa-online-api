@@ -573,6 +573,7 @@
     "/api/v1/publishers": {
       "get": {
         "summary": "List publishers",
+        "description": "Each publisher includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Master"
         ],
@@ -609,6 +610,7 @@
     "/api/v1/publishers/{id}": {
       "get": {
         "summary": "Get publisher by id or pub_code",
+        "description": "Response includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Master"
         ],
@@ -635,6 +637,7 @@
     "/api/v1/publishers/{id}/books": {
       "get": {
         "summary": "Get all books linked to a publisher id or pub_code",
+        "description": "Response publisher payload includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Master"
         ],
@@ -662,6 +665,7 @@
     "/api/v1/authors": {
       "get": {
         "summary": "List authors",
+        "description": "Each author includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Master"
         ],
@@ -698,6 +702,7 @@
     "/api/v1/authors/{id}": {
       "get": {
         "summary": "Get author by id or auth_code",
+        "description": "Response includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Master"
         ],
@@ -724,6 +729,7 @@
     "/api/v1/authors/{id}/books": {
       "get": {
         "summary": "Get all books linked to an author id or auth_code",
+        "description": "Response author payload includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Master"
         ],
@@ -6112,7 +6118,7 @@
     "/api/v1/feature-authors-publishers/list": {
       "get": {
         "summary": "List specific authors / publishers",
-        "description": "Returns paginated records filtered by type (author or publisher).",
+        "description": "Returns paginated records filtered by type (author or publisher). Each nested author / publisher object includes the stored `language` code and the resolved `language_name` from the languages table.",
         "tags": [
           "Feature Author Publisher"
         ],
@@ -7407,95 +7413,39 @@
             },
             "nullable": true
           },
-          "FeatureAuthorPublisher": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "integer",
-                "example": 1
-              },
-              "code": {
-                "type": "string",
-                "description": "auth_code if type=author, pub_code if type=publisher",
-                "example": "AUTH001"
-              },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "author",
-                  "publisher"
-                ],
-                "example": "author"
-              },
-              "position": {
-                "type": "integer",
-                "example": 1
-              },
-              "createdAt": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "updatedAt": {
-                "type": "string",
-                "format": "date-time"
-              },
-              "author": {
-                "nullable": true,
-                "type": "object",
-                "description": "Populated when type=author, null when type=publisher",
-                "properties": {
-                  "id": {
-                    "type": "integer",
-                    "example": 10
-                  },
-                  "auth_code": {
-                    "type": "string",
-                    "example": "AUTH001"
-                  },
-                  "auth_name": {
-                    "type": "string",
-                    "example": "John Doe"
-                  },
-                  "auth_image": {
-                    "type": "string",
-                    "nullable": true,
-                    "example": "https://example.com/image.jpg"
-                  },
-                  "status": {
-                    "type": "integer",
-                    "example": 1
-                  }
-                }
-              },
-              "publisher": {
-                "nullable": true,
-                "type": "object",
-                "description": "Populated when type=publisher, null when type=author",
-                "properties": {
-                  "id": {
-                    "type": "integer",
-                    "example": 5
-                  },
-                  "pub_code": {
-                    "type": "string",
-                    "example": "PUB001"
-                  },
-                  "pub_name": {
-                    "type": "string",
-                    "example": "Penguin Books"
-                  },
-                  "pub_image": {
-                    "type": "string",
-                    "nullable": true,
-                    "example": "https://example.com/pub.jpg"
-                  },
-                  "status": {
-                    "type": "integer",
-                    "example": 1
-                  }
-                }
-              }
-            }
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FeatureAuthorPublisher": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "code": {
+            "type": "string",
+            "description": "auth_code if type=author, pub_code if type=publisher",
+            "example": "AUTH001"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "author",
+              "publisher"
+            ],
+            "example": "author"
+          },
+          "position": {
+            "type": "integer",
+            "example": 1
           },
           "createdAt": {
             "type": "string",
@@ -7504,6 +7454,94 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "author": {
+            "nullable": true,
+            "type": "object",
+            "description": "Populated when type=author, null when type=publisher",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "example": 10
+              },
+              "auth_code": {
+                "type": "string",
+                "example": "AUTH001"
+              },
+              "auth_name": {
+                "type": "string",
+                "example": "John Doe"
+              },
+              "auth_image": {
+                "type": "string",
+                "nullable": true,
+                "example": "https://example.com/image.jpg"
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "language": {
+                "type": "string",
+                "nullable": true,
+                "description": "Stored language code from authors.language (e.g. LNG001)",
+                "example": "LNG001"
+              },
+              "status": {
+                "type": "integer",
+                "example": 1
+              },
+              "language_name": {
+                "type": "string",
+                "nullable": true,
+                "description": "Resolved language name from languages.lang_name for the stored language code",
+                "example": "English"
+              }
+            }
+          },
+          "publisher": {
+            "nullable": true,
+            "type": "object",
+            "description": "Populated when type=publisher, null when type=author",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "example": 5
+              },
+              "pub_code": {
+                "type": "string",
+                "example": "PUB001"
+              },
+              "pub_name": {
+                "type": "string",
+                "example": "Penguin Books"
+              },
+              "pub_image": {
+                "type": "string",
+                "nullable": true,
+                "example": "https://example.com/pub.jpg"
+              },
+              "description": {
+                "type": "string",
+                "nullable": true
+              },
+              "language": {
+                "type": "string",
+                "nullable": true,
+                "description": "Stored language code from publishers.language (e.g. LNG001)",
+                "example": "LNG001"
+              },
+              "status": {
+                "type": "integer",
+                "example": 1
+              },
+              "language_name": {
+                "type": "string",
+                "nullable": true,
+                "description": "Resolved language name from languages.lang_name for the stored language code",
+                "example": "English"
+              }
+            }
           }
         }
       }

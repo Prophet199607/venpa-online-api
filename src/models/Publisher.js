@@ -12,6 +12,7 @@ const Publisher = sequelize.define(
     email: { type: DataTypes.STRING(255), allowNull: true },
     description: { type: DataTypes.TEXT, allowNull: true },
     pub_image: { type: DataTypes.STRING(255), allowNull: true },
+    language: { type: DataTypes.STRING(255), allowNull: true },
     status: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }
   },
   {

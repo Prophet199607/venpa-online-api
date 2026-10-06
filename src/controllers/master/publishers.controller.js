@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { Publisher, Product, ProductImage, ProductDiscount } = require("../../models");
+const { Publisher, Product, ProductImage, ProductDiscount, Language } = require("../../models");
 const { enrichProducts } = require("../../services/products/enrichProducts");
 
 function withImageBaseUrl(value) {
@@ -36,6 +36,44 @@ async function findPublisherByValue(value) {
   });
 }
 
+function normalizeLanguageCode(value) {
+  if (value === null || value === undefined) return null;
+  const v = String(value).trim().toUpperCase();
+  return v || null;
+}
+
+async function buildPublisherLanguageMap(publishers) {
+  const codes = [
+    ...new Set(
+      (publishers || [])
+        .map((item) => normalizeLanguageCode(item.language))
+        .filter(Boolean),
+    ),
+  ];
+
+  if (!codes.length) return new Map();
+
+  const rows = await Language.findAll({
+    where: { lang_code: { [Op.in]: codes } },
+    attributes: ["lang_code", "lang_name"],
+    raw: true,
+  });
+
+  const map = new Map();
+  for (const row of rows) {
+    const key = normalizeLanguageCode(row.lang_code);
+    if (key) map.set(key, row.lang_name || null);
+  }
+  return map;
+}
+
+function withLanguageName(data, languageMap) {
+  if (!data) return data;
+  const key = normalizeLanguageCode(data.language);
+  data.language_name = key ? languageMap.get(key) || null : null;
+  return data;
+}
+
 exports.list = async (req, res, next) => {
   try {
     const { q, status, pub_code } = req.query;
@@ -58,10 +96,11 @@ exports.list = async (req, res, next) => {
     }
 
     const items = await Publisher.findAll({ where, order: [["id", "DESC"]] });
+    const languageMap = await buildPublisherLanguageMap(items);
     const result = items.map((item) => {
       const json = item.toJSON();
       if (json.pub_image) json.pub_image = withImageBaseUrl(json.pub_image);
-      return json;
+      return withLanguageName(json, languageMap);
     });
     res.json(result);
   } catch (e) {
@@ -77,7 +116,8 @@ exports.getById = async (req, res, next) => {
     if (!item) return res.status(404).json({ message: "Publisher not found" });
     const result = item.toJSON();
     if (result.pub_image) result.pub_image = withImageBaseUrl(result.pub_image);
-    res.json(result);
+    const languageMap = await buildPublisherLanguageMap([item]);
+    res.json(withLanguageName(result, languageMap));
   } catch (e) {
     next(e);
   }
@@ -102,8 +142,9 @@ exports.getBooks = async (req, res, next) => {
     const books = await enrichProducts(products);
     const publisherData = publisher.toJSON();
     if (publisherData.pub_image) publisherData.pub_image = withImageBaseUrl(publisherData.pub_image);
+    const languageMap = await buildPublisherLanguageMap([publisher]);
     return res.json({
-      publisher: publisherData,
+      publisher: withLanguageName(publisherData, languageMap),
       books,
     });
   } catch (e) {
