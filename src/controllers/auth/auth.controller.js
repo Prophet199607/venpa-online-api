@@ -13,6 +13,11 @@ const {
   generateOtpEmailHtml,
 } = require("../../services/notifications/emailService");
 const { sendSms } = require("../../services/notifications/smsService");
+const {
+  normalizePhone,
+  isMobileBypassLogin,
+  REVIEW_KEY_HEADER,
+} = require("../../services/auth/mobileAuth");
 
 // Validation schemas
 const registerSchema = z
@@ -25,32 +30,6 @@ const registerSchema = z
   });
 
 const loginSchema = registerSchema;
-
-// ========================================
-// PHONE NORMALIZATION
-// ========================================
-
-const normalizePhone = (phone) => {
-  let digits = String(phone || "").replace(/\D/g, "");
-
-  // 0717578964 -> 94717578964
-  if (digits.startsWith("0") && digits.length === 10) {
-    digits = "94" + digits.slice(1);
-  }
-
-  // 717578964 -> 94717578964
-  else if (digits.length === 9) {
-    digits = "94" + digits;
-  }
-
-  // Valid Sri Lankan mobile numbers only
-  // 947XXXXXXXX
-  if (!/^94(7\d{8})$/.test(digits)) {
-    return null;
-  }
-
-  return digits;
-};
 
 // ========================================
 // HELPERS
@@ -79,13 +58,115 @@ async function updateUserLoginInfo(userId, platform) {
   }
 }
 
+// Find an existing user by email/phone or create a new local user.
+async function findOrCreateUser({ cleanEmail = null, cleanPhone = null }) {
+  const userConditions = [];
+
+  if (cleanEmail) {
+    userConditions.push({ email: cleanEmail });
+  }
+
+  if (cleanPhone) {
+    userConditions.push({ phone: cleanPhone });
+  }
+
+  let user = await User.findOne({
+    where: {
+      [Op.or]: userConditions,
+    },
+  });
+
+  // ========================================
+  // CREATE USER
+  // ========================================
+
+  if (!user) {
+    const randomPassword = `otp_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2)}`;
+
+    user = await User.create({
+      fname: "",
+      lname: "",
+      email: cleanEmail,
+      phone: cleanPhone,
+      password: randomPassword,
+      status: 1,
+      auth_provider: "local",
+    });
+
+    return user;
+  }
+
+  // ========================================
+  // UPDATE EXISTING USER
+  // ========================================
+
+  const updateData = {};
+
+  // Add missing email
+  if (cleanEmail && !user.email) {
+    const emailOwner = await User.findOne({
+      where: {
+        email: cleanEmail,
+        id: { [Op.ne]: user.id },
+      },
+    });
+
+    if (!emailOwner) {
+      updateData.email = cleanEmail;
+    }
+  }
+
+  // Add missing phone
+  if (cleanPhone && !user.phone) {
+    const phoneOwner = await User.findOne({
+      where: {
+        phone: cleanPhone,
+        id: { [Op.ne]: user.id },
+      },
+    });
+
+    if (!phoneOwner) {
+      updateData.phone = cleanPhone;
+    }
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await user.update(updateData);
+  }
+
+  return user;
+}
+
+async function buildLoginResponse(user, platform) {
+  await updateUserLoginInfo(user.id, platform);
+
+  const userResponse = user.toJSON();
+
+  delete userResponse.password;
+
+  userResponse.fname = userResponse.fname || "";
+  userResponse.lname = userResponse.lname || "";
+  userResponse.email = userResponse.email || "";
+  userResponse.phone = userResponse.phone || "";
+  userResponse.platform = platform || user.platform || "";
+
+  return {
+    success: true,
+    message: "Login successful",
+    user: userResponse,
+    token: user.generateToken(),
+  };
+}
+
 // ========================================
 // SEND OTP
 // ========================================
 
-exports.sendOtp = async (req, res) => {
+const sendOtpHandler = async (req, res, { allowMobileBypass = false } = {}) => {
   try {
-    const { email, phone } = req.body || {};
+    const { email, phone, platform } = req.body || {};
 
     if (!email && !phone) {
       return res.status(400).json({
@@ -171,6 +252,32 @@ exports.sendOtp = async (req, res) => {
         });
       }
 
+      // ========================================
+      // PASSWORDLESS MOBILE LOGIN (NO OTP)
+      // ========================================
+      //
+      // Only evaluated on the login endpoint. Every control must pass:
+      // allowlisted number + native platform + kill switch + optional review
+      // key (+ expiry). Anything else falls through to the normal OTP flow.
+
+      const mobileBypassAllowed =
+        allowMobileBypass &&
+        isMobileBypassLogin(
+          cleanPhone,
+          platform,
+          req.header(REVIEW_KEY_HEADER),
+        );
+
+      if (mobileBypassAllowed) {
+        console.warn(
+          `[auth] Passwordless mobile login used | phone=${cleanPhone} platform=${platform} ip=${req.ip} ua="${req.get("user-agent") || ""}"`,
+        );
+
+        const user = await findOrCreateUser({ cleanPhone });
+
+        return res.json(await buildLoginResponse(user, platform));
+      }
+
       // OTP cooldown check
       const existingPhoneOtp = await PublicPhoneOtp.findOne({
         where: {
@@ -221,6 +328,13 @@ exports.sendOtp = async (req, res) => {
     });
   }
 };
+
+// Register keeps the original OTP-only behaviour.
+exports.sendOtp = (req, res) => sendOtpHandler(req, res);
+
+// Login is the only endpoint allowed to use the OTP-less mobile bypass.
+exports.login = (req, res) =>
+  sendOtpHandler(req, res, { allowMobileBypass: true });
 
 // ========================================
 // VERIFY OTP
@@ -309,105 +423,15 @@ exports.verifyOtp = async (req, res) => {
 
     const cleanPhone = phone ? normalizePhone(phone) : null;
 
-    const userConditions = [];
-
-    if (cleanEmail) {
-      userConditions.push({ email: cleanEmail });
-    }
-
-    if (cleanPhone) {
-      userConditions.push({ phone: cleanPhone });
-    }
-
-    let user = await User.findOne({
-      where: {
-        [Op.or]: userConditions,
-      },
-    });
+    const user = await findOrCreateUser({ cleanEmail, cleanPhone });
 
     // ========================================
-    // CREATE USER
-    // ========================================
-
-    if (!user) {
-      const randomPassword = `otp_${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2)}`;
-
-      user = await User.create({
-        fname: "",
-        lname: "",
-        email: cleanEmail,
-        phone: cleanPhone,
-        password: randomPassword,
-        status: 1,
-        auth_provider: "local",
-      });
-    }
-
-    // ========================================
-    // UPDATE EXISTING USER
-    // ========================================
-    else {
-      const updateData = {};
-
-      // Add missing email
-      if (cleanEmail && !user.email) {
-        const emailOwner = await User.findOne({
-          where: {
-            email: cleanEmail,
-            id: { [Op.ne]: user.id },
-          },
-        });
-
-        if (!emailOwner) {
-          updateData.email = cleanEmail;
-        }
-      }
-
-      // Add missing phone
-      if (cleanPhone && !user.phone) {
-        const phoneOwner = await User.findOne({
-          where: {
-            phone: cleanPhone,
-            id: { [Op.ne]: user.id },
-          },
-        });
-
-        if (!phoneOwner) {
-          updateData.phone = cleanPhone;
-        }
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        await user.update(updateData);
-      }
-    }
-
-    // ========================================
-    // PLATFORM UPDATE
+    // PLATFORM UPDATE + RESPONSE
     // ========================================
 
     const { platform } = req.body || {};
 
-    await updateUserLoginInfo(user.id, platform);
-
-    const userResponse = user.toJSON();
-
-    delete userResponse.password;
-
-    userResponse.fname = userResponse.fname || "";
-    userResponse.lname = userResponse.lname || "";
-    userResponse.email = userResponse.email || "";
-    userResponse.phone = userResponse.phone || "";
-    userResponse.platform = platform || user.platform || "";
-
-    return res.json({
-      success: true,
-      message: "Login successful",
-      user: userResponse,
-      token: user.generateToken(),
-    });
+    return res.json(await buildLoginResponse(user, platform));
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -539,24 +563,7 @@ exports.googleLogin = async (req, res) => {
 
     const { platform } = req.body || {};
 
-    await updateUserLoginInfo(user.id, platform);
-
-    const userResponse = user.toJSON();
-
-    delete userResponse.password;
-
-    userResponse.fname = userResponse.fname || "";
-    userResponse.lname = userResponse.lname || "";
-    userResponse.email = userResponse.email || "";
-    userResponse.phone = userResponse.phone || "";
-    userResponse.platform = platform || user.platform || "";
-
-    return res.json({
-      success: true,
-      message: "Login successful",
-      user: userResponse,
-      token: user.generateToken(),
-    });
+    return res.json(await buildLoginResponse(user, platform));
   } catch (error) {
     return res.status(500).json({
       success: false,

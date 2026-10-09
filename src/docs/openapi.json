@@ -2287,9 +2287,21 @@
     },
     "/api/v1/auth/login": {
       "post": {
-        "summary": "Request OTP for login",
+        "summary": "Login (OTP, or secured OTP-less review login)",
+        "description": "Requests an OTP for the given email/phone. For allowlisted numbers (`MOBILE_BYPASS_LOGIN_PHONES`), on a native mobile platform (android/ios), within the review window, and with a valid `x-mobile-review-key`, the user is signed in immediately without an OTP. The response then matches `/api/v1/auth/verify`. This bypass applies to this endpoint only; `/register` always sends an OTP.",
         "tags": [
           "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "x-mobile-review-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Shared secret for OTP-less review login. Required when `MOBILE_BYPASS_LOGIN_SECRET` is configured. Ignored by the normal OTP flow."
+          }
         ],
         "requestBody": {
           "required": true,
@@ -2304,6 +2316,21 @@
                   },
                   "phone": {
                     "type": "string"
+                  },
+                  "platform": {
+                    "type": [
+                      "integer",
+                      "string"
+                    ],
+                    "description": "Device platform. Native mobile only for OTP-less login. 1/android = Android, 2/ios = iOS, 3/web = Web (OTP required).",
+                    "enum": [
+                      1,
+                      2,
+                      3,
+                      "android",
+                      "ios",
+                      "web"
+                    ]
                   }
                 }
               }
@@ -2312,7 +2339,7 @@
         },
         "responses": {
           "200": {
-            "description": "OTP Sent"
+            "description": "OTP sent. For an allowed mobile number/platform, returns the login payload (success, message, user, token) instead."
           },
           "400": {
             "description": "Bad Request"

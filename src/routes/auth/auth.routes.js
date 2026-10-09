@@ -5,7 +5,7 @@ const profileController = require("../../controllers/profile.controller");
 const auth = require("../../middleware/auth.middleware");
 
 router.post("/register", c.sendOtp);
-router.post("/login", c.sendOtp);
+router.post("/login", c.login);
 router.post("/verify", c.verifyOtp);
 router.post("/google-login", c.googleLogin);
 router.get("/me", auth, (req, res) => {
