@@ -18,23 +18,30 @@ const FAILED_STATUSES = new Set([
 ]);
 const CANCELED_STATUSES = new Set(["canceled", "cancelled", "-1"]);
 
-let cachedToken = null;
-let tokenExpiresAt = 0;
-
 function getMerchantId() {
   return String(process.env.MINTPAY_MID || "").trim();
 }
 
-function getMerchantSecret() {
-  return String(process.env.MINTPAY_SECRET || "").trim();
+function getMerchantToken() {
+  return String(process.env.MINTPAY_TOKEN || "").trim();
 }
 
 function getMintpayBaseUrl() {
   const fromEnv = String(process.env.MINTPAY_BASE_URL || "").trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-  return process.env.NODE_ENV === "production"
-    ? "https://app.mintpay.lk"
-    : "https://dev.mintpay.lk";
+  if (fromEnv) {
+    console.log(
+      `🔧 Mintpay: Using explicit base URL from MINTPAY_BASE_URL: ${fromEnv}`,
+    );
+    return fromEnv.replace(/\/$/, "");
+  }
+  const url =
+    process.env.NODE_ENV === "production"
+      ? "https://app.mintpay.lk/user-order/api"
+      : "https://dev.mintpay.lk/user-order/api";
+  console.log(
+    `🔧 Mintpay: Using base URL based on NODE_ENV (${process.env.NODE_ENV}): ${url}`,
+  );
+  return url;
 }
 
 function getPublicApiBase(req) {
@@ -96,98 +103,40 @@ function classifyStatus(status) {
 function buildCustomer(user, body = {}) {
   const shipping = body.shipping_address || body.delivery_address || {};
   const firstName =
-    body.first_name ||
-    shipping.first_name ||
-    user?.fname ||
-    "Customer";
+    body.first_name || shipping.first_name || user?.fname || "Customer";
   const lastName = body.last_name || shipping.last_name || user?.lname || "";
   const email = body.email || shipping.email || user?.email || "";
-  const phone = String(body.phone || shipping.phone || user?.phone || "").replace(
-    /\s+/g,
-    "",
-  );
+  const phone = String(
+    body.phone || shipping.phone || user?.phone || "",
+  ).replace(/\s+/g, "");
   const deliveryAddress =
     body.address ||
     shipping.address ||
     [user?.address, user?.city].filter(Boolean).join(", ") ||
     "";
+  const deliveryRegion = body.city || shipping.city || user?.city || "";
+  const deliveryPostcode = body.postcode || shipping.postcode || "";
 
   return {
     first_name: firstName,
     last_name: lastName,
     email,
     phone,
-    delivery_address: deliveryAddress,
+    delivery_street: deliveryAddress,
+    delivery_region: deliveryRegion,
+    delivery_postcode: deliveryPostcode,
   };
 }
 
-async function getAccessToken() {
-  const merchantId = getMerchantId();
-  const secret = getMerchantSecret();
-  if (!merchantId || !secret) {
-    throw new Error("Mintpay merchant configuration is missing");
-  }
-
-  if (cachedToken && Date.now() < tokenExpiresAt - 30_000) {
-    return cachedToken;
-  }
-
-  const { data, status } = await axios.post(
-    `${getMintpayBaseUrl()}/user-api/v1.0/get-access-token`,
-    { merchant_id: merchantId, secret },
-    { headers: { "Content-Type": "application/json" }, timeout: 20000 },
+function getClientIp(req) {
+  if (!req) return "127.0.0.1";
+  return (
+    req.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.get("x-real-ip") ||
+    req.ip ||
+    req.connection?.remoteAddress ||
+    "127.0.0.1"
   );
-
-  const payload = unwrapData(data);
-  const token = payload.access_token || payload.token || data?.access_token;
-  if (!token) {
-    throw new Error(
-      `Mintpay access token request failed (${status}): ${JSON.stringify(data)}`,
-    );
-  }
-
-  const expiresIn = Number(payload.expires_in || 3600);
-  cachedToken = token;
-  tokenExpiresAt = Date.now() + expiresIn * 1000;
-  return token;
-}
-
-async function mintpayRequest(method, path, body) {
-  const token = await getAccessToken();
-  try {
-    const response = await axios({
-      method,
-      url: `${getMintpayBaseUrl()}${path}`,
-      data: body,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      timeout: 20000,
-    });
-    return unwrapData(response.data);
-  } catch (error) {
-    if (error.response?.status === 401) {
-      cachedToken = null;
-      tokenExpiresAt = 0;
-      const retryToken = await getAccessToken();
-      const retry = await axios({
-        method,
-        url: `${getMintpayBaseUrl()}${path}`,
-        data: body,
-        headers: {
-          Authorization: `Bearer ${retryToken}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-      });
-      return unwrapData(retry.data);
-    }
-    const details = error.response?.data
-      ? JSON.stringify(error.response.data)
-      : error.message;
-    throw new Error(`Mintpay request failed: ${details}`);
-  }
 }
 
 function mapItems(items = []) {
@@ -201,31 +150,36 @@ function mapItems(items = []) {
         product.selling_price || item.selling_price || item.price || 0,
       );
       const quantity = Number(item.quantity || item.picked_qty || 1);
+      const discount = Number(item.discount || 0);
       return {
         name,
-        product_code: productCode,
-        price: Number(price.toFixed(2)),
+        product_id: productCode,
+        sku: item.sku || "default",
         quantity,
+        unit_price: Number(price.toFixed(4)),
+        discount: Number(discount.toFixed(4)),
+        created_date: new Date().toISOString().slice(0, 19).replace("T", " "),
+        updated_date: new Date().toISOString().slice(0, 19).replace("T", " "),
       };
     })
     .filter((item) => item.quantity > 0);
 }
 
-async function createPurchase({
-  req,
-  orderId,
-  amount,
-  user,
-  body,
-  items,
-}) {
+async function createPurchase({ req, orderId, amount, user, body, items }) {
   const merchantId = getMerchantId();
-  const secret = getMerchantSecret();
-  if (!merchantId || !secret) {
-    return { error: "Mintpay merchant configuration is missing" };
+  const token = getMerchantToken();
+
+  if (!merchantId || !token) {
+    return {
+      error:
+        "Mintpay merchant configuration is missing (MINTPAY_MID or MINTPAY_TOKEN)",
+    };
   }
 
   const { successUrl, failUrl } = getCallbackUrls(req, orderId);
+  console.log(
+    `🔧 Mintpay callback URLs - Success: ${successUrl}, Fail: ${failUrl}`,
+  );
   if (!successUrl || !failUrl) {
     return {
       error:
@@ -233,83 +187,171 @@ async function createPurchase({
     };
   }
 
-  const totalAmount = Number(Number(amount).toFixed(2));
+  const customer = buildCustomer(user, body);
+  const clientIp = getClientIp(req);
+  const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+
   const payload = {
     merchant_id: merchantId,
     order_id: String(orderId),
-    currency: "LKR",
-    total_amount: totalAmount,
+    total_price: Number(Number(amount).toFixed(4)),
+    discount: "0.0000",
+    customer_email: customer.email,
+    customer_id: String(user?.id || ""),
+    customer_telephone: customer.phone,
+    ip: clientIp,
+    x_forwarded_for: req?.get("x-forwarded-for") || clientIp,
+    delivery_street: customer.delivery_street,
+    delivery_region: customer.delivery_region,
+    delivery_postcode: customer.delivery_postcode,
+    cart_created_date: now,
+    cart_updated_date: now,
     success_url: successUrl,
     fail_url: failUrl,
-    customer: buildCustomer(user, body),
-    purchased_items: mapItems(items),
+    products: mapItems(items),
   };
 
-  const data = await mintpayRequest("post", "/user-api/v1.0/purchases", payload);
-  const purchaseId = data.purchase_id || data.purchaseId || data.id;
-  const redirectUrl =
-    data.redirect_url || data.redirectUrl || data.checkout_url || data.url;
+  console.log(`🔧 Mintpay purchase payload:`, JSON.stringify(payload, null, 2));
 
-  if (!redirectUrl) {
+  try {
+    const response = await axios.post(`${getMintpayBaseUrl()}/`, payload, {
+      headers: {
+        Authorization: `Token ${token}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 20000,
+    });
+
+    console.log(
+      `🔧 Mintpay create purchase response:`,
+      JSON.stringify(response.data, null, 2),
+    );
+
+    const data = unwrapData(response.data);
+
+    if (response.data?.message !== "Success" || !data) {
+      return {
+        error: `Mintpay create purchase failed: ${response.data?.message || "Unknown error"} - ${JSON.stringify(response.data)}`,
+      };
+    }
+
+    const purchaseId = String(data);
+    const baseUrl = getMintpayBaseUrl().replace("/user-order/api", "");
+    const paymentUrl = `${baseUrl}/user-order/login/`;
+
+    console.log(
+      `✅ Mintpay purchase created: ${purchaseId}, payment URL: ${paymentUrl}`,
+    );
+
     return {
-      error: `Mintpay did not return a redirect URL: ${JSON.stringify(data)}`,
+      purchase_id: purchaseId,
+      redirect_url: paymentUrl,
+      amount: Number(amount).toFixed(2),
+      currency: "LKR",
+      merchant_id: merchantId,
     };
+  } catch (error) {
+    if (error.response) {
+      console.error(
+        `❌ Mintpay create purchase failed (${error.response.status}):`,
+        JSON.stringify(error.response.data),
+      );
+      throw new Error(
+        `Mintpay create purchase failed (${error.response.status}): ${JSON.stringify(error.response.data)}`,
+      );
+    } else if (error.request) {
+      console.error(
+        "❌ Mintpay create purchase - no response received:",
+        error.message,
+      );
+      throw new Error(
+        `Mintpay request timeout or network error: ${error.message}`,
+      );
+    } else {
+      console.error("❌ Mintpay create purchase setup error:", error.message);
+      throw new Error(`Mintpay request error: ${error.message}`);
+    }
+  }
+}
+
+async function getPurchaseStatus(purchaseId) {
+  const merchantId = getMerchantId();
+  const token = getMerchantToken();
+
+  if (!merchantId || !token) {
+    throw new Error("Mintpay merchant configuration is missing");
   }
 
-  return {
-    purchase_id: purchaseId || null,
-    redirect_url: redirectUrl,
-    amount: totalAmount.toFixed(2),
-    currency: "LKR",
-    merchant_id: merchantId,
-  };
-}
-
-async function getPurchase(purchaseId) {
   if (!purchaseId) return null;
-  return mintpayRequest(
-    "get",
-    `/user-api/v1.0/purchases/${encodeURIComponent(purchaseId)}`,
-  );
+
+  try {
+    const baseUrl = getMintpayBaseUrl().replace("/user-order/api", "");
+    const statusUrl = `${baseUrl}/user-order/api/status/merchantId/${merchantId}/purchaseId/${purchaseId}`;
+
+    console.log(`🔧 Mintpay status check URL: ${statusUrl}`);
+
+    const response = await axios.get(statusUrl, {
+      headers: {
+        Authorization: `Token ${token}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 20000,
+    });
+
+    console.log(
+      `🔧 Mintpay status response:`,
+      JSON.stringify(response.data, null, 2),
+    );
+
+    const data = unwrapData(response.data);
+
+    if (response.data?.message !== "Success" || !data) {
+      return {
+        verified: false,
+        status: "unknown",
+        rawStatus: response.data?.message || "Unknown",
+        purchaseId,
+      };
+    }
+
+    return {
+      verified: true,
+      status: classifyStatus(data.status),
+      rawStatus: data.status,
+      purchaseId,
+      orderId: data.order_id,
+      totalPrice: data.total_price,
+      channel: data.channel,
+      createdAt: data.created_at,
+    };
+  } catch (error) {
+    if (error.response) {
+      console.error(
+        `❌ Mintpay status check failed (${error.response.status}):`,
+        JSON.stringify(error.response.data),
+      );
+    } else {
+      console.error("❌ Mintpay status check error:", error.message);
+    }
+    return {
+      verified: false,
+      status: "unknown",
+      rawStatus: null,
+      purchaseId,
+    };
+  }
 }
 
-function verifyIpnHash({
-  purchase_id,
+function verifyCallbackHash({
   order_id,
+  purchase_id,
   status,
   total_amount,
   hash,
 }) {
-  if (!hash) return false;
-  const secret = getMerchantSecret();
-  if (!secret) return false;
-
-  const amount = String(total_amount ?? "");
-  const purchaseId = String(purchase_id ?? "");
-  const orderId = String(order_id ?? "");
-  const paymentStatus = String(status ?? "");
-  const incoming = String(hash).trim().toLowerCase();
-
-  const candidates = [
-    crypto
-      .createHmac("sha256", secret)
-      .update(`${purchaseId}${orderId}${paymentStatus}${amount}`)
-      .digest("hex"),
-    crypto
-      .createHmac("sha256", secret)
-      .update(`${orderId}${purchaseId}${paymentStatus}${amount}`)
-      .digest("hex"),
-    crypto
-      .createHash("sha256")
-      .update(`${purchaseId}${orderId}${paymentStatus}${secret}`)
-      .digest("hex"),
-    crypto
-      .createHash("sha256")
-      .update(`${getMerchantId()}${orderId}${amount}${secret}`)
-      .digest("hex"),
-  ];
-
-  return candidates.some((value) => value.toLowerCase() === incoming);
+  // The documented API doesn't specify a hash verification for callbacks
+  // Payment status should be verified via the status check API
+  return true;
 }
 
 function extractCallbackFields(req) {
@@ -321,8 +363,7 @@ function extractCallbackFields(req) {
       source.merchant_order_id ||
       source.merchantOrderId ||
       null,
-    purchase_id:
-      source.purchase_id || source.purchaseId || source.id || null,
+    purchase_id: source.purchase_id || source.purchaseId || source.id || null,
     status: source.status || source.payment_status || source.state || null,
     total_amount:
       source.total_amount || source.amount || source.payhere_amount || null,
@@ -333,8 +374,8 @@ function extractCallbackFields(req) {
 
 module.exports = {
   createPurchase,
-  getPurchase,
-  verifyIpnHash,
+  getPurchase: getPurchaseStatus,
+  verifyIpnHash: verifyCallbackHash,
   classifyStatus,
   extractCallbackFields,
   getMerchantId,

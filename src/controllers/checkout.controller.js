@@ -851,10 +851,29 @@ async function processMintpayResponse(userId, body, persist = true, req = null) 
       items,
     });
   } catch (error) {
-    console.error("Mintpay create purchase error:", error.message);
+    console.error("❌ Mintpay create purchase error:", error.message);
+    // Provide more specific error messages based on error type
+    let errorMessage = error.message || "Unable to create Mintpay checkout";
+    let statusCode = 502;
+    
+    if (error.message.includes("authentication failed") || error.message.includes("401")) {
+      errorMessage = "Mintpay authentication failed. Please check merchant credentials and environment configuration.";
+      statusCode = 503; // Service Unavailable - configuration issue
+    } else if (error.message.includes("timeout") || error.message.includes("network")) {
+      errorMessage = "Mintpay service is currently unavailable. Please try again later.";
+      statusCode = 503;
+    } else if (error.message.includes("callback URLs") || error.message.includes("not configured")) {
+      errorMessage = "Mintpay callback URLs are not configured. Please contact support.";
+      statusCode = 500;
+    }
+    
     return {
-      status: 502,
-      body: { message: error.message || "Unable to create Mintpay checkout" },
+      status: statusCode,
+      body: { 
+        message: errorMessage,
+        errorDetails: error.message,
+        successful: false
+      },
     };
   }
 
