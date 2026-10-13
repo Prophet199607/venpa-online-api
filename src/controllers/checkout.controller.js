@@ -28,12 +28,14 @@ const {
 const { buildPriceLevelMap } = require("../services/products/priceService");
 const mintpayService = require("../services/payments/mintpayService");
 const payhereService = require("../services/payments/payhereService");
+const kokoService = require("../services/payments/kokoService");
 const paymentController = require("./payment.controller");
 
 function normalizeCheckoutType(value) {
   if (value === 1 || value === "1") return 1; // COD
   if (value === 2 || value === "2") return 2; // Card (PayHere)
   if (value === 3 || value === "3") return 3; // Mintpay
+  if (value === 4 || value === "4") return 4; // Koko
   return null;
 }
 
@@ -339,7 +341,12 @@ async function consumeCoupon(userId, couponId, orderId) {
 }
 exports.consumeCoupon = consumeCoupon;
 
-async function createCardPaymentResponse(userId, body, persist = true, req = null) {
+async function createCardPaymentResponse(
+  userId,
+  body,
+  persist = true,
+  req = null,
+) {
   const cart = await getActiveCartWithProducts(userId);
   if (!cart) {
     return { status: 404, body: { message: "Active cart not found" } };
@@ -611,6 +618,41 @@ exports.createCheckout = async (req, res, next) => {
       return res.status(result.status).json(result.body);
     }
 
+    if (type === 4) {
+      const result = await processKokoResponse(
+        req.user.id,
+        req.body,
+        true,
+        req,
+      );
+
+      if (result.status === 201 && req.body.isGift && req.body.giftDetails) {
+        const checkout = await Checkout.findOne({
+          where: { order_id: result.body.checkout.order_id },
+        });
+        if (checkout) {
+          const existingGift = await GiftReceiverDetail.findOne({
+            where: { order_id: checkout.order_id },
+          });
+          if (!existingGift) {
+            await GiftReceiverDetail.create({
+              order_id: checkout.order_id,
+              ...req.body.giftDetails,
+              created_at: new Date(),
+              updated_at: new Date(),
+            });
+          } else {
+            await existingGift.update({
+              ...req.body.giftDetails,
+              updated_at: new Date(),
+            });
+          }
+        }
+      }
+
+      return res.status(result.status).json(result.body);
+    }
+
     const { type: _type, ...payload } = req.body;
     const orderId = generateOrderId();
 
@@ -750,7 +792,12 @@ exports.createCheckout = async (req, res, next) => {
   }
 };
 
-async function processMintpayResponse(userId, body, persist = true, req = null) {
+async function processMintpayResponse(
+  userId,
+  body,
+  persist = true,
+  req = null,
+) {
   const cart = await getActiveCartWithProducts(userId);
   if (!cart) {
     return { status: 404, body: { message: "Active cart not found" } };
@@ -855,24 +902,36 @@ async function processMintpayResponse(userId, body, persist = true, req = null) 
     // Provide more specific error messages based on error type
     let errorMessage = error.message || "Unable to create Mintpay checkout";
     let statusCode = 502;
-    
-    if (error.message.includes("authentication failed") || error.message.includes("401")) {
-      errorMessage = "Mintpay authentication failed. Please check merchant credentials and environment configuration.";
+
+    if (
+      error.message.includes("authentication failed") ||
+      error.message.includes("401")
+    ) {
+      errorMessage =
+        "Mintpay authentication failed. Please check merchant credentials and environment configuration.";
       statusCode = 503; // Service Unavailable - configuration issue
-    } else if (error.message.includes("timeout") || error.message.includes("network")) {
-      errorMessage = "Mintpay service is currently unavailable. Please try again later.";
+    } else if (
+      error.message.includes("timeout") ||
+      error.message.includes("network")
+    ) {
+      errorMessage =
+        "Mintpay service is currently unavailable. Please try again later.";
       statusCode = 503;
-    } else if (error.message.includes("callback URLs") || error.message.includes("not configured")) {
-      errorMessage = "Mintpay callback URLs are not configured. Please contact support.";
+    } else if (
+      error.message.includes("callback URLs") ||
+      error.message.includes("not configured")
+    ) {
+      errorMessage =
+        "Mintpay callback URLs are not configured. Please contact support.";
       statusCode = 500;
     }
-    
+
     return {
       status: statusCode,
-      body: { 
+      body: {
         message: errorMessage,
         errorDetails: error.message,
-        successful: false
+        successful: false,
       },
     };
   }
@@ -955,6 +1014,204 @@ async function processMintpayResponse(userId, body, persist = true, req = null) 
     },
   };
 }
+
+async function processKokoResponse(userId, body, persist = true, req = null) {
+  const cart = await getActiveCartWithProducts(userId);
+  if (!cart) {
+    return { status: 404, body: { message: "Active cart not found" } };
+  }
+
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1);
+  if (totals.subTotal <= 0) {
+    return {
+      status: 400,
+      body: { message: "Cart total must be greater than zero" },
+    };
+  }
+
+  let existingCheckout = null;
+  const now = new Date();
+  if (persist) {
+    existingCheckout = await Checkout.findOne({
+      where: {
+        user_id: userId,
+        status: "pending",
+        payment_status: "pending",
+        type: 4,
+      },
+      order: [["created_at", "DESC"]],
+    });
+  }
+
+  let orderId;
+  if (
+    existingCheckout &&
+    now - new Date(existingCheckout.created_at) < 5 * 60 * 1000
+  ) {
+    orderId = existingCheckout.order_id;
+  } else {
+    orderId = body?.order_id || generateOrderId();
+  }
+
+  if (totals.appliedCoupon && persist) {
+    const couponAlreadyUsed = await CouponUsage.findOne({
+      where: { order_id: String(orderId) },
+    });
+    if (!couponAlreadyUsed) {
+      await consumeCoupon(userId, totals.appliedCoupon.id, orderId);
+    }
+  }
+
+  const cartJson = typeof cart.toJSON === "function" ? cart.toJSON() : cart;
+  const rawCartItems =
+    cartJson.items || cartJson.cart_items || cartJson.CartItems || [];
+  const items = rawCartItems
+    .map((item) => ({
+      product: {
+        prod_code:
+          item.product?.prod_code ||
+          item.product_code ||
+          item.prod_code ||
+          "N/A",
+        prod_name:
+          item.product?.prod_name || item.product_name || "Unknown Product",
+        selling_price: getDiscountedPrice(
+          item.product?.prod_code,
+          item.product?.selling_price || item.price || 0,
+          totals.discountMap,
+        ),
+        prod_image: item.product?.prod_image || null,
+      },
+      quantity: Number(item.quantity || 1),
+    }))
+    .filter((it) => it.product.prod_code !== "N/A");
+
+  const stockCheck = await checkStockAvailability(items);
+  if (!stockCheck.available) {
+    return {
+      status: 400,
+      body: {
+        message: "Some items in your cart are out of stock",
+        missingItems: stockCheck.missingItems,
+      },
+    };
+  }
+
+  const { type: _type, ...payload } = body || {};
+  const amount = totals.netTotalWithoutCod.toFixed(2);
+  const user = await User.findOne({
+    where: { id: userId },
+    attributes: ["id", "fname", "lname", "email", "phone", "address", "city"],
+  });
+
+  let kokoSession;
+  try {
+    kokoSession = await kokoService.createOrder({
+      req,
+      orderId,
+      amount,
+      user,
+      body,
+      items,
+      description: payload?.description,
+    });
+  } catch (error) {
+    console.error("❌ Koko create order error:", error.message);
+    return {
+      status: 502,
+      body: { message: error.message || "Unable to create Koko checkout" },
+    };
+  }
+
+  if (kokoSession.error) {
+    return { status: 500, body: { message: kokoSession.error } };
+  }
+
+  // Email & backoffice notification are sent AFTER payment confirmation
+  // via koko response callback (handleOrderSuccess).
+  let checkout;
+  const checkoutPayload = {
+    ...payload,
+    items,
+    prod_codes: items.map((i) => i.product.prod_code),
+    totals,
+    location: "001",
+  };
+  const paymentPayload = {
+    order_id: kokoSession.order_id,
+    redirect_url: kokoSession.redirect_url,
+    trnId: kokoSession.trnId,
+  };
+
+  if (persist) {
+    if (
+      existingCheckout &&
+      now - new Date(existingCheckout.created_at) < 5 * 60 * 1000
+    ) {
+      await existingCheckout.update({
+        payload: checkoutPayload,
+        payment_payload: paymentPayload,
+        updated_at: new Date(),
+      });
+      checkout = existingCheckout;
+    } else {
+      checkout = await Checkout.create({
+        order_id: orderId,
+        user_id: userId,
+        type: 4,
+        type_name: "delivery",
+        payload: checkoutPayload,
+        payment_payload: paymentPayload,
+        status: "pending",
+        payment_status: "pending",
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+    }
+  } else {
+    checkout = {
+      order_id: orderId,
+      type: 4,
+      type_name: "delivery",
+      status: "pending",
+      payload: checkoutPayload,
+      created_at: new Date(),
+    };
+  }
+
+  return {
+    status: 201,
+    body: {
+      message: persist
+        ? "Koko checkout created"
+        : "Koko session created (not saved)",
+      order_id: checkout.order_id,
+      amount,
+      currency: "LKR",
+      merchant_id: kokoSession.merchant_id,
+      order_id: kokoSession.order_id,
+      redirect_url: kokoSession.redirect_url,
+      checkout: {
+        order_id: checkout.order_id,
+        type: checkout.type,
+        type_name: checkout.type_name,
+        status: checkout.status,
+        payload: checkout.payload,
+        created_at: checkout.created_at,
+      },
+    },
+  };
+}
+
+exports.createKokoCheckout = async (req, res, next) => {
+  try {
+    const result = await processKokoResponse(req.user.id, req.body, true, req);
+    return res.status(result.status).json(result.body);
+  } catch (e) {
+    console.error("Koko Checkout Error:", e);
+    next(e);
+  }
+};
 
 exports.createMintpayCheckout = async (req, res, next) => {
   try {
@@ -1192,7 +1449,7 @@ exports.checkoutSuccess = async (req, res, next) => {
     let success = false;
     let message = "";
 
-    // Mapping based on user request: 1: COD, 2: PayHere, 3: Mintpay
+    // Mapping based on user request: 1: COD, 2: PayHere, 3: Mintpay, 4: Koko
     if (type === 1 || type === "1") {
       // COD - Only for Delivery (Checkout)
       if (isPickAndCollect) {
@@ -1253,6 +1510,30 @@ exports.checkoutSuccess = async (req, res, next) => {
           mintpayStatus === "canceled"
             ? "Payment was cancelled"
             : "Mintpay payment failed or cancelled";
+      }
+    } else if (type === 4 || type === "4") {
+      // Koko — verify payment_status from DB (set by /koko/response or return callback)
+      const kokoStatus = record.payment_status;
+      if (kokoStatus === "success") {
+        success = true;
+        message = "Koko payment successful";
+      } else if (kokoStatus === "pending") {
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          message:
+            "Payment is still being processed. Please check back shortly.",
+          order_id: isPickAndCollect
+            ? record.pick_and_collect_id
+            : record.order_id,
+          payment_status: "pending",
+        });
+      } else {
+        success = false;
+        message =
+          kokoStatus === "canceled"
+            ? "Payment was cancelled"
+            : "Koko payment failed or cancelled";
       }
     }
 
@@ -1318,7 +1599,6 @@ exports.checkoutSuccess = async (req, res, next) => {
             },
           }).catch(console.error);
         }
-
       }
 
       return res.json({

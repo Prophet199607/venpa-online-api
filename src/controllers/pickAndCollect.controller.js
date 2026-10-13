@@ -21,6 +21,7 @@ const {
 const { validateCoupon, consumeCoupon } = require("./checkout.controller");
 const mintpayService = require("../services/payments/mintpayService");
 const payhereService = require("../services/payments/payhereService");
+const kokoService = require("../services/payments/kokoService");
 const paymentController = require("./payment.controller");
 
 function normalizeString(value) {
@@ -613,6 +614,140 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
     };
   }
 
+  // Type 4: Koko — create pending record and Koko checkout session
+  if (type === 4) {
+    if (!Number.isFinite(netAmount) || netAmount <= 0) {
+      return {
+        status: 400,
+        body: { message: "Product has invalid pricing for Koko payment" },
+      };
+    }
+
+    const user = await User.findOne({
+      where: { id: userId },
+      attributes: ["id", "fname", "lname", "email", "phone", "address", "city"],
+    });
+
+    const amount = netAmount.toFixed(2);
+    const items = [
+      {
+        product: {
+          prod_code: prodCode,
+          prod_name: product?.prod_name || "Product",
+          selling_price: Number(
+            (netAmount / (pickedQty || 1)).toFixed(2),
+          ),
+        },
+        quantity: pickedQty,
+      },
+    ];
+
+    let kokoSession;
+    try {
+      kokoSession = await kokoService.createOrder({
+        req,
+        orderId: pickAndCollectId,
+        amount,
+        user,
+        body: normalizedBody,
+        items,
+      });
+    } catch (error) {
+      console.error("❌ Koko P&C create order error:", error.message);
+      return {
+        status: 502,
+        body: { message: error.message || "Unable to create Koko checkout" },
+      };
+    }
+
+    if (kokoSession.error) {
+      return { status: 500, body: { message: kokoSession.error } };
+    }
+
+    const paymentPayload = {
+      order_id: kokoSession.order_id,
+      redirect_url: kokoSession.redirect_url,
+      trnId: kokoSession.trnId,
+    };
+
+    let row;
+    if (existingPC && now - new Date(existingPC.created_at) < 5 * 60 * 1000) {
+      await existingPC.update({
+        picked_qty: pickedQty,
+        coupon_code: couponCode,
+        discount_amount: discountAmount,
+        net_amount: netAmount,
+        payment_payload: paymentPayload,
+        updated_at: now,
+      });
+      row = existingPC;
+    } else {
+      row = await PickAndCollect.create({
+        pick_and_collect_id: pickAndCollectId,
+        user_id: userId,
+        prod_code: prodCode,
+        location: locationCode,
+        location_name: location.loca_name,
+        type,
+        type_name: "pick & collect",
+        picked_qty: pickedQty,
+        status: "pending",
+        payment_status: "pending",
+        coupon_code: couponCode,
+        discount_amount: discountAmount,
+        net_amount: netAmount,
+        payment_payload: paymentPayload,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    if (appliedCouponId) {
+      const { CouponUsage } = require("../models");
+      const couponAlreadyUsed = await CouponUsage.findOne({
+        where: { order_id: String(pickAndCollectId) },
+      });
+      if (!couponAlreadyUsed) {
+        await consumeCoupon(userId, appliedCouponId, pickAndCollectId);
+      }
+    }
+
+    const [serialized] = await serializeRows([row]);
+
+    // Notify Backoffice
+    User.findByPk(userId).then((user) => {
+      if (user) {
+        sendToTopic("backoffice", {
+          title: "New Pick & Collect Order (Koko)",
+          body: `${product?.prod_name} at ${location.loca_name}`,
+          data: {
+            notification_type: NOTIFICATION_TYPES.ORDER_PLACED,
+            pick_and_collect_id: String(pickAndCollectId),
+            user_id: String(userId),
+            customer_name: `${user.fname} ${user.lname}`.trim(),
+            product_name: product?.prod_name,
+            location: location.loca_name,
+          },
+        }).catch(console.error);
+      }
+    });
+
+    return {
+      status: 201,
+      body: {
+        message: "Koko pick and collect request created",
+        pick_and_collect: serialized,
+        pick_and_collect_id: pickAndCollectId,
+        order_id: pickAndCollectId,
+        amount,
+        currency: "LKR",
+        merchant_id: kokoSession.merchant_id,
+        order_id: kokoSession.order_id,
+        redirect_url: kokoSession.redirect_url,
+      },
+    };
+  }
+
   const row = await PickAndCollect.create({
     pick_and_collect_id: pickAndCollectId,
     user_id: userId,
@@ -784,6 +919,15 @@ exports.createPickAndCollectMintpay = async (req, res, next) => {
   }
 };
 
+exports.createPickAndCollectKoko = async (req, res, next) => {
+  try {
+    const result = await createPickAndCollectResponse(req.user.id, req.body, 4, req);
+    return res.status(result.status).json(result.body);
+  } catch (e) {
+    next(e);
+  }
+};
+
 exports.pickAndCollectSuccess = async (req, res, next) => {
   try {
     const { order_id, type, t } = req.body;
@@ -855,6 +999,28 @@ exports.pickAndCollectSuccess = async (req, res, next) => {
           mintpayStatus === "canceled"
             ? "Payment was cancelled"
             : "Mintpay payment failed or cancelled";
+      }
+    } else if (type === 4 || type === "4") {
+      // Koko — verify payment_status from DB (set by /koko/response or return callback)
+      const kokoStatus = record.payment_status;
+      if (kokoStatus === "success") {
+        success = true;
+        message = "Koko payment successful";
+      } else if (kokoStatus === "pending") {
+        return res.status(202).json({
+          success: false,
+          pending: true,
+          message:
+            "Payment is still being processed. Please check back shortly.",
+          order_id: record.pick_and_collect_id,
+          payment_status: "pending",
+        });
+      } else {
+        success = false;
+        message =
+          kokoStatus === "canceled"
+            ? "Payment was cancelled"
+            : "Koko payment failed or cancelled";
       }
     } else {
       return res

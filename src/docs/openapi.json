@@ -337,6 +337,306 @@
         }
       }
     },
+    "/api/v1/payment/koko/return": {
+      "get": {
+        "summary": "Koko Return URL (Frontend Redirect)",
+        "description": "Browser redirect after Koko payment (success or failure). Frontend must call POST /api/v1/payment/koko/return with order_id to verify with Koko backend via orderView API. Do not trust this redirect alone.",
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "orderId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Merchant order ID"
+          },
+          {
+            "in": "query",
+            "name": "trnId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Koko transaction ID"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUCCESS",
+                "FAILED",
+                "FAILURE",
+                "CANCELED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return redirect processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "payment_status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing orderId"
+          },
+          "404": {
+            "description": "Order not found"
+          },
+          "500": {
+            "description": "Processing failed"
+          }
+        }
+      },
+      "post": {
+        "summary": "Koko Return URL (Frontend Redirect)",
+        "description": "Frontend posts order_id to verify payment with Koko backend.",
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order_id"
+                ],
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  },
+                  "purchase_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return redirect processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "payment_status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing order_id"
+          },
+          "404": {
+            "description": "Order not found"
+          },
+          "500": {
+            "description": "Processing failed"
+          }
+        }
+      }
+    },
+    "/api/v1/payment/koko/cancel": {
+      "get": {
+        "summary": "Koko Cancel URL (Frontend Redirect)",
+        "description": "Browser redirect when user cancels Koko payment. Frontend should call POST /api/v1/payment/koko/cancel to update order status.",
+        "tags": [
+          "Payment"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "orderId",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "trnId",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancel redirect received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "payment_status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Koko Cancel URL (Frontend Redirect)",
+        "description": "Frontend posts order_id to update order status to canceled.",
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "order_id"
+                ],
+                "properties": {
+                  "order_id": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancel redirect processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "payment_status": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/payment/koko/response": {
+      "post": {
+        "summary": "Koko Response URL (Server-to-Server Callback)",
+        "description": "Koko backend calls this endpoint directly after payment completion. This is the PRIMARY verification method - signature is verified with Koko public key. Updates payment_status and payment_payload immediately.",
+        "tags": [
+          "Payment"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "orderId",
+                  "trnId",
+                  "status",
+                  "signature"
+                ],
+                "properties": {
+                  "orderId": {
+                    "type": "string",
+                    "description": "Merchant order ID"
+                  },
+                  "trnId": {
+                    "type": "string",
+                    "description": "Koko transaction ID"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "SUCCESS",
+                      "FAILED",
+                      "FAILURE",
+                      "PENDING",
+                      "CANCELED"
+                    ],
+                    "description": "SUCCESS | FAILED | FAILURE | PENDING | CANCELED"
+                  },
+                  "desc": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "signature": {
+                    "type": "string",
+                    "description": "Base64 encoded RSA signature. Verified with Koko public key."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Callback processed (returns OK for Koko)"
+          },
+          "400": {
+            "description": "Missing orderId or invalid signature"
+          },
+          "404": {
+            "description": "Order not found"
+          },
+          "500": {
+            "description": "Processing failed"
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health check",
@@ -4345,6 +4645,186 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/checkout/koko-checkout": {
+      "post": {
+        "summary": "Create pending Koko order (Buy Now Pay Later)",
+        "description": "Creates a pending Koko order (type 4). Returns redirect_url to Koko payment page. Frontend must POST form to redirect_url with dataString and signature. After payment, user redirects to KOKO_RETURN_URL. Frontend then calls POST /api/v1/payment/koko/return to verify with Koko backend.",
+        "tags": [
+          "Checkout"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "integer",
+                    "enum": [
+                      4
+                    ],
+                    "description": "Optional. Koko payments always use type 4."
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string",
+                      "description": "Merchant order ID"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "example": "2500.00"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "LKR"
+                    },
+                    "merchant_id": {
+                      "type": "string"
+                    },
+                    "redirect_url": {
+                      "type": "string",
+                      "description": "Koko payment page URL. Frontend must POST form to this URL."
+                    },
+                    "checkout": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid amount or missing cart"
+          },
+          "404": {
+            "description": "Active cart not found"
+          },
+          "502": {
+            "description": "Koko service unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/pick-and-collect/koko": {
+      "post": {
+        "summary": "Create Koko Pick & Collect order (Buy Now Pay Later)",
+        "description": "Creates a pending Pick & Collect order for Koko payment (type 4). Returns the pick_and_collect_id and redirect_url to Koko payment page.",
+        "tags": [
+          "Pick & Collect"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "prod_code",
+                  "location",
+                  "picked_qty"
+                ],
+                "properties": {
+                  "prod_code": {
+                    "type": "string",
+                    "description": "Product code to pick and collect"
+                  },
+                  "location": {
+                    "type": "string",
+                    "description": "Location code to collect from"
+                  },
+                  "picked_qty": {
+                    "type": "number",
+                    "description": "Quantity to pick",
+                    "minimum": 1
+                  },
+                  "coupon_code": {
+                    "type": "string",
+                    "description": "Optional coupon code"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "pick_and_collect_id": {
+                      "type": "string"
+                    },
+                    "order_id": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "string",
+                      "example": "2500.00"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "LKR"
+                    },
+                    "merchant_id": {
+                      "type": "string"
+                    },
+                    "redirect_url": {
+                      "type": "string",
+                      "description": "Koko payment page URL"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required fields"
+          },
+          "404": {
+            "description": "Product or location not found"
+          },
+          "502": {
+            "description": "Koko service unavailable"
           }
         }
       }

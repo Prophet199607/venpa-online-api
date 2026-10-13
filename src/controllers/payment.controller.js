@@ -18,6 +18,7 @@ const {
 } = require("../services/notifications/notificationTypes");
 const mintpayService = require("../services/payments/mintpayService");
 const payhereService = require("../services/payments/payhereService");
+const kokoService = require("../services/payments/kokoService");
 
 function orderIdCandidates(orderId) {
   const value = payhereService.normalizeValue(orderId);
@@ -551,5 +552,282 @@ exports.mintpayFailed = async (req, res) => {
     return res.status(500).json({
       message: "Error processing Mintpay failed callback",
     });
+  }
+};
+
+// ============================================
+// KOKO PAYMENT HANDLERS
+// ============================================
+
+async function verifyWithKoko(orderId) {
+  if (!orderId) {
+    return {
+      verified: false,
+      status: "unknown",
+      rawStatus: null,
+      orderId: null,
+    };
+  }
+
+  try {
+    const result = await kokoService.getOrderStatus(orderId);
+    return {
+      verified: result.verified && result.signatureValid,
+      status: result.status,
+      rawStatus: result.rawStatus,
+      orderId: result.orderId,
+      trnId: result.trnId,
+      signatureValid: result.signatureValid,
+    };
+  } catch (error) {
+    console.error(`❌ Koko verification request failed for order ${orderId}:`, error.message);
+    return { verified: false, status: "unknown", rawStatus: null, orderId };
+  }
+}
+
+function parseKokoCallback(body) {
+  return kokoService.parseCallbackBody(body);
+}
+
+exports.kokoReturn = async (req, res) => {
+  console.log("--- Koko Return Callback (Frontend Redirect) ---");
+  try {
+    const orderId = req.body?.orderId || req.query?.orderId || req.body?.order_id || req.query?.order_id;
+    const trnId = req.body?.trnId || req.query?.trnId;
+    const status = req.body?.status || req.query?.status;
+
+    console.log(`📩 Koko return redirect: order=${orderId}, trnId=${trnId}, status=${status}`);
+
+    if (!orderId) {
+      console.warn("⚠️ Koko return redirect without orderId — ignored.");
+      return res.status(400).json({
+        message: "Koko return redirect ignored: orderId missing",
+      });
+    }
+
+    const { record, isPickAndCollect } = await findOrderRecord(orderId);
+    if (!record) {
+      console.warn(`⚠️ Koko return: no record found for orderId ${orderId}`);
+      return res.status(404).json({
+        message: "Koko return redirect ignored: order not found",
+      });
+    }
+
+    // Verify with Koko backend (don't trust frontend redirect alone)
+    const verification = await verifyWithKoko(orderId);
+
+    if (verification.status === "success") {
+      await handleOrderSuccess(record, isPickAndCollect, {
+        source: "koko_return_redirect",
+        body: req.body,
+        query: req.query,
+        trnId: verification.trnId,
+        koko_status: verification.rawStatus,
+        verified_with_koko: verification.verified,
+        signature_valid: verification.signatureValid,
+      });
+      console.log(`✅ Koko payment verified & confirmed: ${orderId}`);
+      return res.status(200).json({
+        message: "Koko payment verified and confirmed",
+        order_id: orderId,
+        verified: true,
+      });
+    }
+
+    if (verification.status === "failed" || verification.status === "failure") {
+      await record.update({
+        payment_payload: { source: "koko_return_redirect", body: req.body, query: req.query },
+        payment_status: "failed",
+        updated_at: new Date(),
+      });
+      console.warn(`❌ Koko reports FAILED for order ${orderId} on return redirect.`);
+      return res.status(200).json({
+        message: "Koko reports this payment as failed",
+        order_id: orderId,
+        verified: true,
+        payment_status: "failed",
+      });
+    }
+
+    if (verification.status === "canceled") {
+      await record.update({
+        payment_payload: { source: "koko_return_redirect", body: req.body, query: req.query },
+        payment_status: "canceled",
+        updated_at: new Date(),
+      });
+      console.warn(`⚠️ Koko reports CANCELED for order ${orderId} on return redirect.`);
+      return res.status(200).json({
+        message: "Koko reports this payment as canceled",
+        order_id: orderId,
+        verified: true,
+        payment_status: "canceled",
+      });
+    }
+
+    if (!verification.verified) {
+      console.error(`❌ Koko return could NOT be verified for order ${orderId}. Order left pending.`);
+    } else {
+      console.log(`⏳ Koko still pending for order ${orderId}.`);
+    }
+    return res.status(200).json({
+      message: verification.verified
+        ? "Koko reports payment still pending"
+        : "Payment could not be verified with Koko; order remains pending",
+      order_id: orderId,
+      verified: false,
+      payment_status: "pending",
+    });
+  } catch (error) {
+    console.error("❌ Error updating order from Koko return:", error.message);
+    return res.status(500).json({
+      message: "Error processing Koko return callback",
+    });
+  }
+};
+
+exports.kokoCancel = async (req, res) => {
+  console.log("--- Koko Cancel Callback (Frontend Redirect) ---");
+  try {
+    const orderId = req.body?.orderId || req.query?.orderId || req.body?.order_id || req.query?.order_id;
+    const trnId = req.body?.trnId || req.query?.trnId;
+
+    console.log(`📩 Koko cancel redirect: order=${orderId}, trnId=${trnId}`);
+
+    if (!orderId) {
+      console.warn("⚠️ Koko cancel redirect without orderId — ignored.");
+      return res.status(400).json({
+        message: "Koko cancel redirect ignored: orderId missing",
+      });
+    }
+
+    const { record, isPickAndCollect } = await findOrderRecord(orderId);
+    if (!record) {
+      console.warn(`⚠️ Koko cancel: no record found for orderId ${orderId}`);
+      return res.status(404).json({
+        message: "Koko cancel redirect ignored: order not found",
+      });
+    }
+
+    if (record.payment_status === "success") {
+      console.log(`ℹ️ Order ${orderId} already paid; ignoring Koko cancel redirect.`);
+      return res.status(200).json({
+        message: "Order already confirmed as paid; ignoring cancel redirect",
+        order_id: orderId,
+        payment_status: "success",
+      });
+    }
+
+    // Verify with Koko backend
+    const verification = await verifyWithKoko(orderId);
+
+    if (verification.status === "success") {
+      await handleOrderSuccess(record, isPickAndCollect, {
+        source: "koko_cancel_redirect_but_success",
+        body: req.body,
+        query: req.query,
+        trnId: verification.trnId,
+        koko_status: verification.rawStatus,
+        verified_with_koko: verification.verified,
+        signature_valid: verification.signatureValid,
+      });
+      console.log(`✅ Koko verified SUCCESS despite cancel redirect: ${orderId}`);
+      return res.status(200).json({
+        message: "Koko confirms payment succeeded",
+        order_id: orderId,
+        verified: true,
+        payment_status: "success",
+      });
+    }
+
+    await record.update({
+      payment_payload: { source: "koko_cancel_redirect", body: req.body, query: req.query },
+      payment_status: "canceled",
+      updated_at: new Date(),
+    });
+    console.log(`⚠️ Koko cancel confirmed for order ${orderId}`);
+    return res.status(200).json({
+      message: "Koko payment was canceled",
+      order_id: orderId,
+      verified: true,
+      payment_status: "canceled",
+    });
+  } catch (error) {
+    console.error("❌ Error updating order from Koko cancel:", error.message);
+    return res.status(500).json({
+      message: "Error processing Koko cancel callback",
+    });
+  }
+};
+
+exports.kokoResponse = async (req, res) => {
+  console.log("--- Koko Response Callback (Server-to-Server) ---");
+  try {
+    const parsed = parseKokoCallback(req.body);
+    const { orderId, trnId, status, signature } = parsed;
+
+    console.log(`📩 Koko backend response: order=${orderId}, trnId=${trnId}, status=${status}`);
+
+    if (!orderId) {
+      console.warn("⚠️ Koko response without orderId — ignored.");
+      return res.status(400).send("Missing orderId");
+    }
+
+    const { record, isPickAndCollect } = await findOrderRecord(orderId);
+    if (!record) {
+      console.warn(`⚠️ Koko response: no record found for orderId ${orderId}`);
+      return res.status(404).send("Order not found");
+    }
+
+    // Verify response signature (critical for server-to-server)
+    const isValidSignature = kokoService.verifyResponseSignature(parsed, process.env.KOKO_PUBLIC_KEY);
+    if (!isValidSignature) {
+      console.error(`❌ Koko response signature INVALID for order ${orderId}`);
+      return res.status(400).send("Invalid signature");
+    }
+
+    if (record.payment_status === "success" && status !== "SUCCESS") {
+      console.log(`ℹ️ Order ${orderId} already successful; ignoring ${status}.`);
+      return res.status(200).send("OK");
+    }
+
+    const statusMap = {
+      SUCCESS: "success",
+      FAILED: "failed",
+      FAILURE: "failed",
+      PENDING: "pending",
+      CANCELED: "canceled",
+    };
+    const normalizedStatus = statusMap[status?.toUpperCase()] || status?.toLowerCase() || "unknown";
+
+    if (normalizedStatus === "success") {
+      await handleOrderSuccess(record, isPickAndCollect, {
+        source: "koko_response_callback",
+        ...parsed,
+        signature_valid: true,
+      });
+      console.log(`✅ Koko payment confirmed via backend callback: ${orderId}`);
+      return res.status(200).send("OK");
+    }
+
+    if (["failed", "canceled"].includes(normalizedStatus)) {
+      await record.update({
+        payment_payload: { source: "koko_response_callback", ...parsed },
+        payment_status: normalizedStatus,
+        updated_at: new Date(),
+      });
+      console.log(`⚠️ Koko ${normalizedStatus.toUpperCase()} recorded via backend callback: ${orderId}`);
+      return res.status(200).send("OK");
+    }
+
+    console.log(`⏳ Koko status ${status} recorded as pending: ${orderId}`);
+    await record.update({
+      payment_payload: { source: "koko_response_callback", ...parsed },
+      payment_status: "pending",
+      updated_at: new Date(),
+    });
+    return res.status(200).send("OK");
+  } catch (error) {
+    console.error("❌ Error processing Koko response callback:", error.message);
+    return res.status(500).send("Error processing payment notification");
   }
 };
