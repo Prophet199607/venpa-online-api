@@ -336,16 +336,23 @@ async function createOrder({
   );
 
   try {
+    const requestBody = querystring.stringify(formData);
+    console.log(`🔧 Koko create order FULL REQUEST:`);
+    console.log(`   URL: ${getKokoBaseUrl()}/api/merchants/orderCreate`);
+    console.log(`   Body: ${requestBody}`);
+    console.log(`   Data String: ${dataString}`);
+    console.log(`   Signature: ${signature.substring(0, 50)}...`);
+
     const response = await axios.post(
       `${getKokoBaseUrl()}/api/merchants/orderCreate`,
-      querystring.stringify(formData),
+      requestBody,
       {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         timeout: 30000,
         maxRedirects: 0,
-        validateStatus: (status) => status < 400, // Accept 3xx redirects
+        validateStatus: (status) => status < 500,
       },
     );
 
@@ -397,9 +404,20 @@ async function createOrder({
         `❌ Koko create order failed (${error.response.status}):`,
         error.response.data,
       );
-      throw new Error(
-        `Koko create order failed (${error.response.status}): ${JSON.stringify(error.response.data)}`,
-      );
+
+      const errorData = error.response.data;
+      let errorMessage = `Koko create order failed (${error.response.status})`;
+
+      if (errorData && typeof errorData === "object") {
+        if (errorData.status && errorData.statusCode) {
+          errorMessage += `: ${errorData.status} (${errorData.statusCode})`;
+        }
+        errorMessage += `: ${JSON.stringify(errorData)}`;
+      } else {
+        errorMessage += `: ${JSON.stringify(errorData)}`;
+      }
+
+      throw new Error(errorMessage);
     } else if (error.request) {
       console.error("❌ Koko create order - no response:", error.message);
       throw new Error(

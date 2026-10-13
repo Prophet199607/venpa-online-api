@@ -543,7 +543,7 @@ exports.createCheckout = async (req, res, next) => {
     if (!type) {
       return res.status(400).json({
         message:
-          "type is required and must be 1 (COD), 2 (PayHere) or 3 (Mintpay)",
+          "type is required and must be 1 (COD), 2 (PayHere), 3 (Mintpay) or 4 (Koko)",
       });
     }
 
