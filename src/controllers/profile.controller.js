@@ -1,6 +1,7 @@
 const axios = require("axios");
 const { QueryTypes, Op } = require("sequelize");
 const { sequelize, EmailVerification, User } = require("../models");
+const { normalizePhone } = require("../utils/phone");
 
 async function safeCount(table, column, userId) {
   try {
@@ -68,23 +69,6 @@ exports.updateProfile = async (req, res, next) => {
     const provinces = has("province") ? payload.province : payload.provinces;
     const userAttrs = req.user.constructor?.rawAttributes || {};
     const supports = (attr) => Boolean(userAttrs[attr]);
-
-    const normalizePhone = (phone) => {
-      let digits = String(phone || "").replace(/\D/g, "");
-
-      if (digits.startsWith("0") && digits.length === 10) {
-        digits = "94" + digits.slice(1);
-      } else if (digits.length === 9) {
-        digits = "94" + digits;
-      }
-
-      // final validation
-      if (!/^94\d{9}$/.test(digits)) {
-        return null;
-      }
-
-      return digits;
-    };
 
     if (
       !has("fname") &&

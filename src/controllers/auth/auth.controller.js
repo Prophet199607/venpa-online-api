@@ -14,10 +14,10 @@ const {
 } = require("../../services/notifications/emailService");
 const { sendSms } = require("../../services/notifications/smsService");
 const {
-  normalizePhone,
   isMobileBypassLogin,
   REVIEW_KEY_HEADER,
 } = require("../../services/auth/mobileAuth");
+const { normalizePhone } = require("../../utils/phone");
 
 // Validation schemas
 const registerSchema = z
@@ -54,7 +54,11 @@ async function updateUserLoginInfo(userId, platform) {
   if (platform) {
     await User.update({ platform }, { where: { id: userId } });
 
-    await DeviceToken.update({ platform }, { where: { user_id: userId } });
+    // Only update platform for existing tokens, don't create new ones
+    await DeviceToken.update(
+      { platform, updated_at: new Date() },
+      { where: { user_id: userId } }
+    );
   }
 }
 

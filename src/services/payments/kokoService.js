@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const axios = require("axios");
 const querystring = require("querystring");
+const { toKokoFormat } = require("../../utils/phone");
 
 const SUCCESS_STATUSES = new Set([
   "success",
@@ -17,6 +18,30 @@ const FAILED_STATUSES = new Set([
   "failure",
 ]);
 const CANCELED_STATUSES = new Set(["canceled", "cancelled"]);
+
+// Koko's order API cannot process non-ASCII characters in its signed fields
+// (merchant id, amount, names, email, description, ...). Sending e.g. Tamil or
+// Sinhala product names causes an opaque SYSTEM_ERROR (500) or a hang. Because
+// the same value is both signed (dataString) and posted as a form field, we must
+// sanitize it once, before either step, so the signature stays consistent.
+function toAsciiSafe(value, fallback = "") {
+  if (value === null || value === undefined) return fallback;
+  let str = String(value);
+  // Convert accented Latin letters to their ASCII base (é -> e).
+  str = str.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  // Normalize common typographic punctuation to ASCII equivalents.
+  str = str
+    .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+    .replace(/[\u2013\u2014\u2212]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/\u00A0/g, " ");
+  // Drop any remaining non-printable-ASCII characters (Tamil, Sinhala, emoji...).
+  str = str.replace(/[^\x20-\x7E]/g, "");
+  // Collapse repeated whitespace introduced above.
+  str = str.replace(/\s+/g, " ").trim();
+  return str || fallback;
+}
 
 let cachedConfig = null;
 
@@ -211,22 +236,17 @@ function verifyResponseSignature(responseData, kokoPublicKey) {
 function buildCustomer(user, body = {}) {
   const shipping = body.shipping_address || body.delivery_address || {};
 
-  // Get phone and normalize to Sri Lankan format (07XXXXXXXX)
+  // Get phone and normalize to Koko format (07XXXXXXXX)
   let phone = body.phone || shipping.phone || user?.phone || "";
-  phone = String(phone).replace(/\s+/g, "");
-
-  // Convert international format (9477...) to local (077...)
-  if (phone.startsWith("94") && phone.length === 11) {
-    phone = "0" + phone.substring(2);
-  } else if (phone.startsWith("+94") && phone.length === 12) {
-    phone = "0" + phone.substring(3);
-  }
+  phone = toKokoFormat(phone) || "";
 
   return {
-    firstName:
-      body.first_name || shipping.first_name || user?.fname || "Customer",
-    lastName: body.last_name || shipping.last_name || user?.lname || "",
-    email: body.email || shipping.email || user?.email || "",
+    firstName: toAsciiSafe(
+      body.first_name || shipping.first_name || user?.fname,
+      "Customer",
+    ),
+    lastName: toAsciiSafe(body.last_name || shipping.last_name || user?.lname),
+    email: toAsciiSafe(body.email || shipping.email || user?.email),
     phone: phone,
   };
 }
@@ -282,12 +302,19 @@ async function createOrder({
   const reference = orderId;
   const amountStr = Number(Number(amount).toFixed(2)).toFixed(2);
 
-  // Build description from items
+  // Build an ASCII-safe description from items (Koko rejects non-ASCII fields).
   const itemNames = items
-    .map((item) => item.product?.prod_name || item.name || "Item")
+    .map((item) => toAsciiSafe(item.product?.prod_name || item.name))
+    .filter(Boolean)
     .slice(0, 3)
     .join(", ");
-  const desc = description || `${items.length} product(s): ${itemNames}`;
+  const fallbackDesc = itemNames
+    ? `${items.length} product(s): ${itemNames}`
+    : `${items.length} product(s) - Order ${orderId}`;
+  const desc = (toAsciiSafe(description, fallbackDesc) || fallbackDesc).slice(
+    0,
+    255,
+  );
 
   // Build data string for signing
   const dataStringParams = {

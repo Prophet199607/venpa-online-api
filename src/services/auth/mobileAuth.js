@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { normalizePlatform } = require("../notifications/platform");
+const { normalizePhone } = require("../../utils/phone");
 
 // ============================================================================
 // OTP-less mobile login (store-review bypass)
@@ -7,27 +8,6 @@ const { normalizePlatform } = require("../notifications/platform");
 //   1 = android, 2 = ios, 3 = web
 const MOBILE_PLATFORM_CODES = new Set(["1", "2"]);
 const REVIEW_KEY_HEADER = "x-mobile-review-key";
-
-/**
- * Normalize a Sri Lankan mobile number to the 94XXXXXXXXX format.
- * Returns null when the input is not a valid mobile number.
- */
-const normalizePhone = (phone) => {
-  let digits = String(phone || "").replace(/\D/g, "");
-
-  if (digits.startsWith("0") && digits.length === 10) {
-    digits = "94" + digits.slice(1);
-  } else if (digits.length === 9) {
-    digits = "94" + digits;
-  }
-
-  // Valid Sri Lankan mobile numbers only: 947XXXXXXXX
-  if (!/^94(7\d{8})$/.test(digits)) {
-    return null;
-  }
-
-  return digits;
-};
 
 /**
  * OTP-less login is opt-in and must be explicitly enabled in the environment.
