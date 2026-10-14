@@ -143,8 +143,6 @@ function getCallbackUrls(req, orderId) {
 }
 
 function buildDataString(params) {
-  // Order must match exactly as per Koko documentation:
-  // mId + amount + currency + pluginName + pluginVersion + returnUrl + cancelUrl + orderId + reference + firstName + lastName + email + description + apiKey + responseUrl
   const parts = [
     params.mId,
     params.amount,
@@ -212,11 +210,24 @@ function verifyResponseSignature(responseData, kokoPublicKey) {
 
 function buildCustomer(user, body = {}) {
   const shipping = body.shipping_address || body.delivery_address || {};
+
+  // Get phone and normalize to Sri Lankan format (07XXXXXXXX)
+  let phone = body.phone || shipping.phone || user?.phone || "";
+  phone = String(phone).replace(/\s+/g, "");
+
+  // Convert international format (9477...) to local (077...)
+  if (phone.startsWith("94") && phone.length === 11) {
+    phone = "0" + phone.substring(2);
+  } else if (phone.startsWith("+94") && phone.length === 12) {
+    phone = "0" + phone.substring(3);
+  }
+
   return {
     firstName:
       body.first_name || shipping.first_name || user?.fname || "Customer",
     lastName: body.last_name || shipping.last_name || user?.lname || "",
     email: body.email || shipping.email || user?.email || "",
+    phone: phone,
   };
 }
 
@@ -292,6 +303,7 @@ async function createOrder({
     firstName: customer.firstName,
     lastName: customer.lastName,
     email: customer.email,
+    phone: customer.phone,
     description: desc,
     apiKey,
     responseUrl,
@@ -320,6 +332,7 @@ async function createOrder({
     _firstName: customer.firstName,
     _lastName: customer.lastName,
     _email: customer.email,
+    _phone: customer.phone,
     dataString: dataString,
     signature: signature,
   };
