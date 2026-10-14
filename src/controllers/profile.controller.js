@@ -20,19 +20,18 @@ exports.getProfileSummary = async (req, res, next) => {
     const user = req.user.toJSON();
     delete user.password;
 
-    const ordersTable = process.env.ORDERS_TABLE || "orders";
-    const ordersUserColumn = process.env.ORDERS_USER_COLUMN || "user_id";
-    const reviewsTable = process.env.REVIEWS_TABLE || "reviews";
-    const reviewsUserColumn = process.env.REVIEWS_USER_COLUMN || "user_id";
+    const [checkoutCount, pickAndCollectCount, reviewCount, verification] =
+      await Promise.all([
+        safeCount("checkouts", "user_id", req.user.id),
+        safeCount("pick_and_collects", "user_id", req.user.id),
+        safeCount("reviews", "user_id", req.user.id),
+        EmailVerification.findOne({
+          where: { user_id: req.user.id, verified_at: { [Op.ne]: null } },
+          order: [["verified_at", "DESC"]],
+        }).catch(() => null),
+      ]);
 
-    const [orderCount, reviewCount, verification] = await Promise.all([
-      safeCount(ordersTable, ordersUserColumn, req.user.id),
-      safeCount(reviewsTable, reviewsUserColumn, req.user.id),
-      EmailVerification.findOne({
-        where: { user_id: req.user.id, verified_at: { [Op.ne]: null } },
-        order: [["verified_at", "DESC"]],
-      }).catch(() => null),
-    ]);
+    const orderCount = checkoutCount + pickAndCollectCount;
 
     const userResponse = user;
 
