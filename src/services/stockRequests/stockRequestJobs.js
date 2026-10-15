@@ -1,9 +1,7 @@
 const cron = require("node-cron");
 const { Op } = require("sequelize");
 const { StockRequest, StockMaster } = require("../../models");
-const {
-  sendBackInStockEmail,
-} = require("../notifications/emailService");
+const { sendBackInStockEmail } = require("../notifications/emailService");
 
 function toDateMs(value) {
   if (!value) return null;
@@ -21,7 +19,8 @@ function hasGrnSince(grnRows, requestMs) {
   if (!requestMs) return false;
   return grnRows.some((row) => {
     const createdMs = toDateMs(row.created_at);
-    if (createdMs !== null && createdMs !== undefined) return createdMs >= requestMs;
+    if (createdMs !== null && createdMs !== undefined)
+      return createdMs >= requestMs;
     const txnMs = toDateMs(row.transaction_date);
     return txnMs !== null && txnMs !== undefined && txnMs >= requestMs;
   });

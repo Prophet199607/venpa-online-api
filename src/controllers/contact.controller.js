@@ -26,7 +26,7 @@ exports.createContactMessage = async (req, res, next) => {
 
     // Send email to admin
     const transporter = getTransporter();
-    const adminEmail = "venpaabookshop@gmail.com";
+    const adminEmail = process.env.CONTACT_ADMIN_EMAIL || process.env.EMAIL_USER;
     const html = generateContactEmailHtml({ name, email, subject, message });
     await transporter.sendMail({
       from: `Venpaa Bookshop <${process.env.EMAIL_USER}>`,

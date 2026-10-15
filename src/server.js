@@ -32,6 +32,9 @@ const { startDiscountJobs } = require("./services/discounts/discountJobs");
 const {
   startStockRequestJobs,
 } = require("./services/stockRequests/stockRequestJobs");
+const {
+  verifyEmailTransport,
+} = require("./services/notifications/emailService");
 
 const PORT = Number(process.env.PORT || 4000);
 
@@ -103,7 +106,11 @@ async function safeSyncModel(Model) {
       console.log("Stock request jobs started!");
     }
 
-    app.listen(PORT, () => console.log(`Running on http://localhost:${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`Running on http://localhost:${PORT}`);
+      // Non-blocking: report loudly if order/OTP emails cannot authenticate.
+      verifyEmailTransport().catch(() => {});
+    });
   } catch (err) {
     console.error("❌ Startup error ekak :(", err);
     process.exit(1);

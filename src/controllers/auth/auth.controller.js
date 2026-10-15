@@ -7,10 +7,10 @@ const {
 } = require("../../models");
 const { z } = require("zod");
 const { Op } = require("sequelize");
-const nodemailer = require("nodemailer");
 const { OAuth2Client } = require("google-auth-library");
 const {
   generateOtpEmailHtml,
+  getTransporter,
 } = require("../../services/notifications/emailService");
 const { sendSms } = require("../../services/notifications/smsService");
 const {
@@ -37,16 +37,6 @@ const loginSchema = registerSchema;
 
 function generateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-function getTransporter() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
 }
 
 // Helper to update platform and device token

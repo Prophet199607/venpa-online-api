@@ -1,31 +1,69 @@
 const nodemailer = require("nodemailer");
 
+/**
+ * Single mail configuration for the entire system. Every email (order updates,
+ * OTPs, verification, stock requests) is sent from this one account.
+ */
+function getMailConfig() {
+  return {
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT),
+    secure: String(process.env.EMAIL_SECURE).trim().toLowerCase() !== "false",
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  };
+}
+exports.getMailConfig = getMailConfig;
+
 function getTransporter() {
+  const { host, port, secure, user, pass } = getMailConfig();
+
+  if (!user || !pass) {
+    console.error(
+      "❌ Email transport not configured: EMAIL_USER / EMAIL_PASS are missing.",
+    );
+  }
+
   return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 }
 exports.getTransporter = getTransporter;
 
-function getSalesTransporter() {
-  return nodemailer.createTransport({
-    host: process.env.STOCK_REQUEST_SMTP_HOST || "mail.mymailportal.lk",
-    port: Number(process.env.STOCK_REQUEST_SMTP_PORT || 465),
-    secure:
-      String(process.env.STOCK_REQUEST_SMTP_SECURE || "true")
-        .trim()
-        .toLowerCase() !== "false",
-    auth: {
-      user: process.env.STOCK_REQUEST_EMAIL,
-      pass: process.env.STOCK_REQUEST_EMAIL_PASS,
-    },
-  });
+/**
+ * Verifies that the system mail account can actually authenticate.
+ * Email sending swallows its own errors, so a broken SMTP login would
+ * otherwise fail silently; this surfaces it once, loudly, on startup.
+ */
+async function verifyEmailTransport() {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.error(
+      "❌ [Email] EMAIL_USER/EMAIL_PASS not set - emails will NOT be delivered.",
+    );
+    return false;
+  }
+
+  try {
+    await getTransporter().verify();
+    console.log(`✅ [Email] SMTP ready for ${process.env.EMAIL_USER}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `❌ [Email] SMTP login failed for ${process.env.EMAIL_USER}: ${error.message}`,
+    );
+    console.error(
+      "   ↳ Emails will NOT be delivered. Check EMAIL_HOST / EMAIL_PORT / EMAIL_SECURE / EMAIL_USER / EMAIL_PASS.",
+    );
+    return false;
+  }
 }
-exports.getSalesTransporter = getSalesTransporter;
+exports.verifyEmailTransport = verifyEmailTransport;
 
 function escapeHtml(value) {
   return String(value == null ? "" : value)
@@ -928,8 +966,8 @@ exports.sendStockRequestAlertToSales = async ({
   prod_code,
   prod_name,
 }) => {
-  const transporter = getSalesTransporter();
-  const salesEmail = process.env.STOCK_REQUEST_EMAIL;
+  const transporter = getTransporter();
+  const salesEmail = process.env.EMAIL_USER;
 
   const html = exports.generateStockRequestAlertHtml({
     name,
@@ -1076,8 +1114,8 @@ exports.sendBackInStockEmail = async ({
     throw new Error("No email address provided for back in stock notification");
   }
 
-  const transporter = getSalesTransporter();
-  const salesEmail = process.env.STOCK_REQUEST_EMAIL;
+  const transporter = getTransporter();
+  const salesEmail = process.env.EMAIL_USER;
 
   const html = exports.generateBackInStockHtml({ name, prod_code, prod_name });
 

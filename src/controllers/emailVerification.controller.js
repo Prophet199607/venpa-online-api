@@ -1,23 +1,15 @@
-const nodemailer = require("nodemailer");
 const {
   EmailVerification,
   EmailChange,
   PublicEmailOtp,
   User,
 } = require("../models");
+const {
+  getTransporter,
+} = require("../services/notifications/emailService");
 
 function generateCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
-}
-
-function getTransporter() {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
 }
 
 function normalizeEmail(email) {
