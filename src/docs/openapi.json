@@ -4771,6 +4771,13 @@
                     "description": "Quantity to pick",
                     "minimum": 1
                   },
+                  "type": {
+                    "type": "integer",
+                    "enum": [
+                      4
+                    ],
+                    "description": "Payment type. Koko is always 4; the server forces type=4 for this endpoint, so sending it is optional."
+                  },
                   "coupon_code": {
                     "type": "string",
                     "description": "Optional coupon code"
@@ -4918,7 +4925,7 @@
     "/api/v1/pick-and-collect/success": {
       "post": {
         "summary": "Verify Pick & Collect payment success",
-        "description": "For PayHere (type=2), the backend verifies payment_status from notify and, if still pending, PayHere Retrieval API. Returns 202 until confirmed. Poll; do not treat pending as paid.",
+        "description": "For PayHere (type=2), the backend verifies payment_status from notify and, if still pending, PayHere Retrieval API. For Mintpay (type=3) and Koko (type=4), payment_status set by the gateway callback is verified. Returns 202 until confirmed. Poll; do not treat pending as paid.",
         "tags": [
           "Pick & Collect"
         ],
@@ -4947,13 +4954,14 @@
                     "type": "integer",
                     "enum": [
                       2,
-                      3
+                      3,
+                      4
                     ],
-                    "description": "2 = PayHere (notify + live Retrieval API), 3 = Mintpay"
+                    "description": "2 = PayHere (notify + live Retrieval API), 3 = Mintpay, 4 = Koko"
                   },
                   "t": {
                     "type": "boolean",
-                    "description": "Unused for PayHere. Mintpay is verified server-side, not from this flag."
+                    "description": "Unused for PayHere. Mintpay and Koko are verified server-side, not from this flag."
                   }
                 }
               }
@@ -6008,9 +6016,10 @@
                     "type": "integer",
                     "enum": [
                       2,
-                      3
+                      3,
+                      4
                     ],
-                    "description": "2 = PayHere, 3 = Mintpay"
+                    "description": "2 = PayHere, 3 = Mintpay, 4 = Koko"
                   },
                   "coupon_code": {
                     "type": "string",

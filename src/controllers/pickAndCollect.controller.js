@@ -45,6 +45,7 @@ function normalizeQuantity(value) {
 function normalizePickAndCollectType(value) {
   if (value === 2 || value === "2") return 2; // Card (PayHere)
   if (value === 3 || value === "3") return 3; // Mintpay
+  if (value === 4 || value === "4") return 4; // Koko
   return null;
 }
 
@@ -307,7 +308,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
 
   // Look for an existing pending pick & collect for this user, product, location
   let existingPC = null;
-  if (type === 2 || type === 3) {
+  if (type === 2 || type === 3 || type === 4) {
     existingPC = await PickAndCollect.findOne({
       where: {
         user_id: userId,
