@@ -1313,8 +1313,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "horizontal",
-                "panoramic"
+                "web",
+                "mobile"
               ]
             }
           }
@@ -1352,8 +1352,8 @@
                   "orientation": {
                     "type": "string",
                     "enum": [
-                      "horizontal",
-                      "panoramic"
+                      "web",
+                      "mobile"
                     ]
                   },
                   "link": {
@@ -1411,8 +1411,8 @@
                   "orientation": {
                     "type": "string",
                     "enum": [
-                      "horizontal",
-                      "panoramic"
+                      "web",
+                      "mobile"
                     ]
                   },
                   "link": {

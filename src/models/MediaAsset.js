@@ -14,7 +14,7 @@ const MediaAsset = sequelize.define(
     placement_key: { type: DataTypes.STRING(100), allowNull: true },
     position: { type: DataTypes.INTEGER, defaultValue: 0 },
     orientation: {
-      type: DataTypes.ENUM("horizontal", "panoramic"),
+      type: DataTypes.ENUM("web", "mobile"),
       allowNull: true,
     },
     link: { type: DataTypes.STRING(255), allowNull: true },
