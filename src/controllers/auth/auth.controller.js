@@ -74,6 +74,12 @@ async function findOrCreateUser({ cleanEmail = null, cleanPhone = null }) {
     },
   });
 
+  if (user && Number(user.status) === 0) {
+    const error = new Error("Account not found");
+    error.status = 404;
+    throw error;
+  }
+
   // ========================================
   // CREATE USER
   // ========================================
@@ -171,6 +177,33 @@ const sendOtpHandler = async (req, res, { allowMobileBypass = false } = {}) => {
         success: false,
         message: "Email or Phone is required",
       });
+    }
+
+    // Check if account exists but is deactivated (status = 0)
+    const deactivatedCheckConditions = [];
+    if (email) {
+      deactivatedCheckConditions.push({
+        email: String(email).trim().toLowerCase(),
+      });
+    }
+    if (phone) {
+      const cleanPhone = normalizePhone(phone);
+      if (cleanPhone) {
+        deactivatedCheckConditions.push({ phone: cleanPhone });
+      }
+    }
+
+    if (deactivatedCheckConditions.length > 0) {
+      const existingUser = await User.findOne({
+        where: { [Op.or]: deactivatedCheckConditions },
+      });
+
+      if (existingUser && Number(existingUser.status) === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Account not found",
+        });
+      }
     }
 
     const code = generateCode();
@@ -349,6 +382,33 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
+    // Check if account is deactivated (status = 0)
+    const deactivatedVerifyConditions = [];
+    if (email) {
+      deactivatedVerifyConditions.push({
+        email: String(email).trim().toLowerCase(),
+      });
+    }
+    if (phone) {
+      const cleanPhone = normalizePhone(phone);
+      if (cleanPhone) {
+        deactivatedVerifyConditions.push({ phone: cleanPhone });
+      }
+    }
+
+    if (deactivatedVerifyConditions.length > 0) {
+      const existingUser = await User.findOne({
+        where: { [Op.or]: deactivatedVerifyConditions },
+      });
+
+      if (existingUser && Number(existingUser.status) === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Account not found",
+        });
+      }
+    }
+
     const cleanCode = String(code || "").trim();
 
     let record = null;
@@ -515,6 +575,13 @@ exports.googleLogin = async (req, res) => {
       },
     });
 
+    if (user && Number(user.status) === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Account not found",
+      });
+    }
+
     // CREATE USER
     if (!user) {
       const randomPassword = `${Date.now()}_${Math.random()
@@ -621,11 +688,25 @@ exports.appleLogin = async (req, res) => {
       where: { apple_id: appleId },
     });
 
+    if (user && Number(user.status) === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Account not found",
+      });
+    }
+
     // 3. First time / Link account: check if user already exists by verified email
     if (!user && cleanEmail) {
       user = await User.findOne({
         where: { email: cleanEmail },
       });
+
+      if (user && Number(user.status) === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Account not found",
+        });
+      }
 
       if (user) {
         // Link Apple ID to the existing account
@@ -691,3 +772,32 @@ exports.appleLogin = async (req, res) => {
     });
   }
 };
+
+// ========================================
+// DEACTIVATE / DELETE ACCOUNT
+// ========================================
+
+exports.deactivateAccount = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    // 1. Mark user status as 0 (deactivated/deleted)
+    await User.update(
+      { status: 0, updated_at: new Date() },
+      { where: { id: userId } },
+    );
+
+    // 2. Remove active push notification device tokens
+    await DeviceToken.destroy({
+      where: { user_id: userId },
+    });
+
+    return res.json({
+      success: true,
+      message: "Account deactivated successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

@@ -15,5 +15,8 @@ router.get("/me", auth, (req, res) => {
   res.json(user);
 });
 router.put("/me", auth, profileController.updateProfile);
+router.delete("/me", auth, c.deactivateAccount);
+router.delete("/account", auth, c.deactivateAccount);
+router.post("/deactivate", auth, c.deactivateAccount);
 
 module.exports = router;
