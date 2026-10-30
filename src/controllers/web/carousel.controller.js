@@ -16,6 +16,24 @@ async function processImage(imageValue, keyForSlug) {
 }
 
 /**
+ * Normalize the optional carousel link/URL value.
+ */
+function normalizeLink(link) {
+  if (link === undefined || link === null) return null;
+
+  const normalized = String(link).trim();
+  if (!normalized) return null;
+
+  if (normalized.length > 255) {
+    const error = new Error("link must be 255 characters or fewer");
+    error.status = 400;
+    throw error;
+  }
+
+  return normalized;
+}
+
+/**
  * Append full image URLs and language info to a plain JSON object.
  */
 function formatItem(json) {
@@ -104,7 +122,7 @@ exports.createCarousel = async (req, res, next) => {
       orientation,
       placement_key,
       position: position || 0,
-      link,
+      link: normalizeLink(link),
       language: language || null,
       is_active: is_active ?? true,
       created_at: new Date(),
@@ -159,6 +177,11 @@ exports.updateCarousel = async (req, res, next) => {
     // Allow explicitly clearing language by passing null/empty string
     if ("language" in updateData) {
       updateData.language = updateData.language || null;
+    }
+
+    // Allow explicitly clearing the link by passing null/empty string
+    if ("link" in updateData) {
+      updateData.link = normalizeLink(updateData.link);
     }
 
     await item.update({
