@@ -18,6 +18,10 @@ const {
   REVIEW_KEY_HEADER,
 } = require("../../services/auth/mobileAuth");
 const { normalizePhone } = require("../../utils/phone");
+const {
+  verifyAppleToken,
+  parseFullName,
+} = require("../../services/auth/appleAuth");
 
 // Validation schemas
 const registerSchema = z
@@ -47,7 +51,7 @@ async function updateUserLoginInfo(userId, platform) {
     // Only update platform for existing tokens, don't create new ones
     await DeviceToken.update(
       { platform, updated_at: new Date() },
-      { where: { user_id: userId } }
+      { where: { user_id: userId } },
     );
   }
 }
@@ -449,17 +453,16 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
-    const rawIds =
-      process.env.GOOGLE_CLIENT_IDS || process.env.GOOGLE_CLIENT_ID;
+    const rawId = process.env.GOOGLE_CLIENT_ID;
 
-    if (!rawIds) {
+    if (!rawId) {
       return res.status(400).json({
         success: false,
         message: "Google client IDs not configured",
       });
     }
 
-    const clientIds = rawIds
+    const clientIds = rawId
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
@@ -558,6 +561,129 @@ exports.googleLogin = async (req, res) => {
     const { platform } = req.body || {};
 
     return res.json(await buildLoginResponse(user, platform));
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+};
+
+// ========================================
+// APPLE LOGIN
+// ========================================
+
+exports.appleLogin = async (req, res) => {
+  try {
+    const { identityToken, email, name, platform } = req.body || {};
+
+    if (!identityToken) {
+      return res.status(400).json({
+        success: false,
+        message: "identityToken is required",
+      });
+    }
+
+    const rawId = process.env.APPLE_CLIENT_ID;
+
+    if (!rawId) {
+      return res.status(500).json({
+        success: false,
+        message: "Apple client ID not configured",
+      });
+    }
+
+    // 1. Verify token really came from Apple
+    let payload;
+    try {
+      payload = await verifyAppleToken(identityToken);
+    } catch (verifyErr) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Apple token",
+      });
+    }
+
+    const appleId = payload && payload.sub;
+    if (!appleId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Apple token payload: missing sub",
+      });
+    }
+
+    // Determine email (token payload first, fallback to body on first sign-in)
+    const rawEmail = payload.email || email;
+    const cleanEmail = rawEmail ? String(rawEmail).trim().toLowerCase() : null;
+
+    // 2. Primary lookup: Always find existing user by apple_id (sub)
+    let user = await User.findOne({
+      where: { apple_id: appleId },
+    });
+
+    // 3. First time / Link account: check if user already exists by verified email
+    if (!user && cleanEmail) {
+      user = await User.findOne({
+        where: { email: cleanEmail },
+      });
+
+      if (user) {
+        // Link Apple ID to the existing account
+        const updateData = { apple_id: appleId };
+        if (user.auth_provider === "local") {
+          updateData.auth_provider = "apple";
+        }
+        await user.update(updateData);
+      }
+    }
+
+    // 4. Create new user if no match found
+    if (!user) {
+      const { fname, lname } = parseFullName(name, cleanEmail);
+      const randomPassword = `apple_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2)}`;
+
+      user = await User.create({
+        fname,
+        lname,
+        email: cleanEmail,
+        phone: null,
+        password: randomPassword,
+        apple_id: appleId,
+        auth_provider: "apple",
+        platform: platform || "2",
+        status: 1,
+      });
+    } else {
+      // Existing user: backfill email or name if missing
+      const updateData = {};
+
+      if (!user.email && cleanEmail) {
+        const emailOwner = await User.findOne({
+          where: {
+            email: cleanEmail,
+            id: { [Op.ne]: user.id },
+          },
+        });
+        if (!emailOwner) {
+          updateData.email = cleanEmail;
+        }
+      }
+
+      if ((!user.fname || user.fname === "Apple User") && name) {
+        const { fname, lname } = parseFullName(name, cleanEmail);
+        if (fname) updateData.fname = fname;
+        if (lname) updateData.lname = lname;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await user.update(updateData);
+      }
+    }
+
+    // 5. Standardized login response
+    return res.json(await buildLoginResponse(user, platform || "2"));
   } catch (error) {
     return res.status(500).json({
       success: false,

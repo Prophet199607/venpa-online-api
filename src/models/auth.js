@@ -25,6 +25,11 @@ const User = sequelize.define(
     province: { type: DataTypes.STRING(100), allowNull: true },
     postal_code: { type: DataTypes.STRING(20), allowNull: true },
     password: { type: DataTypes.STRING(255), allowNull: true },
+    apple_id: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true,
+    },
     auth_provider: {
       type: DataTypes.STRING(20),
       allowNull: false,

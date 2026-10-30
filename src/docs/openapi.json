@@ -7268,6 +7268,77 @@
           }
         }
       }
+    },
+    "/api/v1/auth/apple-login": {
+      "post": {
+        "summary": "Apple login",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "identityToken"
+                ],
+                "properties": {
+                  "identityToken": {
+                    "type": "string",
+                    "description": "Signed identity token JWT from Apple authorization"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "User email (provided by Apple on first sign-in)"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "User full name (provided by Apple on first sign-in)"
+                  },
+                  "platform": {
+                    "type": "string",
+                    "description": "2 = iOS or 'ios'"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "user": {
+                      "type": "object"
+                    },
+                    "token": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized / Invalid Apple token"
+          }
+        }
+      }
     }
   },
   "components": {
