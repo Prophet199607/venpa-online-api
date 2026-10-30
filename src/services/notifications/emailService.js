@@ -158,6 +158,9 @@ function generateOrderInvoiceHtml(
   } else if (checkoutData.type === 3) {
     paymentMethod = "Mintpay";
     paymentBadgeColor = "#003C71";
+  } else if (checkoutData.type === 4) {
+    paymentMethod = "Koko";
+    paymentBadgeColor = "#FF3366";
   }
   const brandColor = "#0d5b82";
 
@@ -167,28 +170,52 @@ function generateOrderInvoiceHtml(
       ? "Delivery"
       : "Collect from Store";
 
+  const isBnpl = checkoutData.type === 3 || checkoutData.type === 4;
+
   const payload = checkoutData.payload || {};
   const totals = payload.totals || {};
 
-  const subTotal =
-    totals.subTotal ||
-    cartItems.reduce((acc, item) => {
-      return (
-        acc +
-        Number(item.product?.selling_price || 0) * Number(item.quantity || 1)
-      );
-    }, 0);
-
-  const productDiscountTotal = Number(totals.productDiscountTotal || 0);
-  const originalSubTotal = totals.originalSubTotal
-    ? Number(totals.originalSubTotal)
-    : subTotal + productDiscountTotal;
-
-  const discountAmount = Number(
-    totals.discountAmount || checkoutData.discount_amount || 0,
-  );
-  const codCharge = Number(totals.codCharge || 0);
+  let subTotal;
+  let productDiscountTotal;
+  let originalSubTotal;
+  let discountAmount;
+  let codCharge = 0;
   const courierCharge = Number(totals.courierCharge || 0);
+
+  if (isBnpl) {
+    // For Mintpay (3) and Koko (4), discounts and coupons are strictly zero
+    productDiscountTotal = 0;
+    discountAmount = 0;
+    codCharge = 0;
+    originalSubTotal = totals.originalSubTotal
+      ? Number(totals.originalSubTotal)
+      : cartItems.reduce((acc, item) => {
+          return (
+            acc +
+            Number(item.product?.selling_price || 0) * Number(item.quantity || 1)
+          );
+        }, 0);
+    subTotal = originalSubTotal;
+  } else {
+    subTotal =
+      totals.subTotal ||
+      cartItems.reduce((acc, item) => {
+        return (
+          acc +
+          Number(item.product?.selling_price || 0) * Number(item.quantity || 1)
+        );
+      }, 0);
+
+    productDiscountTotal = Number(totals.productDiscountTotal || 0);
+    originalSubTotal = totals.originalSubTotal
+      ? Number(totals.originalSubTotal)
+      : subTotal + productDiscountTotal;
+
+    discountAmount = Number(
+      totals.discountAmount || checkoutData.discount_amount || 0,
+    );
+    codCharge = Number(totals.codCharge || 0);
+  }
 
   let finalTotal = Number(checkoutData.net_amount || 0);
   if (!finalTotal) {
@@ -197,15 +224,33 @@ function generateOrderInvoiceHtml(
       finalTotal =
         totals.netTotalWithCod ||
         subTotal + courierCharge + codCharge - discountAmount;
+    } else if (isBnpl) {
+      finalTotal = subTotal + courierCharge;
     } else {
-      // Card (2) or Mintpay (3)
+      // Card (2)
       finalTotal =
         totals.netTotalWithoutCod || subTotal + courierCharge - discountAmount;
     }
   }
 
+  const displayItems = isBnpl
+    ? cartItems.map((item) => {
+        const itemObj = item?.product ? item : { product: item, quantity: 1 };
+        return {
+          ...itemObj,
+          product: {
+            ...itemObj.product,
+            selling_price:
+              itemObj.product?.original_price ||
+              itemObj.product?.selling_price ||
+              0,
+          },
+        };
+      })
+    : cartItems;
+
   const itemsSection =
-    cartItems.length > 0
+    displayItems.length > 0
       ? `
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
         <thead>
@@ -218,7 +263,7 @@ function generateOrderInvoiceHtml(
           </tr>
         </thead>
         <tbody>
-          ${buildItemsRows(cartItems)}
+          ${buildItemsRows(displayItems)}
         </tbody>
         <tfoot>
           ${

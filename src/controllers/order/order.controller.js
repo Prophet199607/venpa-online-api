@@ -166,7 +166,47 @@ exports.getAllOrders = async (req, res, next) => {
       }
 
       const totals = payload?.totals || {};
-      if (Number(result.type) === 1) {
+      const orderType = Number(result.type);
+      const isBnpl = orderType === 3 || orderType === 4;
+
+      if (isBnpl) {
+        totals.codCharge = 0;
+        totals.productDiscountTotal = 0;
+        totals.discountAmount = 0;
+        totals.appliedCoupon = null;
+
+        let originalSub = Number(totals.originalSubTotal || 0);
+        if (!originalSub && Array.isArray(payload?.items) && payload.items.length > 0) {
+          originalSub = payload.items.reduce((sum, it) => {
+            const p = it.product || {};
+            const orig = Number(p.original_price || p.selling_price || 0);
+            return sum + orig * Number(it.quantity || 1);
+          }, 0);
+        }
+        if (!originalSub && totals.subTotal) {
+          originalSub = Number(totals.subTotal) + Number(totals.productDiscountTotal || 0);
+        }
+        if (!originalSub) {
+          originalSub = Number(totals.subTotal || 0);
+        }
+
+        const courier = Number(totals.courierCharge || 0);
+        totals.subTotal = originalSub;
+        totals.originalSubTotal = originalSub;
+        totals.courierCharge = courier;
+        totals.netTotalWithoutCod = originalSub + courier;
+        totals.netTotalWithCod = totals.netTotalWithoutCod;
+        result.amount = totals.netTotalWithoutCod;
+        if (Array.isArray(payload?.items)) {
+          payload.items = payload.items.map((item) => ({
+            ...item,
+            product: {
+              ...item.product,
+              selling_price: item.product?.original_price || item.product?.selling_price,
+            },
+          }));
+        }
+      } else if (orderType === 1) {
         result.amount = totals.netTotalWithCod || totals.subTotal || 0;
       } else {
         totals.codCharge = 0;
@@ -216,19 +256,24 @@ exports.getAllOrders = async (req, res, next) => {
 
       // Add complete summary for the list
       result.total_items = 1;
-      const originalSubTotal =
-        (parseFloat(productData.selling_price) || 0) *
-        (parseFloat(json.picked_qty) || 1);
-      const discountAmount = parseFloat(json.discount_amount) || 0;
+      const orderType = Number(json.type);
+      const isBnpl = orderType === 3 || orderType === 4;
+      const originalPrice = parseFloat(productData.selling_price) || 0;
+      const pickedQty = parseFloat(json.picked_qty) || 1;
+      const originalSubTotal = originalPrice * pickedQty;
 
+      let discountAmount = isBnpl ? 0 : (parseFloat(json.discount_amount) || 0);
       let netTotal = parseFloat(json.net_amount);
-      if (isNaN(netTotal)) {
+      if (isBnpl) {
+        netTotal = originalSubTotal;
+      } else if (isNaN(netTotal)) {
         netTotal = originalSubTotal - discountAmount;
       }
 
-      const subTotal = netTotal + discountAmount;
-      const productDiscountTotal =
-        originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
+      const subTotal = isBnpl ? originalSubTotal : (netTotal + discountAmount);
+      const productDiscountTotal = isBnpl
+        ? 0
+        : (originalSubTotal > subTotal ? originalSubTotal - subTotal : 0);
 
       result.amount = netTotal;
       result.totals = {
@@ -327,14 +372,50 @@ exports.getOrderById = async (req, res, next) => {
 
       const totals = payload?.totals || {};
       const orderType = Number(json.type);
+      const isBnpl = orderType === 3 || orderType === 4;
 
-      if (orderType === 1) {
+      if (isBnpl) {
+        totals.codCharge = 0;
+        totals.productDiscountTotal = 0;
+        totals.discountAmount = 0;
+        totals.appliedCoupon = null;
+
+        let originalSub = Number(totals.originalSubTotal || 0);
+        if (!originalSub && Array.isArray(payload?.items) && payload.items.length > 0) {
+          originalSub = payload.items.reduce((sum, it) => {
+            const p = it.product || {};
+            const orig = Number(p.original_price || p.selling_price || 0);
+            return sum + orig * Number(it.quantity || 1);
+          }, 0);
+        }
+        if (!originalSub && totals.subTotal) {
+          originalSub = Number(totals.subTotal) + Number(totals.productDiscountTotal || 0);
+        }
+        if (!originalSub) {
+          originalSub = Number(totals.subTotal || 0);
+        }
+
+        const courier = Number(totals.courierCharge || 0);
+        totals.subTotal = originalSub;
+        totals.originalSubTotal = originalSub;
+        totals.courierCharge = courier;
+        totals.netTotalWithoutCod = originalSub + courier;
+        totals.netTotalWithCod = totals.netTotalWithoutCod;
+        if (Array.isArray(payload?.items)) {
+          payload.items = payload.items.map((item) => ({
+            ...item,
+            product: {
+              ...item.product,
+              selling_price: item.product?.original_price || item.product?.selling_price,
+            },
+          }));
+        }
+      } else if (orderType === 1) {
         // COD - Ensure codCharge is present (though it should be in payload already)
         // No changes needed if payload was saved correctly, but ensuring it's treated as COD
       } else {
-        // Card/Mintpay (2 or 3) - Force codCharge to 0
+        // Card (2) - Force codCharge to 0
         totals.codCharge = 0;
-        // The net total should be the one without COD
         if (totals.netTotalWithoutCod !== undefined) {
           totals.netTotalWithCod = totals.netTotalWithoutCod;
         }
@@ -412,21 +493,34 @@ exports.getOrderById = async (req, res, next) => {
         },
       ];
 
-      const originalSubTotal =
-        (parseFloat(productData.selling_price) || 0) *
-        parseFloat(pc.picked_qty);
-      const discountAmount = parseFloat(pc.discount_amount) || 0;
+      const orderType = Number(pc.type);
+      const isBnpl = orderType === 3 || orderType === 4;
+      const originalPrice = parseFloat(productData.selling_price) || 0;
+      const pickedQty = parseFloat(pc.picked_qty) || 1;
+      const originalSubTotal = originalPrice * pickedQty;
 
+      let discountAmount = isBnpl ? 0 : (parseFloat(pc.discount_amount) || 0);
       let netTotal = parseFloat(pc.net_amount);
-      if (isNaN(netTotal)) {
+      if (isBnpl) {
+        netTotal = originalSubTotal;
+      } else if (isNaN(netTotal)) {
         netTotal = originalSubTotal - discountAmount;
       }
 
-      const subTotal = netTotal + discountAmount;
-      const productDiscountTotal =
-        originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
+      const subTotal = isBnpl ? originalSubTotal : (netTotal + discountAmount);
+      const productDiscountTotal = isBnpl
+        ? 0
+        : (originalSubTotal > subTotal ? originalSubTotal - subTotal : 0);
 
-      const orderType = Number(pc.type);
+      const itemsForResponse = [
+        {
+          product: {
+            ...productData,
+            selling_price: originalPrice,
+          },
+          quantity: pc.picked_qty,
+        },
+      ];
 
       return res.json({
         record_type: "pick_and_collect",
@@ -445,7 +539,7 @@ exports.getOrderById = async (req, res, next) => {
         payment_status: pc.payment_status,
         created_at: pc.created_at,
         updated_at: pc.updated_at,
-        payload_items,
+        payload_items: itemsForResponse,
         totals: {
           originalSubTotal: originalSubTotal,
           productDiscountTotal: productDiscountTotal,
@@ -453,7 +547,7 @@ exports.getOrderById = async (req, res, next) => {
           discountAmount: discountAmount,
           netTotalWithCod: netTotal,
           netTotalWithoutCod: netTotal,
-          codCharge: 0, // P&C usually has no COD charge, but if type=1 is COD, we keep it as 0 for now as requested
+          codCharge: 0,
           courierCharge: 0,
         },
       });

@@ -165,47 +165,53 @@ async function calculateTotals(
   couponCode = null,
   userId = null,
   orderType = null,
+  checkoutType = null,
 ) {
   let originalSubTotal = 0;
   let productDiscountTotal = 0;
   let subTotal = 0;
   let totalWeight = 0;
 
+  const effectiveType = Number(checkoutType || orderType);
+  const isBnpl = effectiveType === 3 || effectiveType === 4;
+
   const items = cart?.items || cart?.cart_items || [];
 
-  // Fetch active discounts for products in cart
-  const prodCodes = items
-    .map((item) => item?.product?.prod_code)
-    .filter(Boolean);
-  const nowStr = new Date().toISOString().slice(0, 10);
+  // Fetch active discounts for products in cart (only if not BNPL)
+  let discountMap = {};
+  if (!isBnpl) {
+    const prodCodes = items
+      .map((item) => item?.product?.prod_code)
+      .filter(Boolean);
+    const nowStr = new Date().toISOString().slice(0, 10);
 
-  const discounts = await ProductDiscount.findAll({
-    where: {
-      prod_code: { [Op.in]: prodCodes },
-      status: 1,
-      [Op.and]: [
-        {
-          [Op.or]: [
-            { start_date: null },
-            { start_date: "" },
-            { start_date: { [Op.lte]: nowStr } },
-          ],
-        },
-        {
-          [Op.or]: [
-            { end_date: null },
-            { end_date: "" },
-            { end_date: { [Op.gte]: nowStr } },
-          ],
-        },
-      ],
-    },
-  });
+    const discounts = await ProductDiscount.findAll({
+      where: {
+        prod_code: { [Op.in]: prodCodes },
+        status: 1,
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { start_date: null },
+              { start_date: "" },
+              { start_date: { [Op.lte]: nowStr } },
+            ],
+          },
+          {
+            [Op.or]: [
+              { end_date: null },
+              { end_date: "" },
+              { end_date: { [Op.gte]: nowStr } },
+            ],
+          },
+        ],
+      },
+    });
 
-  const discountMap = {};
-  discounts.forEach((d) => {
-    discountMap[d.prod_code] = d;
-  });
+    discounts.forEach((d) => {
+      discountMap[d.prod_code] = d;
+    });
+  }
 
   // Fetch latest price levels for products in cart
   const priceLevelMap = await buildPriceLevelMap(
@@ -225,8 +231,8 @@ async function calculateTotals(
 
     const quantity = parseInt(item?.quantity || 1, 10);
 
-    // Apply product discount if exists
-    if (prodCode && discountMap[prodCode]) {
+    // Apply product discount if exists and not BNPL (Mintpay/Koko)
+    if (!isBnpl && prodCode && discountMap[prodCode]) {
       const d = discountMap[prodCode];
       if (parseFloat(d.discount_amount || 0) > 0) {
         price = Math.max(0, price - parseFloat(d.discount_amount));
@@ -242,14 +248,17 @@ async function calculateTotals(
     totalWeight += weight * quantity;
   });
 
-  // Calculate COD Charge
-  const codChargeEntry = await CodValueCharge.findOne({
-    where: {
-      value_from: { [Op.lte]: subTotal },
-      value_to: { [Op.gte]: subTotal },
-    },
-  });
-  const codCharge = parseFloat(codChargeEntry?.charge || 0);
+  // Calculate COD Charge (COD charge only applies to COD payments)
+  let codCharge = 0;
+  if (!isBnpl && effectiveType === 1) {
+    const codChargeEntry = await CodValueCharge.findOne({
+      where: {
+        value_from: { [Op.lte]: subTotal },
+        value_to: { [Op.gte]: subTotal },
+      },
+    });
+    codCharge = parseFloat(codChargeEntry?.charge || 0);
+  }
 
   // Calculate Courier Charge
   const courierChargeEntry = await CourierWeightCharge.findOne({
@@ -260,10 +269,10 @@ async function calculateTotals(
   });
   const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
-  // Apply Coupon Discount
+  // Apply Coupon Discount (strictly skipped for BNPL: type 3 Mintpay & type 4 Koko)
   let discountAmount = 0;
   let appliedCoupon = null;
-  if (couponCode && userId) {
+  if (!isBnpl && couponCode && userId) {
     const validation = await validateCoupon(
       couponCode,
       userId,
@@ -292,21 +301,25 @@ async function calculateTotals(
   const cardDiscount =
     appliedCoupon && appliedCoupon.is_card_payment ? appliedCoupon.amount : 0;
 
-  const netTotalWithCod = subTotal + courierCharge + codCharge - codDiscount;
-  const netTotalWithoutCod = subTotal + courierCharge - cardDiscount;
+  const netTotalWithCod = isBnpl
+    ? subTotal + courierCharge
+    : subTotal + courierCharge + codCharge - codDiscount;
+  const netTotalWithoutCod = isBnpl
+    ? subTotal + courierCharge
+    : subTotal + courierCharge - cardDiscount;
 
   return {
     originalSubTotal,
-    productDiscountTotal,
-    subTotal,
+    productDiscountTotal: isBnpl ? 0 : productDiscountTotal,
+    subTotal: isBnpl ? originalSubTotal : subTotal,
     totalWeight,
-    codCharge,
+    codCharge: isBnpl ? 0 : codCharge,
     courierCharge,
-    discountAmount,
-    appliedCoupon,
+    discountAmount: isBnpl ? 0 : discountAmount,
+    appliedCoupon: isBnpl ? null : appliedCoupon,
     netTotalWithCod,
     netTotalWithoutCod,
-    discountMap,
+    discountMap: isBnpl ? {} : discountMap,
   };
 }
 
@@ -352,7 +365,7 @@ async function createCardPaymentResponse(
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1);
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1, 2);
   if (totals.subTotal <= 0) {
     return {
       status: 400,
@@ -520,12 +533,14 @@ async function createCardPaymentResponse(
       amount,
       currency: hashPayload.currency,
       merchant_id: hashPayload.merchant_id,
+      totals,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
         type_name: checkout.type_name,
         status: checkout.status,
         payload: checkout.payload,
+        totals,
         created_at: checkout.created_at,
       },
       ...hashPayload,
@@ -663,6 +678,7 @@ exports.createCheckout = async (req, res, next) => {
       req.body.coupon_code,
       req.user.id,
       type,
+      type,
     );
 
     let items = [];
@@ -777,12 +793,14 @@ exports.createCheckout = async (req, res, next) => {
       crm_cus_code: codResult?.cusCode || null,
       crm_debug: codResult?.crmDebug || null,
       order_id: orderId,
+      totals,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
         type_name: checkout.type_name,
         status: checkout.status,
         payload: checkout.payload,
+        totals,
         created_at: checkout.created_at,
       },
     });
@@ -803,8 +821,8 @@ async function processMintpayResponse(
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  // Mintpay is an online payment — use the same coupon rules as card (type 1)
-  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1);
+  // Mintpay BNPL (type 3): full retail price without discounts or coupons
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 3, 3);
   if (totals.subTotal <= 0) {
     return {
       status: 400,
@@ -858,10 +876,8 @@ async function processMintpayResponse(
           "N/A",
         prod_name:
           item.product?.prod_name || item.product_name || "Unknown Product",
-        selling_price: getDiscountedPrice(
-          item.product?.prod_code,
+        selling_price: parseFloat(
           item.product?.selling_price || item.price || 0,
-          totals.discountMap,
         ),
         prod_image: item.product?.prod_image || null,
       },
@@ -1003,12 +1019,14 @@ async function processMintpayResponse(
       merchant_id: mintpaySession.merchant_id,
       purchase_id: mintpaySession.purchase_id,
       redirect_url: mintpaySession.redirect_url,
+      totals,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
         type_name: checkout.type_name,
         status: checkout.status,
         payload: checkout.payload,
+        totals,
         created_at: checkout.created_at,
       },
     },
@@ -1021,7 +1039,8 @@ async function processKokoResponse(userId, body, persist = true, req = null) {
     return { status: 404, body: { message: "Active cart not found" } };
   }
 
-  const totals = await calculateTotals(cart, body?.coupon_code, userId, 1);
+  // Koko BNPL (type 4): full retail price without discounts or coupons
+  const totals = await calculateTotals(cart, body?.coupon_code, userId, 4, 4);
   if (totals.subTotal <= 0) {
     return {
       status: 400,
@@ -1075,10 +1094,8 @@ async function processKokoResponse(userId, body, persist = true, req = null) {
           "N/A",
         prod_name:
           item.product?.prod_name || item.product_name || "Unknown Product",
-        selling_price: getDiscountedPrice(
-          item.product?.prod_code,
+        selling_price: parseFloat(
           item.product?.selling_price || item.price || 0,
-          totals.discountMap,
         ),
         prod_image: item.product?.prod_image || null,
       },
@@ -1191,12 +1208,14 @@ async function processKokoResponse(userId, body, persist = true, req = null) {
       merchant_id: kokoSession.merchant_id,
       order_id: kokoSession.order_id,
       redirect_url: kokoSession.redirect_url,
+      totals,
       checkout: {
         order_id: checkout.order_id,
         type: checkout.type,
         type_name: checkout.type_name,
         status: checkout.status,
         payload: checkout.payload,
+        totals,
         created_at: checkout.created_at,
       },
     },
@@ -1346,14 +1365,17 @@ exports.listCheckouts = async (req, res, next) => {
       }
 
       const totals = payload?.totals || {};
+      const isBnpl = item.type === 3 || item.type === 4;
 
-      const total = Number(totals.subTotal || 0);
+      const total = isBnpl
+        ? Number(totals.originalSubTotal || totals.subTotal || 0)
+        : Number(totals.subTotal || 0);
       const courierCharge = Number(totals.courierCharge || 0);
-      const codCharge = item.type === 2 ? Number(totals.codCharge || 0) : 0;
+      const codCharge = !isBnpl && item.type === 1 ? Number(totals.codCharge || 0) : 0;
 
       const subTotal = total + courierCharge + codCharge;
-      const discountAmount = Number(totals.discountAmount || 0);
-      const netTotal = subTotal - discountAmount;
+      const discountAmount = isBnpl ? 0 : Number(totals.discountAmount || 0);
+      const netTotal = isBnpl ? subTotal : subTotal - discountAmount;
 
       const isGift = !!(
         payload?.isGift ||
@@ -1381,9 +1403,10 @@ exports.listCheckouts = async (req, res, next) => {
 
     const normalizedPickAndCollects = pickAndCollects.map((p) => {
       const item = p.toJSON ? p.toJSON() : p;
+      const isBnpl = item.type === 3 || item.type === 4;
+      const discountAmount = isBnpl ? 0 : Number(item.discount_amount || 0);
       const netAmount = Number(item.net_amount || 0);
-      const discountAmount = Number(item.discount_amount || 0);
-      const total = netAmount + discountAmount;
+      const total = isBnpl ? netAmount : netAmount + discountAmount;
 
       return {
         record_type: "pick_and_collect",
@@ -1720,9 +1743,14 @@ exports.getCheckoutBill = async (req, res, next) => {
           where: { prod_code: pc.prod_code },
         });
 
-        const unitPrice =
-          (Number(pc.net_amount || 0) + Number(pc.discount_amount || 0)) /
-          Number(pc.picked_qty || 1);
+        const isBnpl = pc.type === 3 || pc.type === 4;
+        const unitPrice = isBnpl
+          ? Number(product?.selling_price || (Number(pc.net_amount || 0) / (Number(pc.picked_qty) || 1)))
+          : (Number(pc.net_amount || 0) + Number(pc.discount_amount || 0)) /
+            Number(pc.picked_qty || 1);
+        const subTotal = unitPrice * (pc.picked_qty || 1);
+        const discountAmount = isBnpl ? 0 : Number(pc.discount_amount || 0);
+        const netAmount = isBnpl ? subTotal : Number(pc.net_amount || subTotal);
 
         checkoutObj = {
           order_id: pc.pick_and_collect_id,
@@ -1733,12 +1761,14 @@ exports.getCheckoutBill = async (req, res, next) => {
           payload: {
             prod_codes: [pc.prod_code],
             totals: {
-              subTotal: unitPrice * (pc.picked_qty || 1),
-              discountAmount: pc.discount_amount,
+              originalSubTotal: subTotal,
+              subTotal: subTotal,
+              discountAmount: discountAmount,
+              productDiscountTotal: 0,
             },
           },
-          discount_amount: pc.discount_amount,
-          net_amount: pc.net_amount,
+          discount_amount: discountAmount,
+          net_amount: netAmount,
         };
 
         cartItems = [

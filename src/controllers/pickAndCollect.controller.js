@@ -330,48 +330,53 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
     pickAndCollectId = generatePickAndCollectId();
   }
 
-  // Coupon and Product Discount handling
+  const isBnpl = type === 3 || type === 4;
+
+  // Coupon and Product Discount handling (strictly zero discounts for BNPL)
   let discountAmount = 0;
-  let couponCode = normalizedBody.coupon_code;
+  let couponCode = isBnpl ? null : normalizedBody.coupon_code;
 
   const originalPrice = Number(product?.selling_price || 0);
   let price = originalPrice;
   const nowStr = new Date().toISOString().slice(0, 10);
-  const prodDiscount = await ProductDiscount.findOne({
-    where: {
-      prod_code: prodCode,
-      status: 1,
-      [Op.and]: [
-        {
-          [Op.or]: [
-            { start_date: null },
-            { start_date: "" },
-            { start_date: { [Op.lte]: nowStr } },
-          ],
-        },
-        {
-          [Op.or]: [
-            { end_date: null },
-            { end_date: "" },
-            { end_date: { [Op.gte]: nowStr } },
-          ],
-        },
-      ],
-    },
-  });
 
-  if (prodDiscount) {
-    if (parseFloat(prodDiscount.discount_amount || 0) > 0) {
-      price = Math.max(0, price - parseFloat(prodDiscount.discount_amount));
-    } else if (parseFloat(prodDiscount.discount_percentage || 0) > 0) {
-      price = price * (1 - parseFloat(prodDiscount.discount_percentage) / 100);
+  if (!isBnpl) {
+    const prodDiscount = await ProductDiscount.findOne({
+      where: {
+        prod_code: prodCode,
+        status: 1,
+        [Op.and]: [
+          {
+            [Op.or]: [
+              { start_date: null },
+              { start_date: "" },
+              { start_date: { [Op.lte]: nowStr } },
+            ],
+          },
+          {
+            [Op.or]: [
+              { end_date: null },
+              { end_date: "" },
+              { end_date: { [Op.gte]: nowStr } },
+            ],
+          },
+        ],
+      },
+    });
+
+    if (prodDiscount) {
+      if (parseFloat(prodDiscount.discount_amount || 0) > 0) {
+        price = Math.max(0, price - parseFloat(prodDiscount.discount_amount));
+      } else if (parseFloat(prodDiscount.discount_percentage || 0) > 0) {
+        price = price * (1 - parseFloat(prodDiscount.discount_percentage) / 100);
+      }
     }
   }
 
   let subTotal = price * pickedQty;
   let appliedCouponId = null;
 
-  if (couponCode) {
+  if (!isBnpl && couponCode) {
     const validation = await validateCoupon(couponCode, userId, subTotal);
     if (!validation.valid) {
       return { status: 400, body: { message: validation.message } };
@@ -387,7 +392,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
     appliedCouponId = validation.coupon.id;
   }
 
-  const netAmount = subTotal - discountAmount;
+  const netAmount = isBnpl ? subTotal : subTotal - discountAmount;
 
   if (type === 2) {
     // Type 2: Card (PayHere) — generate hash
@@ -502,9 +507,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
         product: {
           prod_code: prodCode,
           prod_name: product?.prod_name || "Product",
-          selling_price: Number(
-            (netAmount / (pickedQty || 1)).toFixed(2),
-          ),
+          selling_price: originalPrice,
         },
         quantity: pickedQty,
       },
@@ -635,9 +638,7 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
         product: {
           prod_code: prodCode,
           prod_name: product?.prod_name || "Product",
-          selling_price: Number(
-            (netAmount / (pickedQty || 1)).toFixed(2),
-          ),
+          selling_price: originalPrice,
         },
         quantity: pickedQty,
       },

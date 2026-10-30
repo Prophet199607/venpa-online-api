@@ -3839,7 +3839,60 @@
                       }
                     },
                     "totals": {
-                      "type": "object"
+                      "type": "object",
+                      "description": "Price value summary object. When checkout type is 3 (Mintpay) or 4 (Koko), subTotal is calculated from original retail price without discount or coupon deductions, and netTotalWithoutCod is calculated by adding the courierCharge to the item's original price.",
+                      "properties": {
+                        "originalSubTotal": {
+                          "type": "number",
+                          "example": 2500,
+                          "description": "Original retail subtotal"
+                        },
+                        "productDiscountTotal": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for Mintpay and Koko BNPL"
+                        },
+                        "subTotal": {
+                          "type": "number",
+                          "example": 2500,
+                          "description": "Retail subtotal without discount"
+                        },
+                        "totalWeight": {
+                          "type": "number",
+                          "example": 250,
+                          "description": "Total order weight in grams"
+                        },
+                        "codCharge": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for online payments"
+                        },
+                        "courierCharge": {
+                          "type": "number",
+                          "example": 200,
+                          "description": "Courier charge based on weight"
+                        },
+                        "discountAmount": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for Mintpay and Koko BNPL"
+                        },
+                        "appliedCoupon": {
+                          "type": "object",
+                          "nullable": true,
+                          "description": "null for Mintpay and Koko BNPL"
+                        },
+                        "netTotalWithCod": {
+                          "type": "number",
+                          "example": 2700,
+                          "description": "Item original price + courier charge"
+                        },
+                        "netTotalWithoutCod": {
+                          "type": "number",
+                          "example": 2700,
+                          "description": "Item original price + courier charge"
+                        }
+                      }
                     },
                     "raw_payload": {
                       "type": "object"
@@ -4316,9 +4369,10 @@
                     "enum": [
                       1,
                       2,
-                      3
+                      3,
+                      4
                     ],
-                    "description": "1 = COD, 2 = PayHere (returns live SDK fields), 3 = Mintpay"
+                    "description": "1 = COD (Delivery only), 2 = PayHere (Card), 3 = Mintpay (BNPL), 4 = Koko (BNPL)"
                   },
                   "coupon_code": {
                     "type": "string",
@@ -4674,19 +4728,90 @@
                     },
                     "checkout": {
                       "type": "object"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "example": "LKR"
+                    },
+                    "merchant_id": {
+                      "type": "string"
+                    },
+                    "purchase_id": {
+                      "type": "string"
+                    },
+                    "redirect_url": {
+                      "type": "string",
+                      "description": "Mintpay payment page URL"
+                    },
+                    "totals": {
+                      "type": "object",
+                      "description": "Price value summary object. When checkout type is 3 (Mintpay) or 4 (Koko), subTotal is calculated from original retail price without discount or coupon deductions, and netTotalWithoutCod is calculated by adding the courierCharge to the item's original price.",
+                      "properties": {
+                        "originalSubTotal": {
+                          "type": "number",
+                          "example": 2500,
+                          "description": "Original retail subtotal"
+                        },
+                        "productDiscountTotal": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for Mintpay and Koko BNPL"
+                        },
+                        "subTotal": {
+                          "type": "number",
+                          "example": 2500,
+                          "description": "Retail subtotal without discount"
+                        },
+                        "totalWeight": {
+                          "type": "number",
+                          "example": 250,
+                          "description": "Total order weight in grams"
+                        },
+                        "codCharge": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for online payments"
+                        },
+                        "courierCharge": {
+                          "type": "number",
+                          "example": 200,
+                          "description": "Courier charge based on weight"
+                        },
+                        "discountAmount": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for Mintpay and Koko BNPL"
+                        },
+                        "appliedCoupon": {
+                          "type": "object",
+                          "nullable": true,
+                          "description": "null for Mintpay and Koko BNPL"
+                        },
+                        "netTotalWithCod": {
+                          "type": "number",
+                          "example": 2700,
+                          "description": "Item original price + courier charge"
+                        },
+                        "netTotalWithoutCod": {
+                          "type": "number",
+                          "example": 2700,
+                          "description": "Item original price + courier charge"
+                        }
+                      }
                     }
                   }
                 }
               }
             }
           }
-        }
+        },
+        "description": "Creates a pending Mintpay BNPL order (type 3). Calculates the subtotal from the item's original price and calculates the net total by adding the courier charge with zero product or coupon discounts. Returns redirect_url and the price value object (totals)."
       }
     },
     "/api/v1/checkout/koko-checkout": {
       "post": {
         "summary": "Create pending Koko order (Buy Now Pay Later)",
-        "description": "Creates a pending Koko order (type 4). Returns redirect_url to Koko payment page. Frontend must POST form to redirect_url with dataString and signature. After payment, user redirects to KOKO_RETURN_URL. Frontend then calls POST /api/v1/payment/koko/return to verify with Koko backend.",
+        "description": "Creates a pending Koko BNPL order (type 4). Calculates the subtotal from the item's original price and calculates the net total by adding the courier charge with zero product or coupon discounts. Returns redirect_url and the price value object (totals).",
         "tags": [
           "Checkout"
         ],
@@ -4750,6 +4875,62 @@
                     },
                     "checkout": {
                       "type": "object"
+                    },
+                    "totals": {
+                      "type": "object",
+                      "description": "Price value summary object. When checkout type is 3 (Mintpay) or 4 (Koko), subTotal is calculated from original retail price without discount or coupon deductions, and netTotalWithoutCod is calculated by adding the courierCharge to the item's original price.",
+                      "properties": {
+                        "originalSubTotal": {
+                          "type": "number",
+                          "example": 2500,
+                          "description": "Original retail subtotal"
+                        },
+                        "productDiscountTotal": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for Mintpay and Koko BNPL"
+                        },
+                        "subTotal": {
+                          "type": "number",
+                          "example": 2500,
+                          "description": "Retail subtotal without discount"
+                        },
+                        "totalWeight": {
+                          "type": "number",
+                          "example": 250,
+                          "description": "Total order weight in grams"
+                        },
+                        "codCharge": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for online payments"
+                        },
+                        "courierCharge": {
+                          "type": "number",
+                          "example": 200,
+                          "description": "Courier charge based on weight"
+                        },
+                        "discountAmount": {
+                          "type": "number",
+                          "example": 0,
+                          "description": "0 for Mintpay and Koko BNPL"
+                        },
+                        "appliedCoupon": {
+                          "type": "object",
+                          "nullable": true,
+                          "description": "null for Mintpay and Koko BNPL"
+                        },
+                        "netTotalWithCod": {
+                          "type": "number",
+                          "example": 2700,
+                          "description": "Item original price + courier charge"
+                        },
+                        "netTotalWithoutCod": {
+                          "type": "number",
+                          "example": 2700,
+                          "description": "Item original price + courier charge"
+                        }
+                      }
                     }
                   }
                 }
