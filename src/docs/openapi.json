@@ -3118,6 +3118,14 @@
                         },
                         "netTotalWithoutCod": {
                           "type": "number"
+                        },
+                        "checkout_type": {
+                          "type": "integer",
+                          "description": "Payment type applied"
+                        },
+                        "type": {
+                          "type": "integer",
+                          "description": "Payment type applied"
                         }
                       }
                     },
@@ -3132,7 +3140,37 @@
               }
             }
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "checkout_type",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "description": "Payment method type (1: COD, 2: Card/PayHere, 3: Mintpay, 4: Koko). When 3 or 4, prices are calculated using original retail price with zero discounts or coupons, and courier charge is added to net total."
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            "description": "Alias for checkout_type"
+          }
+        ]
       },
       "post": {
         "summary": "Add item to cart",
@@ -6121,6 +6159,19 @@
               "type": "string"
             },
             "description": "Optional status filter such as pending or completed"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "enum": [
+                2,
+                3,
+                4
+              ]
+            },
+            "description": "Payment type filter (2: PayHere, 3: Mintpay, 4: Koko). When 3 or 4, values reflect original retail prices without discounts or coupons."
           }
         ],
         "responses": {
@@ -6170,6 +6221,25 @@
                           "updated_at": {
                             "type": "string",
                             "format": "date-time"
+                          },
+                          "coupon_code": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "discount_amount": {
+                            "type": "number"
+                          },
+                          "sub_total": {
+                            "type": "number"
+                          },
+                          "total": {
+                            "type": "number"
+                          },
+                          "net_amount": {
+                            "type": "number"
+                          },
+                          "net_total": {
+                            "type": "number"
                           }
                         }
                       }

@@ -696,11 +696,23 @@ exports.generateOtpEmailHtml = (code) => {
 /**
  * Generates a modern branded HTML email for contact us submissions.
  */
-exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
+exports.generateContactEmailHtml = ({
+  name,
+  email,
+  subject,
+  message,
+  id,
+  created_at,
+}) => {
   const brandColor = "#0d5b82";
   const logoUrl = process.env.EMAIL_LOGO_URL;
   const year = new Date().getFullYear();
-  const messageHtml = String(message).replace(/\n/g, "<br/>");
+  const safeName = escapeHtml(name ? String(name).trim() : "");
+  const safeEmail = escapeHtml(email ? String(email).trim() : "");
+  const safeSubject = escapeHtml(subject ? String(subject).trim() : "");
+  const messageHtml = escapeHtml(message ? String(message).trim() : "")
+    .replace(/\r\n/g, "<br/>")
+    .replace(/\n/g, "<br/>");
 
   return `
 <!DOCTYPE html>
@@ -712,19 +724,25 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
   <style>
     body { margin: 0; padding: 0; background-color: #F3F4F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
     .email-card { background-color: #ffffff !important; }
+    .section-title { color: #111827 !important; }
     .label-text { color: #6B7280 !important; }
     .value-text { color: #111827 !important; }
+    .link-text { color: ${brandColor} !important; }
     .row-divider { border-bottom: 1px solid #E5E7EB !important; }
     .message-box { background-color: #F9FAFB !important; border-color: #E5E7EB !important; }
+    .message-text { color: #1F2937 !important; }
     .footer-text { color: #9CA3AF !important; }
     @media (prefers-color-scheme: dark) {
       body { background-color: #111827 !important; }
       .email-card { background-color: #1F2937 !important; }
+      .section-title { color: #F9FAFB !important; }
       .label-text { color: #9CA3AF !important; }
       .value-text { color: #F9FAFB !important; }
-      .row-divider { border-bottom-color: #4B5563 !important; }
-      .message-box { background-color: #374151 !important; border-color: #4B5563 !important; }
-      .footer-text { color: #6B7280 !important; }
+      .link-text { color: #60a5fa !important; }
+      .row-divider { border-bottom-color: #374151 !important; }
+      .message-box { background-color: #111827 !important; border-color: #374151 !important; }
+      .message-text { color: #F9FAFB !important; }
+      .footer-text { color: #9CA3AF !important; }
     }
   </style>
 </head>
@@ -754,7 +772,7 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
           <!-- Details Card -->
           <tr>
             <td style="padding:20px 24px 0;">
-              <h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Contact Details</h2>
+              <h2 class="section-title" style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111827;">Contact Details</h2>
               <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
 
                 <!-- Name -->
@@ -762,8 +780,8 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
                   <td style="padding:10px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Name</td>
-                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${name}</td>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:90px;vertical-align:top;">Name</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;word-break:break-word;">${safeName}</td>
                       </tr>
                     </table>
                   </td>
@@ -774,9 +792,9 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
                   <td style="padding:10px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Email</td>
-                        <td style="text-align:right;">
-                          <a href="mailto:${email}" style="font-size:13px;font-weight:600;color:${brandColor};text-decoration:none;">${email}</a>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:90px;vertical-align:top;">Email</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;word-break:break-all;overflow-wrap:anywhere;">
+                          <a href="mailto:${safeEmail}" class="link-text" style="font-size:13px;font-weight:600;color:${brandColor};text-decoration:none;word-break:break-all;">${safeEmail}</a>
                         </td>
                       </tr>
                     </table>
@@ -784,16 +802,34 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
                 </tr>
 
                 <!-- Subject -->
-                <tr>
+                <tr${id ? ' class="row-divider" style="border-bottom:1px solid #E5E7EB;"' : ""}>
                   <td style="padding:10px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td class="label-text" style="font-size:12px;color:#6B7280;width:100px;">Subject</td>
-                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">${subject}</td>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:90px;vertical-align:top;">Subject</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;word-break:break-word;">${safeSubject}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
+
+                ${
+                  id
+                    ? `
+                <!-- Reference ID -->
+                <tr>
+                  <td style="padding:10px 16px;">
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td class="label-text" style="font-size:12px;color:#6B7280;width:90px;vertical-align:top;">Reference ID</td>
+                        <td class="value-text" style="font-size:13px;font-weight:600;color:#111827;text-align:right;">#${escapeHtml(id)}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                `
+                    : ""
+                }
 
               </table>
             </td>
@@ -802,18 +838,18 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
           <!-- Message -->
           <tr>
             <td style="padding:16px 24px 0;">
-              <h2 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111827;">Message</h2>
+              <h2 class="section-title" style="margin:0 0 8px;font-size:14px;font-weight:700;color:#111827;">Message</h2>
               <div class="message-box" style="background-color:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;padding:14px 16px;">
-                <p class="value-text" style="margin:0;font-size:13px;color:#374151;line-height:1.7;">${messageHtml}</p>
+                <p class="value-text message-text" style="margin:0;font-size:14px;color:#1F2937;line-height:1.7;word-break:break-word;overflow-wrap:anywhere;">${messageHtml}</p>
               </div>
             </td>
           </tr>
 
-<!-- Footer -->
+          <!-- Footer -->
           <tr>
-            <td style="padding: 20px 24px; text-align: center;">
-              <p class="footer-text" style="margin: 0 0 4px; font-size: 12px; color: #9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
-              <p style="margin: 0; font-size: 11px; color: #D1D5DB;">This is an automated notification email.</p>
+            <td style="padding:20px 24px;text-align:center;">
+              <p class="footer-text" style="margin:0 0 4px;font-size:12px;color:#9CA3AF;">© ${year} Venpaa Bookshop. All rights reserved.</p>
+              <p style="margin:0;font-size:11px;color:#D1D5DB;">This is an automated notification email.</p>
             </td>
           </tr>
 
@@ -824,6 +860,74 @@ exports.generateContactEmailHtml = ({ name, email, subject, message }) => {
 </body>
 </html>
   `;
+};
+
+/**
+ * Sends a contact us notification email to admin (.env.CONTACT_ADMIN_EMAIL)
+ * with the submitted contact us data in both HTML and plain-text body.
+ */
+exports.sendContactUsEmail = async ({
+  name,
+  email,
+  subject,
+  message,
+  id,
+  created_at,
+}) => {
+  const adminEmail = process.env.CONTACT_ADMIN_EMAIL || process.env.EMAIL_USER;
+  if (!adminEmail) {
+    console.error(
+      "❌ [ContactUs] No admin email configured (CONTACT_ADMIN_EMAIL / EMAIL_USER missing). Cannot send contact message.",
+    );
+    return null;
+  }
+
+  const transporter = exports.getTransporter();
+  const html = exports.generateContactEmailHtml({
+    name,
+    email,
+    subject,
+    message,
+    id,
+    created_at,
+  });
+
+  const cleanName = String(name || "").trim();
+  const cleanEmail = String(email || "").trim();
+  const cleanSubject = String(subject || "").trim();
+  const cleanMessage = String(message || "").trim();
+
+  const textLines = [
+    "New Contact Us Submission",
+    "========================",
+    "",
+    `Name:    ${cleanName}`,
+    `Email:   ${cleanEmail}`,
+    `Subject: ${cleanSubject}`,
+    ...(id ? [`Ref ID:  #${id}`] : []),
+    ...(created_at ? [`Date:    ${new Date(created_at).toLocaleString("en-US", { timeZone: "Asia/Colombo" })}`] : []),
+    "",
+    "Message:",
+    "------------------------",
+    cleanMessage,
+    "------------------------",
+  ];
+
+  const text = textLines.join("\n");
+
+  console.log(
+    `[ContactUs] Sending contact message from ${cleanEmail} to admin (${adminEmail})...`,
+  );
+  const info = await transporter.sendMail({
+    from: `"Venpaa Bookshop" <${process.env.EMAIL_USER}>`,
+    replyTo: `"${cleanName.replace(/"/g, "")}" <${cleanEmail}>`,
+    to: adminEmail,
+    subject: `Contact Us: ${cleanSubject}`,
+    text,
+    html,
+  });
+  console.log(`[ContactUs] Admin email sent successfully: ${info.messageId}`);
+  return info;
 };
 
 /**

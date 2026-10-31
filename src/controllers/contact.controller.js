@@ -2,11 +2,12 @@ const { ContactUs } = require("../models");
 const {
   getTransporter,
   generateContactEmailHtml,
+  sendContactUsEmail,
 } = require("../services/notifications/emailService");
 
 /**
  * Handles contact us submissions.
- * Stores the message in the ContactUs table and emails the admin..
+ * Stores the message in the ContactUs table and emails the admin (.env.CONTACT_ADMIN_EMAIL).
  */
 exports.createContactMessage = async (req, res, next) => {
   try {
@@ -16,25 +17,30 @@ exports.createContactMessage = async (req, res, next) => {
     }
 
     const record = await ContactUs.create({
-      name,
-      email,
-      subject,
-      message,
+      name: String(name).trim(),
+      email: String(email).trim(),
+      subject: String(subject).trim(),
+      message: String(message).trim(),
       created_at: new Date(),
       updated_at: new Date(),
     });
 
-    // Send email to admin
-    const transporter = getTransporter();
-    const adminEmail = process.env.CONTACT_ADMIN_EMAIL || process.env.EMAIL_USER;
-    const html = generateContactEmailHtml({ name, email, subject, message });
-    await transporter.sendMail({
-      from: `Venpaa Bookshop <${process.env.EMAIL_USER}>`,
-      replyTo: `${name} <${email}>`,
-      to: adminEmail,
-      subject: `Contact Us: ${subject}`,
-      html,
-    });
+    // Send email with contact us data to admin (.env.CONTACT_ADMIN_EMAIL)
+    try {
+      await sendContactUsEmail({
+        name: record.name,
+        email: record.email,
+        subject: record.subject,
+        message: record.message,
+        id: record.id,
+        created_at: record.created_at,
+      });
+    } catch (mailError) {
+      console.error(
+        `[ContactUs] Failed to send email to admin for message #${record.id}:`,
+        mailError,
+      );
+    }
 
     return res.status(201).json({ message: "Message received", id: record.id });
   } catch (e) {

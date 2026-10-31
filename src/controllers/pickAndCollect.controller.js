@@ -103,7 +103,7 @@ function buildStockKey(prodCode, location) {
   return `${normalizeKey(prodCode)}::${normalizeKey(location)}`;
 }
 
-async function serializeRows(rows) {
+async function serializeRows(rows, requestedType = null) {
   if (!rows.length) return [];
 
   const prodCodes = [
@@ -174,6 +174,42 @@ async function serializeRows(rows) {
     const item = row.toJSON ? row.toJSON() : row;
     const normalizedProdCode = normalizeKey(item.prod_code);
     const normalizedLocation = normalizeKey(item.location);
+    const product = normalizedProdCode
+      ? productMap.get(normalizedProdCode) || null
+      : null;
+
+    const rowType = Number(item.type || 0);
+    const effectiveType = requestedType ? Number(requestedType) : rowType;
+    const isBnpl = effectiveType === 3 || effectiveType === 4;
+
+    const pickedQty = Number(item.picked_qty || 0);
+    const originalPrice = parseFloat(product?.selling_price || 0);
+    const originalSubTotal = originalPrice * (pickedQty || 1);
+
+    const discountAmount = isBnpl ? 0 : Number(item.discount_amount || 0);
+    const couponCode = isBnpl ? null : item.coupon_code;
+
+    let netAmount = Number(item.net_amount || 0);
+    if (isBnpl) {
+      if (originalSubTotal > 0) {
+        netAmount = originalSubTotal;
+      } else if (Number(item.discount_amount || 0) > 0) {
+        netAmount = netAmount + Number(item.discount_amount);
+      }
+    }
+
+    const subTotal = isBnpl ? (originalSubTotal || netAmount) : (netAmount + discountAmount);
+
+    let productToReturn = product;
+    if (isBnpl && product) {
+      productToReturn = {
+        ...product,
+        discounted_price: originalPrice,
+        discount: 0,
+        dis_per: 0,
+        productDiscounts: [],
+      };
+    }
 
     return {
       id: item.id,
@@ -181,18 +217,19 @@ async function serializeRows(rows) {
       prod_code: item.prod_code,
       location: item.location,
       location_name: item.location_name,
-      type: Number(item.type || 0),
+      type: rowType,
       type_name: item.type_name,
-      picked_qty: Number(item.picked_qty || 0),
+      picked_qty: pickedQty,
       status: item.status,
-      coupon_code: item.coupon_code,
-      discount_amount: Number(item.discount_amount || 0),
-      net_amount: Number(item.net_amount || 0),
+      coupon_code: couponCode,
+      discount_amount: discountAmount,
+      total: subTotal,
+      sub_total: subTotal,
+      net_amount: netAmount,
+      net_total: netAmount,
       created_at: item.created_at || null,
       updated_at: item.updated_at || null,
-      product: normalizedProdCode
-        ? productMap.get(normalizedProdCode) || null
-        : null,
+      product: productToReturn,
       location_details: normalizedLocation
         ? locationMap.get(normalizedLocation) || null
         : null,
@@ -831,6 +868,10 @@ exports.listMyPickAndCollects = async (req, res, next) => {
     if (status) {
       where.status = status;
     }
+    const type = Number(req.query.type || req.query.checkout_type || 0);
+    if (type) {
+      where.type = type;
+    }
 
     const rows = await PickAndCollect.findAll({
       where,
@@ -838,7 +879,7 @@ exports.listMyPickAndCollects = async (req, res, next) => {
     });
 
     res.json({
-      items: await serializeRows(rows),
+      items: await serializeRows(rows, type || null),
     });
   } catch (e) {
     next(e);
