@@ -66,9 +66,7 @@
       "post": {
         "summary": "PayHere Notify URL",
         "description": "Public server-to-server PayHere IPN. PayHere POSTs application/x-www-form-urlencoded fields. The backend verifies md5sig = UPPER(md5(merchant_id + order_id + payhere_amount + payhere_currency + status_code + UPPER(md5(merchant_secret)))), checks amount against the stored order, then updates payment_status and payment_payload. status_code: 2 success, 0 pending, -1 canceled, -2 failed, -3 chargedback. Do not confirm payment from return_url or the mobile SDK callback.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -102,13 +100,7 @@
                   },
                   "status_code": {
                     "type": "string",
-                    "enum": [
-                      "2",
-                      "0",
-                      "-1",
-                      "-2",
-                      "-3"
-                    ],
+                    "enum": ["2", "0", "-1", "-2", "-3"],
                     "description": "2 = success, 0 = pending, -1 = canceled, -2 = failed, -3 = chargedback"
                   },
                   "md5sig": {
@@ -145,9 +137,7 @@
       "get": {
         "summary": "PayHere Return URL",
         "description": "Browser/SDK return acknowledgement after payment. PayHere does not send payment status here. Frontend must poll POST /api/v1/checkout/success or /api/v1/pick-and-collect/success until payment_status is success or failed.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "parameters": [
           {
             "in": "query",
@@ -182,9 +172,7 @@
       "post": {
         "summary": "PayHere Return URL",
         "description": "Browser/SDK return acknowledgement after payment. PayHere does not send payment status here. Frontend must poll the success endpoint.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -226,9 +214,7 @@
       "get": {
         "summary": "PayHere Cancel URL",
         "description": "Browser/SDK cancel acknowledgement. It is not the payment source of truth; notify IPN and Retrieval API are.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "parameters": [
           {
             "in": "query",
@@ -266,9 +252,7 @@
       "post": {
         "summary": "PayHere Cancel URL",
         "description": "Browser/SDK cancel acknowledgement. It is not the payment source of truth; notify IPN and Retrieval API are.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
@@ -313,9 +297,7 @@
       "post": {
         "summary": "Mintpay Success URL",
         "description": "URL where users are redirected after successful Mintpay payment.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "responses": {
           "200": {
             "description": "OK"
@@ -327,9 +309,7 @@
       "post": {
         "summary": "Mintpay Failed URL",
         "description": "URL where users are redirected if Mintpay payment fails.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "responses": {
           "200": {
             "description": "OK"
@@ -341,9 +321,7 @@
       "get": {
         "summary": "Koko Return URL (Frontend Redirect)",
         "description": "Browser redirect after Koko payment (success or failure). Frontend must call POST /api/v1/payment/koko/return with order_id to verify with Koko backend via orderView API. Do not trust this redirect alone.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "parameters": [
           {
             "in": "query",
@@ -366,12 +344,7 @@
             "name": "status",
             "schema": {
               "type": "string",
-              "enum": [
-                "SUCCESS",
-                "FAILED",
-                "FAILURE",
-                "CANCELED"
-              ]
+              "enum": ["SUCCESS", "FAILED", "FAILURE", "CANCELED"]
             }
           }
         ],
@@ -414,17 +387,13 @@
       "post": {
         "summary": "Koko Return URL (Frontend Redirect)",
         "description": "Frontend posts order_id to verify payment with Koko backend.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "order_id"
-                ],
+                "required": ["order_id"],
                 "properties": {
                   "order_id": {
                     "type": "string"
@@ -478,9 +447,7 @@
       "get": {
         "summary": "Koko Cancel URL (Frontend Redirect)",
         "description": "Browser redirect when user cancels Koko payment. Frontend should call POST /api/v1/payment/koko/cancel to update order status.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "parameters": [
           {
             "in": "query",
@@ -524,17 +491,13 @@
       "post": {
         "summary": "Koko Cancel URL (Frontend Redirect)",
         "description": "Frontend posts order_id to update order status to canceled.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "order_id"
-                ],
+                "required": ["order_id"],
                 "properties": {
                   "order_id": {
                     "type": "string"
@@ -573,21 +536,14 @@
       "post": {
         "summary": "Koko Response URL (Server-to-Server Callback)",
         "description": "Koko backend calls this endpoint directly after payment completion. This is the PRIMARY verification method - signature is verified with Koko public key. Updates payment_status and payment_payload immediately.",
-        "tags": [
-          "Payment"
-        ],
+        "tags": ["Payment"],
         "requestBody": {
           "required": true,
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "orderId",
-                  "trnId",
-                  "status",
-                  "signature"
-                ],
+                "required": ["orderId", "trnId", "status", "signature"],
                 "properties": {
                   "orderId": {
                     "type": "string",
@@ -641,9 +597,7 @@
       "get": {
         "summary": "Health check",
         "description": "Check if the API is running and healthy",
-        "tags": [
-          "System"
-        ],
+        "tags": ["System"],
         "responses": {
           "200": {
             "description": "API is healthy",
@@ -671,9 +625,7 @@
     "/api/v1/departments": {
       "get": {
         "summary": "List departments",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -700,9 +652,7 @@
     "/api/v1/departments/{id}": {
       "get": {
         "summary": "Get department by id",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -726,9 +676,7 @@
     "/api/v1/categories": {
       "get": {
         "summary": "List categories",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -777,9 +725,7 @@
     "/api/v1/categories/{id}": {
       "get": {
         "summary": "Get category by id",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -803,9 +749,7 @@
     "/api/v1/subcategories": {
       "get": {
         "summary": "List subcategories",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -846,9 +790,7 @@
     "/api/v1/subcategories/{id}": {
       "get": {
         "summary": "Get subcategories by category code, or get one subcategory by id/code",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -874,9 +816,7 @@
       "get": {
         "summary": "List publishers",
         "description": "Each publisher includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -911,9 +851,7 @@
       "get": {
         "summary": "Get publisher by id or pub_code",
         "description": "Response includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -938,9 +876,7 @@
       "get": {
         "summary": "Get all books linked to a publisher id or pub_code",
         "description": "Response publisher payload includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -966,9 +902,7 @@
       "get": {
         "summary": "List authors",
         "description": "Each author includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "q",
@@ -1003,9 +937,7 @@
       "get": {
         "summary": "Get author by id or auth_code",
         "description": "Response includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -1030,9 +962,7 @@
       "get": {
         "summary": "Get all books linked to an author id or auth_code",
         "description": "Response author payload includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Master"
-        ],
+        "tags": ["Master"],
         "parameters": [
           {
             "name": "id",
@@ -1057,19 +987,14 @@
     "/api/v1/custom-navitems": {
       "get": {
         "summary": "List custom navigation items",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "item_type",
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "department",
-                "category"
-              ]
+              "enum": ["department", "category"]
             }
           },
           {
@@ -1089,26 +1014,18 @@
       },
       "post": {
         "summary": "Create a new custom navigation item",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "item_type",
-                  "ref_code"
-                ],
+                "required": ["item_type", "ref_code"],
                 "properties": {
                   "item_type": {
                     "type": "string",
-                    "enum": [
-                      "department",
-                      "category"
-                    ]
+                    "enum": ["department", "category"]
                   },
                   "ref_code": {
                     "type": "string"
@@ -1139,9 +1056,7 @@
     "/api/v1/carousels": {
       "get": {
         "summary": "List carousels",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "placement_key",
@@ -1166,19 +1081,14 @@
       },
       "post": {
         "summary": "Create a new carousel",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "image",
-                  "placement_key"
-                ],
+                "required": ["image", "placement_key"],
                 "properties": {
                   "image": {
                     "type": "string"
@@ -1216,9 +1126,7 @@
     "/api/v1/carousels/{id}": {
       "put": {
         "summary": "Update carousel",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "id",
@@ -1266,9 +1174,7 @@
       },
       "delete": {
         "summary": "Delete carousel",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "id",
@@ -1289,9 +1195,7 @@
     "/api/v1/banners": {
       "get": {
         "summary": "List banners",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "is_active",
@@ -1312,10 +1216,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "web",
-                "mobile"
-              ]
+              "enum": ["web", "mobile"]
             }
           }
         ],
@@ -1327,18 +1228,14 @@
       },
       "post": {
         "summary": "Create a new banner",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "image"
-                ],
+                "required": ["image"],
                 "properties": {
                   "image": {
                     "type": "string"
@@ -1351,10 +1248,7 @@
                   },
                   "orientation": {
                     "type": "string",
-                    "enum": [
-                      "web",
-                      "mobile"
-                    ]
+                    "enum": ["web", "mobile"]
                   },
                   "link": {
                     "type": "string"
@@ -1380,9 +1274,7 @@
     "/api/v1/banners/{id}": {
       "put": {
         "summary": "Update banner",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "id",
@@ -1410,10 +1302,7 @@
                   },
                   "orientation": {
                     "type": "string",
-                    "enum": [
-                      "web",
-                      "mobile"
-                    ]
+                    "enum": ["web", "mobile"]
                   },
                   "link": {
                     "type": "string"
@@ -1437,9 +1326,7 @@
       },
       "delete": {
         "summary": "Delete banner",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "id",
@@ -1461,9 +1348,7 @@
       "get": {
         "summary": "List product discounts",
         "description": "Returns paginated product discounts with product info. Filterable by department, category, sub_category and free-text search (q).",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "department",
@@ -1615,18 +1500,14 @@
     "/api/v1/discounts/save": {
       "post": {
         "summary": "Save or update product discount",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code"
-                ],
+                "required": ["prod_code"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -1679,18 +1560,14 @@
     "/api/v1/discounts/delete": {
       "delete": {
         "summary": "Delete product discounts (single or bulk)",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "ids"
-                ],
+                "required": ["ids"],
                 "properties": {
                   "ids": {
                     "oneOf": [
@@ -1738,9 +1615,7 @@
     "/api/v1/sections/{type}": {
       "get": {
         "summary": "Get website section products",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "type",
@@ -1767,9 +1642,7 @@
       },
       "put": {
         "summary": "Update website section products",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
@@ -1817,9 +1690,7 @@
       "get": {
         "summary": "Get website details",
         "description": "Returns current website configuration including social links, logos, contact info, and locations.",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "responses": {
           "200": {
             "description": "OK",
@@ -1844,9 +1715,7 @@
       "put": {
         "summary": "Update website details",
         "description": "Updates or creates the website configuration.",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
@@ -1885,9 +1754,7 @@
     "/api/v1/coupons": {
       "get": {
         "summary": "List coupons",
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "parameters": [
           {
             "name": "code",
@@ -1919,20 +1786,14 @@
       },
       "post": {
         "summary": "Create coupon",
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "code",
-                  "discount_type",
-                  "discount_value"
-                ],
+                "required": ["code", "discount_type", "discount_value"],
                 "properties": {
                   "code": {
                     "type": "string"
@@ -1942,10 +1803,7 @@
                   },
                   "discount_type": {
                     "type": "string",
-                    "enum": [
-                      "fixed",
-                      "percentage"
-                    ]
+                    "enum": ["fixed", "percentage"]
                   },
                   "discount_value": {
                     "type": "number"
@@ -1994,9 +1852,7 @@
     "/api/v1/coupons/{id}": {
       "get": {
         "summary": "Get coupon details",
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "parameters": [
           {
             "name": "id",
@@ -2015,9 +1871,7 @@
       },
       "put": {
         "summary": "Update coupon",
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "parameters": [
           {
             "name": "id",
@@ -2042,10 +1896,7 @@
                   },
                   "discount_type": {
                     "type": "string",
-                    "enum": [
-                      "fixed",
-                      "percentage"
-                    ]
+                    "enum": ["fixed", "percentage"]
                   },
                   "discount_value": {
                     "type": "number"
@@ -2092,9 +1943,7 @@
       },
       "delete": {
         "summary": "Delete coupon",
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "parameters": [
           {
             "name": "id",
@@ -2115,9 +1964,7 @@
     "/api/v1/coupons/{id}/toggle": {
       "patch": {
         "summary": "Toggle coupon active status",
-        "tags": [
-          "Coupons"
-        ],
+        "tags": ["Coupons"],
         "parameters": [
           {
             "name": "id",
@@ -2138,9 +1985,7 @@
     "/api/v1/products": {
       "get": {
         "summary": "List products",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "q",
@@ -2213,9 +2058,7 @@
     "/api/v1/products/new/arrivals": {
       "get": {
         "summary": "Get new arrivals",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2243,9 +2086,7 @@
     "/api/v1/products/new/releases": {
       "get": {
         "summary": "Get new releases",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2273,9 +2114,7 @@
     "/api/v1/products/special/offers": {
       "get": {
         "summary": "Get special offers",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2303,9 +2142,7 @@
     "/api/v1/products/top/kids": {
       "get": {
         "summary": "Get top kids books",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2333,9 +2170,7 @@
     "/api/v1/products/search": {
       "get": {
         "summary": "Search products",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "q",
@@ -2365,9 +2200,7 @@
     "/api/v1/products/best/selling": {
       "get": {
         "summary": "Get best selling",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2395,9 +2228,7 @@
     "/api/v1/products/most/selling": {
       "get": {
         "summary": "Get most selling products (ONL, WEB, APP)",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2417,9 +2248,7 @@
     "/api/v1/products/code/{prod_code}": {
       "get": {
         "summary": "Get product by code",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "prod_code",
@@ -2443,9 +2272,7 @@
     "/api/v1/products/code/{prod_code}/pick-and-collect": {
       "get": {
         "summary": "Get pick and collect locations for a product",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "prod_code",
@@ -2469,9 +2296,7 @@
     "/api/v1/chathumina_web_katayam": {
       "get": {
         "summary": "Get best selling and new arrival products",
-        "tags": [
-          "Products"
-        ],
+        "tags": ["Products"],
         "parameters": [
           {
             "name": "limit",
@@ -2508,9 +2333,7 @@
     "/api/v1/sync/all": {
       "post": {
         "summary": "Sync all selected tables",
-        "tags": [
-          "Sync"
-        ],
+        "tags": ["Sync"],
         "parameters": [
           {
             "name": "full",
@@ -2530,9 +2353,7 @@
     "/api/v1/sync/{entity}": {
       "post": {
         "summary": "Sync one table",
-        "tags": [
-          "Sync"
-        ],
+        "tags": ["Sync"],
         "parameters": [
           {
             "name": "entity",
@@ -2553,9 +2374,7 @@
     "/api/v1/auth/register": {
       "post": {
         "summary": "Request OTP for registration",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
@@ -2589,9 +2408,7 @@
       "post": {
         "summary": "Login (OTP, or secured OTP-less review login)",
         "description": "Requests an OTP for the given email/phone. For allowlisted numbers (`MOBILE_BYPASS_LOGIN_PHONES`), on a native mobile platform (android/ios), within the review window, and with a valid `x-mobile-review-key`, the user is signed in immediately without an OTP. The response then matches `/api/v1/auth/verify`. This bypass applies to this endpoint only; `/register` always sends an OTP.",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "parameters": [
           {
             "name": "x-mobile-review-key",
@@ -2618,19 +2435,9 @@
                     "type": "string"
                   },
                   "platform": {
-                    "type": [
-                      "integer",
-                      "string"
-                    ],
+                    "type": ["integer", "string"],
                     "description": "Device platform. Native mobile only for OTP-less login. 1/android = Android, 2/ios = iOS, 3/web = Web (OTP required).",
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      "android",
-                      "ios",
-                      "web"
-                    ]
+                    "enum": [1, 2, 3, "android", "ios", "web"]
                   }
                 }
               }
@@ -2650,18 +2457,14 @@
     "/api/v1/auth/google-login": {
       "post": {
         "summary": "Google login",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "idToken"
-                ],
+                "required": ["idToken"],
                 "properties": {
                   "idToken": {
                     "type": "string"
@@ -2674,11 +2477,7 @@
                   },
                   "platform": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3
-                    ],
+                    "enum": [1, 2, 3],
                     "description": "1 = Android, 2 = iOS, 3 = Web"
                   }
                 }
@@ -2743,9 +2542,7 @@
     "/api/v1/auth/verify": {
       "post": {
         "summary": "Verify OTP and Sign In/Register",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
@@ -2765,11 +2562,7 @@
                   },
                   "platform": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3
-                    ],
+                    "enum": [1, 2, 3],
                     "description": "1 = Android, 2 = iOS, 3 = Web"
                   }
                 }
@@ -2831,9 +2624,7 @@
     "/api/v1/auth/me": {
       "get": {
         "summary": "Get current user profile",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "responses": {
           "200": {
             "description": "OK"
@@ -2842,9 +2633,7 @@
       },
       "delete": {
         "summary": "Deactivate / delete user account",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "security": [
           {
             "bearerAuth": []
@@ -2878,9 +2667,7 @@
     "/api/v1/profile/summary": {
       "get": {
         "summary": "Profile summary (user + orders/reviews/points)",
-        "tags": [
-          "Profile"
-        ],
+        "tags": ["Profile"],
         "responses": {
           "200": {
             "description": "User profile summary",
@@ -2952,9 +2739,7 @@
       },
       "put": {
         "summary": "Update profile summary details",
-        "tags": [
-          "Profile"
-        ],
+        "tags": ["Profile"],
         "security": [
           {
             "bearerAuth": []
@@ -3073,9 +2858,7 @@
     "/api/v1/cart": {
       "get": {
         "summary": "Get user's active cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3119,13 +2902,9 @@
                         "netTotalWithoutCod": {
                           "type": "number"
                         },
-                        "checkout_type": {
-                          "type": "integer",
-                          "description": "Payment type applied"
-                        },
-                        "type": {
-                          "type": "integer",
-                          "description": "Payment type applied"
+                        "bnplNetTotal": {
+                          "type": "number",
+                          "description": "Net total for BNPL payment methods (Mintpay / Koko) calculated as originalSubTotal + courierCharge (without product discounts or coupons)."
                         }
                       }
                     },
@@ -3140,43 +2919,11 @@
               }
             }
           }
-        },
-        "parameters": [
-          {
-            "name": "checkout_type",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "enum": [
-                1,
-                2,
-                3,
-                4
-              ]
-            },
-            "description": "Payment method type (1: COD, 2: Card/PayHere, 3: Mintpay, 4: Koko). When 3 or 4, prices are calculated using original retail price with zero discounts or coupons, and courier charge is added to net total."
-          },
-          {
-            "name": "type",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "enum": [
-                1,
-                2,
-                3,
-                4
-              ]
-            },
-            "description": "Alias for checkout_type"
-          }
-        ]
+        }
       },
       "post": {
         "summary": "Add item to cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3188,10 +2935,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "quantity"
-                ],
+                "required": ["prod_code", "quantity"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -3212,9 +2956,7 @@
       },
       "delete": {
         "summary": "Clear entire cart",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3230,9 +2972,7 @@
     "/api/v1/cart/items": {
       "post": {
         "summary": "Bulk ekak widihata cart items adding",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3257,16 +2997,11 @@
                           "type": "integer"
                         }
                       },
-                      "required": [
-                        "prod_code",
-                        "quantity"
-                      ]
+                      "required": ["prod_code", "quantity"]
                     }
                   }
                 },
-                "required": [
-                  "items"
-                ]
+                "required": ["items"]
               }
             }
           }
@@ -3281,9 +3016,7 @@
     "/api/v1/cart/product/{prod_code}": {
       "put": {
         "summary": "Update cart item quantity by product code",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3305,9 +3038,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "quantity"
-                ],
+                "required": ["quantity"],
                 "properties": {
                   "quantity": {
                     "type": "integer"
@@ -3325,9 +3056,7 @@
       },
       "delete": {
         "summary": "Remove item from cart by product code",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3353,9 +3082,7 @@
     "/api/v1/wishlist": {
       "get": {
         "summary": "Get user's wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -3369,9 +3096,7 @@
       },
       "post": {
         "summary": "Add item to wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -3383,9 +3108,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code"
-                ],
+                "required": ["prod_code"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -3403,9 +3126,7 @@
       },
       "delete": {
         "summary": "Clear wishlist",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -3421,9 +3142,7 @@
     "/api/v1/wishlist/products": {
       "get": {
         "summary": "Get wishlist products only",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -3439,9 +3158,7 @@
     "/api/v1/wishlist/product/{prod_code}/count": {
       "get": {
         "summary": "Count wishlists for a product",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "parameters": [
           {
             "name": "prod_code",
@@ -3465,9 +3182,7 @@
     "/api/v1/wishlist/items": {
       "post": {
         "summary": "Add wishlist items in bulk",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -3489,15 +3204,11 @@
                           "type": "string"
                         }
                       },
-                      "required": [
-                        "prod_code"
-                      ]
+                      "required": ["prod_code"]
                     }
                   }
                 },
-                "required": [
-                  "items"
-                ]
+                "required": ["items"]
               }
             }
           }
@@ -3512,9 +3223,7 @@
     "/api/v1/wishlist/product/{prod_code}": {
       "delete": {
         "summary": "Remove item from wishlist by product code",
-        "tags": [
-          "Wishlist"
-        ],
+        "tags": ["Wishlist"],
         "security": [
           {
             "bearerAuth": []
@@ -3540,9 +3249,7 @@
     "/api/v1/cart/quantity": {
       "put": {
         "summary": "Update cart item quantity by product code",
-        "tags": [
-          "Cart"
-        ],
+        "tags": ["Cart"],
         "security": [
           {
             "bearerAuth": []
@@ -3562,10 +3269,7 @@
                     "type": "integer"
                   }
                 },
-                "required": [
-                  "prod_code",
-                  "quantity"
-                ]
+                "required": ["prod_code", "quantity"]
               }
             }
           }
@@ -3580,9 +3284,7 @@
     "/api/v1/reviews/product/{prod_code}": {
       "get": {
         "summary": "List reviews for a product",
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "parameters": [
           {
             "name": "prod_code",
@@ -3606,9 +3308,7 @@
     "/api/v1/reviews/product/{prod_code}/average": {
       "get": {
         "summary": "Average rating point ekak gannawa product ekata",
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "parameters": [
           {
             "name": "prod_code",
@@ -3632,9 +3332,7 @@
     "/api/v1/reviews": {
       "post": {
         "summary": "Create or update a review",
-        "tags": [
-          "Reviews"
-        ],
+        "tags": ["Reviews"],
         "security": [
           {
             "bearerAuth": []
@@ -3646,10 +3344,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "rating"
-                ],
+                "required": ["prod_code", "rating"],
                 "properties": {
                   "prod_code": {
                     "type": "string"
@@ -3679,9 +3374,7 @@
       "get": {
         "summary": "Get all checkout orders (Admin/Management)",
         "description": "Returns all checkout records in the system, filterable by status. No authorization required.",
-        "tags": [
-          "Order Management"
-        ],
+        "tags": ["Order Management"],
         "parameters": [
           {
             "name": "status",
@@ -3704,11 +3397,7 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "enum": [
-                1,
-                2,
-                3
-              ]
+              "enum": [1, 2, 3]
             },
             "description": "Order Source Device: 1 = Android, 2 = Ios, 3 = Web"
           },
@@ -3717,10 +3406,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "delivery",
-                "pick_and_collect"
-              ]
+              "enum": ["delivery", "pick_and_collect"]
             },
             "description": "Filter by order fulfillment type"
           }
@@ -3810,9 +3496,7 @@
       "get": {
         "summary": "Get complete order details by ID",
         "description": "Returns full order details including products, totals, user, and source data. Can retrieve both checkouts and pick & collect records.",
-        "tags": [
-          "Order Management"
-        ],
+        "tags": ["Order Management"],
         "parameters": [
           {
             "name": "order_id",
@@ -3988,9 +3672,7 @@
       },
       "put": {
         "summary": "Update order status",
-        "tags": [
-          "Order Management"
-        ],
+        "tags": ["Order Management"],
         "parameters": [
           {
             "name": "order_id",
@@ -4008,9 +3690,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "status"
-                ],
+                "required": ["status"],
                 "properties": {
                   "status": {
                     "type": "string",
@@ -4046,9 +3726,7 @@
       "post": {
         "summary": "Confirm checkout success and update status",
         "description": "Frontend calls this after PayHere SDK/onCompleted, a browser return, Mintpay redirect, or COD. For PayHere (type=2) the backend never trusts the app: it uses the notify IPN first, then PayHere Retrieval API as a fallback. Returns 202 until payment_status is success or failed. Poll this endpoint; do not treat HTTP 202 or wrapper successful=true as a paid order. Load /checkout only after success=true.",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4060,10 +3738,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "order_id",
-                  "type"
-                ],
+                "required": ["order_id", "type"],
                 "properties": {
                   "order_id": {
                     "type": "string",
@@ -4072,11 +3747,7 @@
                   },
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3
-                    ],
+                    "enum": [1, 2, 3],
                     "description": "1 = COD (Delivery only), 2 = PayHere (verified via notify then Retrieval API), 3 = Mintpay"
                   },
                   "t": {
@@ -4128,9 +3799,7 @@
     "/api/v1/checkout": {
       "get": {
         "summary": "List user's checkouts and pick & collect requests",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4160,10 +3829,7 @@
                           },
                           "type": {
                             "type": "integer",
-                            "enum": [
-                              1,
-                              2
-                            ]
+                            "enum": [1, 2]
                           },
                           "type_name": {
                             "type": "string",
@@ -4256,10 +3922,7 @@
                           },
                           "payment_status": {
                             "type": "string",
-                            "enum": [
-                              "success",
-                              "pending"
-                            ],
+                            "enum": ["success", "pending"],
                             "description": "Payment status. COD (type 1) is always 'success'. Card/Mintpay start as 'pending' until confirmed.",
                             "example": "success"
                           },
@@ -4336,10 +3999,7 @@
                           },
                           "type": {
                             "type": "integer",
-                            "enum": [
-                              1,
-                              2
-                            ]
+                            "enum": [1, 2]
                           },
                           "type_name": {
                             "type": "string",
@@ -4384,9 +4044,7 @@
       },
       "post": {
         "summary": "Create checkout or start card payment flow",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4398,18 +4056,11 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "type"
-                ],
+                "required": ["type"],
                 "properties": {
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      1,
-                      2,
-                      3,
-                      4
-                    ],
+                    "enum": [1, 2, 3, 4],
                     "description": "1 = COD (Delivery only), 2 = PayHere (Card), 3 = Mintpay (BNPL), 4 = Koko (BNPL)"
                   },
                   "coupon_code": {
@@ -4493,11 +4144,7 @@
                             },
                             "type": {
                               "type": "integer",
-                              "enum": [
-                                1,
-                                2,
-                                3
-                              ],
+                              "enum": [1, 2, 3],
                               "description": "1 = COD, 2 = PayHere, 3 = Mintpay"
                             },
                             "type_name": {
@@ -4612,9 +4259,7 @@
       "get": {
         "summary": "View Order Invoice Bill HTML",
         "description": "Returns the order confirmation bill in HTML format suitable for viewing in a browser.",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4651,9 +4296,7 @@
     "/api/v1/checkout/payhere-hash": {
       "post": {
         "summary": "Create pending PayHere order and return live SDK fields",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4668,9 +4311,7 @@
                 "properties": {
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      2
-                    ],
+                    "enum": [2],
                     "description": "PayHere card payments use type 2."
                   },
                   "coupon_code": {
@@ -4715,9 +4356,7 @@
     "/api/v1/checkout/mintpay-checkout": {
       "post": {
         "summary": "Create pending Mintpay order",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4732,9 +4371,7 @@
                 "properties": {
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      3
-                    ],
+                    "enum": [3],
                     "description": "Optional. Mintpay payments always use type 3."
                   },
                   "coupon_code": {
@@ -4850,9 +4487,7 @@
       "post": {
         "summary": "Create pending Koko order (Buy Now Pay Later)",
         "description": "Creates a pending Koko BNPL order (type 4). Calculates the subtotal from the item's original price and calculates the net total by adding the courier charge with zero product or coupon discounts. Returns redirect_url and the price value object (totals).",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -4867,9 +4502,7 @@
                 "properties": {
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      4
-                    ],
+                    "enum": [4],
                     "description": "Optional. Koko payments always use type 4."
                   },
                   "coupon_code": {
@@ -4991,9 +4624,7 @@
       "post": {
         "summary": "Create Koko Pick & Collect order (Buy Now Pay Later)",
         "description": "Creates a pending Pick & Collect order for Koko payment (type 4). Returns the pick_and_collect_id and redirect_url to Koko payment page.",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -5005,11 +4636,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "location",
-                  "picked_qty"
-                ],
+                "required": ["prod_code", "location", "picked_qty"],
                 "properties": {
                   "prod_code": {
                     "type": "string",
@@ -5026,9 +4653,7 @@
                   },
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      4
-                    ],
+                    "enum": [4],
                     "description": "Payment type. Koko is always 4; the server forces type=4 for this endpoint, so sending it is optional."
                   },
                   "coupon_code": {
@@ -5093,9 +4718,7 @@
       "post": {
         "summary": "Create Mintpay Pick & Collect order",
         "description": "Creates a pending Pick & Collect order for Mintpay payment (type 3). Returns the pick_and_collect_id and amount to be used for Mintpay checkout.",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -5107,11 +4730,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "location",
-                  "picked_qty"
-                ],
+                "required": ["prod_code", "location", "picked_qty"],
                 "properties": {
                   "prod_code": {
                     "type": "string",
@@ -5179,9 +4798,7 @@
       "post": {
         "summary": "Verify Pick & Collect payment success",
         "description": "For PayHere (type=2), the backend verifies payment_status from notify and, if still pending, PayHere Retrieval API. For Mintpay (type=3) and Koko (type=4), payment_status set by the gateway callback is verified. Returns 202 until confirmed. Poll; do not treat pending as paid.",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -5193,10 +4810,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "order_id",
-                  "type"
-                ],
+                "required": ["order_id", "type"],
                 "properties": {
                   "order_id": {
                     "type": "string",
@@ -5205,11 +4819,7 @@
                   },
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      2,
-                      3,
-                      4
-                    ],
+                    "enum": [2, 3, 4],
                     "description": "2 = PayHere (notify + live Retrieval API), 3 = Mintpay, 4 = Koko"
                   },
                   "t": {
@@ -5261,9 +4871,7 @@
     "/api/v1/checkout/apply-coupon": {
       "post": {
         "summary": "Apply coupon to current active cart",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -5275,9 +4883,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "coupon_code"
-                ],
+                "required": ["coupon_code"],
                 "properties": {
                   "coupon_code": {
                     "type": "string"
@@ -5370,9 +4976,7 @@
     "/api/v1/checkout/{order_id}/status": {
       "put": {
         "summary": "Update checkout status",
-        "tags": [
-          "Checkout"
-        ],
+        "tags": ["Checkout"],
         "security": [
           {
             "bearerAuth": []
@@ -5394,9 +4998,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "status"
-                ],
+                "required": ["status"],
                 "properties": {
                   "status": {
                     "type": "string"
@@ -5422,18 +5024,14 @@
     "/api/v1/email/otp/send": {
       "post": {
         "summary": "Send public email OTP",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email"
-                ],
+                "required": ["email"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -5457,19 +5055,14 @@
     "/api/v1/email/otp/verify": {
       "post": {
         "summary": "Verify public email OTP",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "email",
-                  "code"
-                ],
+                "required": ["email", "code"],
                 "properties": {
                   "email": {
                     "type": "string",
@@ -5496,9 +5089,7 @@
     "/api/v1/email/send": {
       "post": {
         "summary": "Send email verification code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -5517,9 +5108,7 @@
     "/api/v1/email/verify": {
       "post": {
         "summary": "Verify email code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -5531,9 +5120,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "code"
-                ],
+                "required": ["code"],
                 "properties": {
                   "code": {
                     "type": "string"
@@ -5556,21 +5143,14 @@
     "/api/v1/contact-us": {
       "post": {
         "summary": "Submit a contact form",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "email",
-                  "subject",
-                  "message"
-                ],
+                "required": ["name", "email", "subject", "message"],
                 "properties": {
                   "name": {
                     "type": "string"
@@ -5618,9 +5198,7 @@
     "/api/v1/email/change/send": {
       "post": {
         "summary": "Send email change code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -5632,9 +5210,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "new_email"
-                ],
+                "required": ["new_email"],
                 "properties": {
                   "new_email": {
                     "type": "string",
@@ -5658,9 +5234,7 @@
     "/api/v1/email/change/verify": {
       "post": {
         "summary": "Verify email change code",
-        "tags": [
-          "Email"
-        ],
+        "tags": ["Email"],
         "security": [
           {
             "bearerAuth": []
@@ -5672,9 +5246,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "code"
-                ],
+                "required": ["code"],
                 "properties": {
                   "code": {
                     "type": "string"
@@ -5698,9 +5270,7 @@
       "get": {
         "summary": "Get user notifications",
         "description": "Returns the authenticated user's notifications newest-first.",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -5793,9 +5363,7 @@
     "/api/v1/notifications/read-all": {
       "patch": {
         "summary": "Mark all notifications as read",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -5811,9 +5379,7 @@
     "/api/v1/notifications/{id}/read": {
       "patch": {
         "summary": "Mark specific notification as read",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -5842,9 +5408,7 @@
     "/api/v1/notifications/token": {
       "post": {
         "summary": "Register device token",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -5856,9 +5420,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "token"
-                ],
+                "required": ["token"],
                 "properties": {
                   "token": {
                     "type": "string"
@@ -5866,14 +5428,7 @@
                   "platform": {
                     "type": "string",
                     "description": "Device platform code. Use android/ios/web or 1/2/3. Stored as string code: android=1, ios=2, web=3.",
-                    "enum": [
-                      "1",
-                      "2",
-                      "3",
-                      "android",
-                      "ios",
-                      "web"
-                    ]
+                    "enum": ["1", "2", "3", "android", "ios", "web"]
                   }
                 }
               }
@@ -5888,9 +5443,7 @@
       },
       "delete": {
         "summary": "Remove device token",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -5902,9 +5455,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "token"
-                ],
+                "required": ["token"],
                 "properties": {
                   "token": {
                     "type": "string"
@@ -5924,9 +5475,7 @@
     "/api/v1/notifications/test": {
       "post": {
         "summary": "Send test notification",
-        "tags": [
-          "Notifications"
-        ],
+        "tags": ["Notifications"],
         "security": [
           {
             "bearerAuth": []
@@ -5938,10 +5487,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "title",
-                  "body"
-                ],
+                "required": ["title", "body"],
                 "properties": {
                   "title": {
                     "type": "string"
@@ -5964,19 +5510,14 @@
     "/api/v1/app-version/check": {
       "post": {
         "summary": "Check app is latest version",
-        "tags": [
-          "App Version"
-        ],
+        "tags": ["App Version"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "platform",
-                  "current_version"
-                ],
+                "required": ["platform", "current_version"],
                 "properties": {
                   "platform": {
                     "type": "string",
@@ -6033,9 +5574,7 @@
     "/api/v1/shipping-address": {
       "get": {
         "summary": "Get my shipping address",
-        "tags": [
-          "Shipping Address"
-        ],
+        "tags": ["Shipping Address"],
         "security": [
           {
             "bearerAuth": []
@@ -6052,9 +5591,7 @@
       },
       "put": {
         "summary": "Create or update my shipping address",
-        "tags": [
-          "Shipping Address"
-        ],
+        "tags": ["Shipping Address"],
         "security": [
           {
             "bearerAuth": []
@@ -6143,9 +5680,7 @@
     "/api/v1/pick-and-collect": {
       "get": {
         "summary": "List my pick and collect requests",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -6165,11 +5700,7 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "enum": [
-                2,
-                3,
-                4
-              ]
+              "enum": [2, 3, 4]
             },
             "description": "Payment type filter (2: PayHere, 3: Mintpay, 4: Koko). When 3 or 4, values reflect original retail prices without discounts or coupons."
           }
@@ -6256,9 +5787,7 @@
       },
       "post": {
         "summary": "Create a pick and collect request or start PayHere flow",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -6270,12 +5799,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "location",
-                  "type",
-                  "picked_qty"
-                ],
+                "required": ["prod_code", "location", "type", "picked_qty"],
                 "properties": {
                   "prod_code": {
                     "type": "string",
@@ -6299,11 +5823,7 @@
                   },
                   "type": {
                     "type": "integer",
-                    "enum": [
-                      2,
-                      3,
-                      4
-                    ],
+                    "enum": [2, 3, 4],
                     "description": "2 = PayHere, 3 = Mintpay, 4 = Koko"
                   },
                   "coupon_code": {
@@ -6403,9 +5923,7 @@
     "/api/v1/pick-and-collect/apply-coupon": {
       "post": {
         "summary": "Apply coupon to pick and collect order",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -6417,11 +5935,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "coupon_code",
-                  "prod_code",
-                  "picked_qty"
-                ],
+                "required": ["coupon_code", "prod_code", "picked_qty"],
                 "properties": {
                   "coupon_code": {
                     "type": "string"
@@ -6504,9 +6018,7 @@
     "/api/v1/pick-and-collect/payhere-hash": {
       "post": {
         "summary": "Create pending PayHere pick-and-collect order and return live SDK fields",
-        "tags": [
-          "Pick & Collect"
-        ],
+        "tags": ["Pick & Collect"],
         "security": [
           {
             "bearerAuth": []
@@ -6518,11 +6030,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "prod_code",
-                  "location",
-                  "picked_qty"
-                ],
+                "required": ["prod_code", "location", "picked_qty"],
                 "properties": {
                   "prod_code": {
                     "type": "string",
@@ -6630,9 +6138,7 @@
       "get": {
         "summary": "Get all registered customer",
         "description": "Returns all registered users in the system. Password field is excluded.",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "responses": {
           "200": {
             "description": "A list of all registered customers",
@@ -6708,9 +6214,7 @@
       "get": {
         "summary": "Get all products ordered by a customer",
         "description": "Returns a flat list of all products the customer has ordered, grouped by order. Covers both checkout orders and pick-and-collect orders, sorted newest first.",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "id",
@@ -6799,10 +6303,7 @@
                         "properties": {
                           "record_type": {
                             "type": "string",
-                            "enum": [
-                              "checkout",
-                              "pick_and_collect"
-                            ],
+                            "enum": ["checkout", "pick_and_collect"],
                             "example": "checkout"
                           },
                           "order_id": {
@@ -6920,19 +6421,14 @@
       "get": {
         "summary": "List specific authors / publishers",
         "description": "Returns paginated records filtered by type (author or publisher). Each nested author / publisher object includes the stored `language` code and the resolved `language_name` from the languages table.",
-        "tags": [
-          "Feature Author Publisher"
-        ],
+        "tags": ["Feature Author Publisher"],
         "parameters": [
           {
             "name": "type",
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "author",
-                "publisher"
-              ]
+              "enum": ["author", "publisher"]
             },
             "description": "Filter by type: author or publisher"
           },
@@ -7004,26 +6500,18 @@
       "post": {
         "summary": "Create a specific author or publisher record",
         "description": "Pass type and code. Position is auto-incremented per type independently. Author or publisher data is joined on list via association.",
-        "tags": [
-          "Feature Author Publisher"
-        ],
+        "tags": ["Feature Author Publisher"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "type",
-                  "code"
-                ],
+                "required": ["type", "code"],
                 "properties": {
                   "type": {
                     "type": "string",
-                    "enum": [
-                      "author",
-                      "publisher"
-                    ],
+                    "enum": ["author", "publisher"],
                     "description": "Record type — author or publisher",
                     "example": "author"
                   },
@@ -7128,9 +6616,7 @@
       "put": {
         "summary": "Update a record (including position)",
         "description": "Updates a record. If position is provided, it re-orders within the same type group (positions stay sequential 1, 2, 3...). If omitted, the record is fetched without changes.",
-        "tags": [
-          "Feature Author Publisher"
-        ],
+        "tags": ["Feature Author Publisher"],
         "parameters": [
           {
             "name": "id",
@@ -7231,18 +6717,14 @@
       "delete": {
         "summary": "Delete specific author or publisher records (single or bulk)",
         "description": "Deletes one or more records by ID. After deletion, remaining records are automatically re-sequenced per type independently (positions reset to 1, 2, 3 ... within each type group).",
-        "tags": [
-          "Feature Author Publisher"
-        ],
+        "tags": ["Feature Author Publisher"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "ids"
-                ],
+                "required": ["ids"],
                 "properties": {
                   "ids": {
                     "oneOf": [
@@ -7255,11 +6737,7 @@
                         "items": {
                           "type": "integer"
                         },
-                        "example": [
-                          1,
-                          2,
-                          3
-                        ]
+                        "example": [1, 2, 3]
                       }
                     ],
                     "description": "Single ID or array of IDs to delete"
@@ -7320,9 +6798,7 @@
     "/api/v1/customers/by-date": {
       "get": {
         "summary": "Get users by date",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "date",
@@ -7349,20 +6825,14 @@
       "post": {
         "summary": "Create a stock request for an out-of-stock product",
         "description": "Stores a request (status = 0) for an out-of-stock product and emails the sales team (sales@venpaa.lk) with the product code/name and customer details.",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "name",
-                  "email",
-                  "prod_code"
-                ],
+                "required": ["name", "email", "prod_code"],
                 "properties": {
                   "name": {
                     "type": "string",
@@ -7424,9 +6894,7 @@
       "get": {
         "summary": "List stock requests",
         "description": "Lists stock requests with optional status (0 = pending, 1 = notified) and prod_code filters, newest first.",
-        "tags": [
-          "Web Management"
-        ],
+        "tags": ["Web Management"],
         "parameters": [
           {
             "name": "page",
@@ -7452,10 +6920,7 @@
             "in": "query",
             "schema": {
               "type": "integer",
-              "enum": [
-                0,
-                1
-              ],
+              "enum": [0, 1],
               "description": "0 = pending, 1 = notified"
             }
           },
@@ -7505,10 +6970,7 @@
                           },
                           "status": {
                             "type": "integer",
-                            "enum": [
-                              0,
-                              1
-                            ]
+                            "enum": [0, 1]
                           },
                           "notified_at": {
                             "type": "string",
@@ -7557,18 +7019,14 @@
     "/api/v1/auth/apple-login": {
       "post": {
         "summary": "Apple login",
-        "tags": [
-          "Auth"
-        ],
+        "tags": ["Auth"],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": [
-                  "identityToken"
-                ],
+                "required": ["identityToken"],
                 "properties": {
                   "identityToken": {
                     "type": "string",
@@ -7719,9 +7177,7 @@
           },
           "payment_status": {
             "type": "string",
-            "enum": [
-              "success"
-            ],
+            "enum": ["success"],
             "example": "success"
           }
         }
@@ -7769,12 +7225,7 @@
           },
           "payment_status": {
             "type": "string",
-            "enum": [
-              "failed",
-              "canceled",
-              "chargedback",
-              "refunded"
-            ],
+            "enum": ["failed", "canceled", "chargedback", "refunded"],
             "example": "failed"
           }
         }
@@ -8094,10 +7545,7 @@
           },
           "isStock": {
             "type": "integer",
-            "enum": [
-              0,
-              1
-            ]
+            "enum": [0, 1]
           },
           "images": {
             "type": "array",
@@ -8159,10 +7607,7 @@
           },
           "isStock": {
             "type": "integer",
-            "enum": [
-              0,
-              1
-            ]
+            "enum": [0, 1]
           },
           "product": {
             "$ref": "#/components/schemas/Product"
@@ -8309,10 +7754,7 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "author",
-              "publisher"
-            ],
+            "enum": ["author", "publisher"],
             "example": "author"
           },
           "position": {

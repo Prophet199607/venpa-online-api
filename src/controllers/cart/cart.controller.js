@@ -29,9 +29,6 @@ async function getOrCreateActiveCart(userId) {
 exports.getCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const checkoutType = Number(req.query.checkout_type || req.query.type || 0);
-    const isBnpl = checkoutType === 3 || checkoutType === 4;
-
     const cart = await getOrCreateActiveCart(userId);
 
     const cartItems = await CartItem.findAll({
@@ -79,48 +76,35 @@ exports.getCart = async (req, res) => {
 
       const quantity = parseInt(item.quantity || 0, 10);
       const originalPrice = parseFloat(enrichedProduct?.selling_price || 0);
-      const discountedPrice = parseFloat(
-        enrichedProduct?.discounted_price || enrichedProduct?.selling_price || 0,
+      const price = parseFloat(
+        enrichedProduct?.discounted_price ||
+          enrichedProduct?.selling_price ||
+          0,
       );
-      const price = isBnpl ? originalPrice : discountedPrice;
       const weight = parseFloat(enrichedProduct?.weight || 0);
 
       subTotal += price * quantity;
       originalSubTotal += originalPrice * quantity;
       totalWeight += weight * quantity;
 
-      let productToReturn = enrichedProduct;
-      if (isBnpl && enrichedProduct) {
-        productToReturn = {
-          ...enrichedProduct,
-          discounted_price: originalPrice,
-          discount: 0,
-          dis_per: 0,
-          productDiscounts: [],
-        };
-      }
-
       return {
         quantity: item.quantity,
         current_available_stock: enrichedProduct?.current_available_stock || 0,
         isStock: enrichedProduct?.isStock || 0,
-        product: productToReturn,
+        product: enrichedProduct,
       };
     });
 
-    // Calculate COD Charge (COD charge does not apply to BNPL: Mintpay / Koko)
-    let codCharge = 0;
-    if (!isBnpl) {
-      const codChargeEntry = await CodValueCharge.findOne({
-        where: {
-          value_from: { [Op.lte]: subTotal },
-          value_to: { [Op.gte]: subTotal },
-        },
-      });
-      codCharge = parseFloat(codChargeEntry?.charge || 0);
-    }
+    // Calculate COD Charge
+    const codChargeEntry = await CodValueCharge.findOne({
+      where: {
+        value_from: { [Op.lte]: subTotal },
+        value_to: { [Op.gte]: subTotal },
+      },
+    });
+    const codCharge = parseFloat(codChargeEntry?.charge || 0);
 
-    // Calculate Courier Charge (based on total item weight)
+    // Calculate Courier Charge
     const courierChargeEntry = await CourierWeightCharge.findOne({
       where: {
         weight_from: { [Op.lte]: totalWeight },
@@ -129,19 +113,15 @@ exports.getCart = async (req, res) => {
     });
     const courierCharge = parseFloat(courierChargeEntry?.charge || 0);
 
-    const netTotalWithCod = isBnpl
-      ? subTotal + courierCharge
-      : subTotal + codCharge + courierCharge;
+    const netTotalWithCod = subTotal + codCharge + courierCharge;
     const netTotalWithoutCod = subTotal + courierCharge;
-
-    const productDiscountTotal = isBnpl
-      ? 0
-      : (originalSubTotal > subTotal ? originalSubTotal - subTotal : 0);
+    const productDiscountTotal =
+      originalSubTotal > subTotal ? originalSubTotal - subTotal : 0;
+    const bnplNetTotal = originalSubTotal + courierCharge;
 
     res.json({
       cart: {
         status: cart.status,
-        ...(checkoutType ? { checkout_type: checkoutType, type: checkoutType } : {}),
         originalSubTotal,
         productDiscountTotal,
         subTotal,
@@ -150,6 +130,7 @@ exports.getCart = async (req, res) => {
         courierCharge,
         netTotalWithCod,
         netTotalWithoutCod,
+        bnplNetTotal,
       },
       items: formattedItems,
     });
