@@ -568,7 +568,11 @@ async function createPickAndCollectResponse(userId, body, forcedType = null, req
       };
     }
 
-    if (mintpaySession.error) {
+    if (
+      mintpaySession.error ||
+      !mintpaySession.purchase_id ||
+      mintpaySession.purchase_id === "[object Object]"
+    ) {
       return { status: 500, body: { message: mintpaySession.error } };
     }
 

@@ -10,7 +10,9 @@ router.get("/payhere/cancel", paymentController.payhereCancel);
 router.post("/payhere/cancel", paymentController.payhereCancel);
 
 // Mintpay callback routes
+router.get("/mintpay/success", paymentController.mintpaySuccess);
 router.post("/mintpay/success", paymentController.mintpaySuccess);
+router.get("/mintpay/failed", paymentController.mintpayFailed);
 router.post("/mintpay/failed", paymentController.mintpayFailed);
 
 // Koko callback routes

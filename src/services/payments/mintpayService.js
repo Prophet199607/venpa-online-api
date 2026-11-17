@@ -82,8 +82,31 @@ function getCallbackUrls(req, orderId) {
 
 function unwrapData(payload) {
   if (!payload || typeof payload !== "object") return {};
-  if (payload.data && typeof payload.data === "object") return payload.data;
+  if (payload.data !== undefined && payload.data !== null) return payload.data;
   return payload;
+}
+
+function extractPurchaseId(responsePayload) {
+  if (!responsePayload) return null;
+  const candidates = [responsePayload.data, responsePayload];
+
+  for (const c of candidates) {
+    if (c === undefined || c === null) continue;
+    if (typeof c === "string" || typeof c === "number") {
+      const s = String(c).trim();
+      if (s && s !== "[object Object]") return s;
+    }
+    if (typeof c === "object") {
+      const val =
+        c.purchase_id || c.purchaseId || c.id || c.order_id || c.orderId;
+      if (val !== undefined && val !== null) {
+        const s = String(val).trim();
+        if (s && s !== "[object Object]") return s;
+      }
+    }
+  }
+
+  return null;
 }
 
 function normalizeStatus(status) {
@@ -227,15 +250,13 @@ async function createPurchase({ req, orderId, amount, user, body, items }) {
       JSON.stringify(response.data, null, 2),
     );
 
-    const data = unwrapData(response.data);
+    const purchaseId = extractPurchaseId(response.data);
 
-    if (response.data?.message !== "Success" || !data) {
+    if (response.data?.message !== "Success" || !purchaseId) {
       return {
         error: `Mintpay create purchase failed: ${response.data?.message || "Unknown error"} - ${JSON.stringify(response.data)}`,
       };
     }
-
-    const purchaseId = String(data);
     const baseUrl = getMintpayBaseUrl().replace("/user-order/api", "");
     const paymentUrl = `${baseUrl}/user-order/login/`;
 
@@ -305,7 +326,11 @@ async function getPurchaseStatus(purchaseId) {
 
     const data = unwrapData(response.data);
 
-    if (response.data?.message !== "Success" || !data) {
+    if (
+      response.data?.message !== "Success" ||
+      !data ||
+      typeof data !== "object"
+    ) {
       return {
         verified: false,
         status: "unknown",

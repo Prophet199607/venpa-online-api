@@ -952,8 +952,19 @@ async function processMintpayResponse(
     };
   }
 
-  if (mintpaySession.error) {
-    return { status: 500, body: { message: mintpaySession.error } };
+  if (
+    mintpaySession.error ||
+    !mintpaySession.purchase_id ||
+    mintpaySession.purchase_id === "[object Object]"
+  ) {
+    return {
+      status: 500,
+      body: {
+        message:
+          mintpaySession.error ||
+          "Failed to obtain valid purchase ID from Mintpay",
+      },
+    };
   }
 
   // Email & backoffice notification are sent AFTER payment confirmation
@@ -1371,7 +1382,8 @@ exports.listCheckouts = async (req, res, next) => {
         ? Number(totals.originalSubTotal || totals.subTotal || 0)
         : Number(totals.subTotal || 0);
       const courierCharge = Number(totals.courierCharge || 0);
-      const codCharge = !isBnpl && item.type === 1 ? Number(totals.codCharge || 0) : 0;
+      const codCharge =
+        !isBnpl && item.type === 1 ? Number(totals.codCharge || 0) : 0;
 
       const subTotal = total + courierCharge + codCharge;
       const discountAmount = isBnpl ? 0 : Number(totals.discountAmount || 0);
@@ -1745,7 +1757,10 @@ exports.getCheckoutBill = async (req, res, next) => {
 
         const isBnpl = pc.type === 3 || pc.type === 4;
         const unitPrice = isBnpl
-          ? Number(product?.selling_price || (Number(pc.net_amount || 0) / (Number(pc.picked_qty) || 1)))
+          ? Number(
+              product?.selling_price ||
+                Number(pc.net_amount || 0) / (Number(pc.picked_qty) || 1),
+            )
           : (Number(pc.net_amount || 0) + Number(pc.discount_amount || 0)) /
             Number(pc.picked_qty || 1);
         const subTotal = unitPrice * (pc.picked_qty || 1);

@@ -88,11 +88,22 @@ async function ensureOrderAssociations(record, isPickAndCollect) {
 
 function resolveStoredPurchaseId(record) {
   const stored = parseJsonField(record.payment_payload);
-  return stored?.purchase_id || stored?.purchaseId || null;
+  const id = stored?.purchase_id || stored?.purchaseId || null;
+  if (!id) return null;
+  const str = String(id).trim();
+  if (!str || str === "[object Object]") return null;
+  return str;
 }
 
-async function verifyWithMintpay(record) {
-  const purchaseId = resolveStoredPurchaseId(record);
+async function verifyWithMintpay(record, fallbackPurchaseId = null) {
+  let purchaseId = resolveStoredPurchaseId(record);
+  if (!purchaseId && fallbackPurchaseId) {
+    const trimmed = String(fallbackPurchaseId).trim();
+    if (trimmed && trimmed !== "[object Object]") {
+      purchaseId = trimmed;
+    }
+  }
+
   if (!purchaseId) {
     console.error(
       `❌ Mintpay verify: no stored purchase_id for order ${record.pick_and_collect_id || record.order_id}`,
@@ -107,17 +118,22 @@ async function verifyWithMintpay(record) {
 
   try {
     const purchase = await mintpayService.getPurchase(purchaseId);
-    const statusValue =
-      purchase?.status ??
-      purchase?.payment_status ??
-      purchase?.state ??
-      purchase?.purchase_status ??
-      "";
+    if (!purchase || !purchase.verified) {
+      return {
+        verified: false,
+        status: purchase?.status,
+        rawStatus: purchase?.rawStatus,
+        purchaseId,
+      };
+    }
+
     return {
       verified: true,
-      status: mintpayService.classifyStatus(statusValue),
-      rawStatus: statusValue,
+      status: purchase.status,
+      rawStatus: purchase.rawStatus,
       purchaseId,
+      orderId: purchase.orderId,
+      totalPrice: purchase.totalPrice,
     };
   } catch (error) {
     console.error(
@@ -209,7 +225,9 @@ async function confirmPayHereOrder(record, isPickAndCollect) {
 
   const currentStatus = String(record.payment_status || "").toLowerCase();
   if (currentStatus === "success") return record;
-  if (["failed", "canceled", "cancelled", "chargedback"].includes(currentStatus)) {
+  if (
+    ["failed", "canceled", "cancelled", "chargedback"].includes(currentStatus)
+  ) {
     return record;
   }
 
@@ -221,7 +239,9 @@ async function confirmPayHereOrder(record, isPickAndCollect) {
     const { payments } = await payhereService.searchPaymentsByOrderId(orderId);
     const payment = payhereService.pickBestPayment(payments);
     if (!payment) {
-      console.log(`⏳ PayHere retrieval found no payment yet for order ${orderId}`);
+      console.log(
+        `⏳ PayHere retrieval found no payment yet for order ${orderId}`,
+      );
       return record;
     }
 
@@ -292,7 +312,9 @@ exports.payhereNotify = async (req, res) => {
         md5sig: body.md5sig,
       })
     ) {
-      console.error("❌ PayHere notify: Invalid md5sig or merchant_id. Ignoring.");
+      console.error(
+        "❌ PayHere notify: Invalid md5sig or merchant_id. Ignoring.",
+      );
       return res.status(400).send("Invalid signature");
     }
 
@@ -300,7 +322,9 @@ exports.payhereNotify = async (req, res) => {
 
     const { record, isPickAndCollect } = await findOrderRecord(orderId);
     if (!record) {
-      console.warn(`⚠️ PayHere notify: No record found for order_id ${orderId}`);
+      console.warn(
+        `⚠️ PayHere notify: No record found for order_id ${orderId}`,
+      );
       return res.status(404).send("Order not found");
     }
 
@@ -332,9 +356,7 @@ exports.payhereNotify = async (req, res) => {
         payment_status: mappedStatus,
         updated_at: new Date(),
       });
-      console.log(
-        `ℹ️ Payment ${mappedStatus} recorded for order: ${orderId}`,
-      );
+      console.log(`ℹ️ Payment ${mappedStatus} recorded for order: ${orderId}`);
     }
 
     return res.status(200).send("OK");
@@ -370,8 +392,12 @@ exports.payhereCancel = (req, res) => {
 exports.mintpaySuccess = async (req, res) => {
   console.log("--- Mintpay Success Callback ---");
   try {
+    const callbackFields = mintpayService.extractCallbackFields(req);
     const order_id =
-      req.body?.order_id || req.query?.order_id || req.body?.merchantOrderId;
+      req.body?.order_id ||
+      req.query?.order_id ||
+      req.body?.merchantOrderId ||
+      callbackFields.order_id;
 
     if (!order_id) {
       console.warn("⚠️ Mintpay success redirect without order_id — ignored.");
@@ -382,21 +408,28 @@ exports.mintpaySuccess = async (req, res) => {
 
     const { record, isPickAndCollect } = await findOrderRecord(order_id);
     if (!record) {
-      console.warn(`⚠️ Mintpay success: no record found for order_id ${order_id}`);
+      console.warn(
+        `⚠️ Mintpay success: no record found for order_id ${order_id}`,
+      );
       return res.status(404).json({
         message: "Mintpay success redirect ignored: order not found",
       });
     }
 
-    const verification = await verifyWithMintpay(record);
+    const fallbackPurchaseId = callbackFields.purchase_id;
+    const verification = await verifyWithMintpay(record, fallbackPurchaseId);
 
     if (verification.status === "success") {
+      const existingPaymentPayload = parseJsonField(record.payment_payload);
       await handleOrderSuccess(record, isPickAndCollect, {
+        ...existingPaymentPayload,
         body: req.body,
         query: req.query,
         purchase_id: verification.purchaseId,
+        redirect_url: existingPaymentPayload?.redirect_url,
         mintpay_status: verification.rawStatus,
         verified_with_mintpay: true,
+        total_price: verification.totalPrice,
       });
       console.log(`✅ Mintpay payment verified & confirmed: ${order_id}`);
       return res.status(200).json({
@@ -456,7 +489,10 @@ exports.mintpaySuccess = async (req, res) => {
       payment_status: "pending",
     });
   } catch (error) {
-    console.error("❌ Error updating order from Mintpay success:", error.message);
+    console.error(
+      "❌ Error updating order from Mintpay success:",
+      error.message,
+    );
     return res.status(500).json({
       message: "Error processing Mintpay success callback",
     });
@@ -466,8 +502,12 @@ exports.mintpaySuccess = async (req, res) => {
 exports.mintpayFailed = async (req, res) => {
   console.log("--- Mintpay Failed Callback ---");
   try {
+    const callbackFields = mintpayService.extractCallbackFields(req);
     const order_id =
-      req.body?.order_id || req.query?.order_id || req.body?.merchantOrderId;
+      req.body?.order_id ||
+      req.query?.order_id ||
+      req.body?.merchantOrderId ||
+      callbackFields.order_id;
 
     if (!order_id) {
       console.warn("⚠️ Mintpay failed redirect without order_id — ignored.");
@@ -478,7 +518,9 @@ exports.mintpayFailed = async (req, res) => {
 
     const { record, isPickAndCollect } = await findOrderRecord(order_id);
     if (!record) {
-      console.warn(`⚠️ Mintpay failed: no record found for order_id ${order_id}`);
+      console.warn(
+        `⚠️ Mintpay failed: no record found for order_id ${order_id}`,
+      );
       return res.status(404).json({
         message: "Mintpay failed redirect ignored: order not found",
       });
@@ -495,15 +537,20 @@ exports.mintpayFailed = async (req, res) => {
       });
     }
 
-    const verification = await verifyWithMintpay(record);
+    const fallbackPurchaseId = callbackFields.purchase_id;
+    const verification = await verifyWithMintpay(record, fallbackPurchaseId);
 
     if (verification.status === "success") {
+      const existingPaymentPayload = parseJsonField(record.payment_payload);
       await handleOrderSuccess(record, isPickAndCollect, {
+        ...existingPaymentPayload,
         body: req.body,
         query: req.query,
         purchase_id: verification.purchaseId,
+        redirect_url: existingPaymentPayload?.redirect_url,
         mintpay_status: verification.rawStatus,
         verified_with_mintpay: true,
+        total_price: verification.totalPrice,
       });
       console.log(
         `✅ Mintpay verified SUCCESS despite fail redirect: ${order_id}`,
@@ -548,7 +595,10 @@ exports.mintpayFailed = async (req, res) => {
       payment_status: "pending",
     });
   } catch (error) {
-    console.error("❌ Error updating order from Mintpay failed:", error.message);
+    console.error(
+      "❌ Error updating order from Mintpay failed:",
+      error.message,
+    );
     return res.status(500).json({
       message: "Error processing Mintpay failed callback",
     });
@@ -580,7 +630,10 @@ async function verifyWithKoko(orderId) {
       signatureValid: result.signatureValid,
     };
   } catch (error) {
-    console.error(`❌ Koko verification request failed for order ${orderId}:`, error.message);
+    console.error(
+      `❌ Koko verification request failed for order ${orderId}:`,
+      error.message,
+    );
     return { verified: false, status: "unknown", rawStatus: null, orderId };
   }
 }
@@ -592,11 +645,17 @@ function parseKokoCallback(body) {
 exports.kokoReturn = async (req, res) => {
   console.log("--- Koko Return Callback (Frontend Redirect) ---");
   try {
-    const orderId = req.body?.orderId || req.query?.orderId || req.body?.order_id || req.query?.order_id;
+    const orderId =
+      req.body?.orderId ||
+      req.query?.orderId ||
+      req.body?.order_id ||
+      req.query?.order_id;
     const trnId = req.body?.trnId || req.query?.trnId;
     const status = req.body?.status || req.query?.status;
 
-    console.log(`📩 Koko return redirect: order=${orderId}, trnId=${trnId}, status=${status}`);
+    console.log(
+      `📩 Koko return redirect: order=${orderId}, trnId=${trnId}, status=${status}`,
+    );
 
     if (!orderId) {
       console.warn("⚠️ Koko return redirect without orderId — ignored.");
@@ -636,11 +695,17 @@ exports.kokoReturn = async (req, res) => {
 
     if (verification.status === "failed" || verification.status === "failure") {
       await record.update({
-        payment_payload: { source: "koko_return_redirect", body: req.body, query: req.query },
+        payment_payload: {
+          source: "koko_return_redirect",
+          body: req.body,
+          query: req.query,
+        },
         payment_status: "failed",
         updated_at: new Date(),
       });
-      console.warn(`❌ Koko reports FAILED for order ${orderId} on return redirect.`);
+      console.warn(
+        `❌ Koko reports FAILED for order ${orderId} on return redirect.`,
+      );
       return res.status(200).json({
         message: "Koko reports this payment as failed",
         order_id: orderId,
@@ -651,11 +716,17 @@ exports.kokoReturn = async (req, res) => {
 
     if (verification.status === "canceled") {
       await record.update({
-        payment_payload: { source: "koko_return_redirect", body: req.body, query: req.query },
+        payment_payload: {
+          source: "koko_return_redirect",
+          body: req.body,
+          query: req.query,
+        },
         payment_status: "canceled",
         updated_at: new Date(),
       });
-      console.warn(`⚠️ Koko reports CANCELED for order ${orderId} on return redirect.`);
+      console.warn(
+        `⚠️ Koko reports CANCELED for order ${orderId} on return redirect.`,
+      );
       return res.status(200).json({
         message: "Koko reports this payment as canceled",
         order_id: orderId,
@@ -665,7 +736,9 @@ exports.kokoReturn = async (req, res) => {
     }
 
     if (!verification.verified) {
-      console.error(`❌ Koko return could NOT be verified for order ${orderId}. Order left pending.`);
+      console.error(
+        `❌ Koko return could NOT be verified for order ${orderId}. Order left pending.`,
+      );
     } else {
       console.log(`⏳ Koko still pending for order ${orderId}.`);
     }
@@ -688,7 +761,11 @@ exports.kokoReturn = async (req, res) => {
 exports.kokoCancel = async (req, res) => {
   console.log("--- Koko Cancel Callback (Frontend Redirect) ---");
   try {
-    const orderId = req.body?.orderId || req.query?.orderId || req.body?.order_id || req.query?.order_id;
+    const orderId =
+      req.body?.orderId ||
+      req.query?.orderId ||
+      req.body?.order_id ||
+      req.query?.order_id;
     const trnId = req.body?.trnId || req.query?.trnId;
 
     console.log(`📩 Koko cancel redirect: order=${orderId}, trnId=${trnId}`);
@@ -709,7 +786,9 @@ exports.kokoCancel = async (req, res) => {
     }
 
     if (record.payment_status === "success") {
-      console.log(`ℹ️ Order ${orderId} already paid; ignoring Koko cancel redirect.`);
+      console.log(
+        `ℹ️ Order ${orderId} already paid; ignoring Koko cancel redirect.`,
+      );
       return res.status(200).json({
         message: "Order already confirmed as paid; ignoring cancel redirect",
         order_id: orderId,
@@ -730,7 +809,9 @@ exports.kokoCancel = async (req, res) => {
         verified_with_koko: verification.verified,
         signature_valid: verification.signatureValid,
       });
-      console.log(`✅ Koko verified SUCCESS despite cancel redirect: ${orderId}`);
+      console.log(
+        `✅ Koko verified SUCCESS despite cancel redirect: ${orderId}`,
+      );
       return res.status(200).json({
         message: "Koko confirms payment succeeded",
         order_id: orderId,
@@ -740,7 +821,11 @@ exports.kokoCancel = async (req, res) => {
     }
 
     await record.update({
-      payment_payload: { source: "koko_cancel_redirect", body: req.body, query: req.query },
+      payment_payload: {
+        source: "koko_cancel_redirect",
+        body: req.body,
+        query: req.query,
+      },
       payment_status: "canceled",
       updated_at: new Date(),
     });
@@ -765,7 +850,9 @@ exports.kokoResponse = async (req, res) => {
     const parsed = parseKokoCallback(req.body);
     const { orderId, trnId, status, signature } = parsed;
 
-    console.log(`📩 Koko backend response: order=${orderId}, trnId=${trnId}, status=${status}`);
+    console.log(
+      `📩 Koko backend response: order=${orderId}, trnId=${trnId}, status=${status}`,
+    );
 
     if (!orderId) {
       console.warn("⚠️ Koko response without orderId — ignored.");
@@ -779,14 +866,19 @@ exports.kokoResponse = async (req, res) => {
     }
 
     // Verify response signature (critical for server-to-server)
-    const isValidSignature = kokoService.verifyResponseSignature(parsed, process.env.KOKO_PUBLIC_KEY);
+    const isValidSignature = kokoService.verifyResponseSignature(
+      parsed,
+      process.env.KOKO_PUBLIC_KEY,
+    );
     if (!isValidSignature) {
       console.error(`❌ Koko response signature INVALID for order ${orderId}`);
       return res.status(400).send("Invalid signature");
     }
 
     if (record.payment_status === "success" && status !== "SUCCESS") {
-      console.log(`ℹ️ Order ${orderId} already successful; ignoring ${status}.`);
+      console.log(
+        `ℹ️ Order ${orderId} already successful; ignoring ${status}.`,
+      );
       return res.status(200).send("OK");
     }
 
@@ -797,7 +889,8 @@ exports.kokoResponse = async (req, res) => {
       PENDING: "pending",
       CANCELED: "canceled",
     };
-    const normalizedStatus = statusMap[status?.toUpperCase()] || status?.toLowerCase() || "unknown";
+    const normalizedStatus =
+      statusMap[status?.toUpperCase()] || status?.toLowerCase() || "unknown";
 
     if (normalizedStatus === "success") {
       await handleOrderSuccess(record, isPickAndCollect, {
@@ -815,7 +908,9 @@ exports.kokoResponse = async (req, res) => {
         payment_status: normalizedStatus,
         updated_at: new Date(),
       });
-      console.log(`⚠️ Koko ${normalizedStatus.toUpperCase()} recorded via backend callback: ${orderId}`);
+      console.log(
+        `⚠️ Koko ${normalizedStatus.toUpperCase()} recorded via backend callback: ${orderId}`,
+      );
       return res.status(200).send("OK");
     }
 
